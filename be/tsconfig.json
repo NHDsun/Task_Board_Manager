@@ -9,16 +9,15 @@
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
+    "rootDir": "./src",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
     "noImplicitAny": false,
+    "types": ["node"],
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false,
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "noFallthroughCasesInSwitch": false
   },
   "include": ["src/**/*"]
 }

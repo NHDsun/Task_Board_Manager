@@ -1,0 +1,30 @@
+# --- Thư mục thư viện & dependencies ---
+node_modules/
+
+# --- Thư mục Build / Output ---
+dist/
+build/
+out/
+.next/
+.nuxt/
+
+# --- Logs & Cache ---
+*.log
+.npm
+.eslintcache
+.parcel-cache
+
+# --- Lockfiles (Không format để tránh lệch hash/cấu trúc) ---
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# --- Cấu hình IDE & Hệ thống ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- File tĩnh / Minified ---
+public/
+*.min.js
+*.min.css
