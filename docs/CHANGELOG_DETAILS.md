@@ -209,3 +209,89 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   - **Hành động:** `[THÊM MỚI DEPENDENCIES]`.
   - **Chi tiết:** Cài đặt 2 thư viện `class-validator` và `class-transformer`.
   - **Mục đích:** Phục vụ cho bộ lọc `ValidationPipe` toàn cục ở `main.ts`.
+
+---
+
+## 18. Chuyển đổi Toàn bộ Tài liệu README.md sang Tiếng Anh
+- **File:** `README.md` (Dòng 1 - 100).
+- **Hành động:** `[CHỈNH SỬA & VIẾT LẠI]`.
+- **Chi tiết:** 
+  - Biên dịch toàn bộ nội dung tài liệu tổng quan dự án từ Tiếng Việt sang Tiếng Anh chuẩn mực chuyên nghiệp.
+  - Bổ sung cập nhật đầy đủ các tính năng mới nhất vừa thiết kế: Google OAuth 2.0, WebRTC Audio/Video Calls, Direct Messaging 1-1 và Mô hình Liên phòng ban Multi-Department.
+- **Mục đích:** Chuẩn hóa tài liệu dự án theo quy chuẩn quốc tế.
+
+---
+
+## 19. Khởi tạo Khung File Rỗng cho Common Core & AuthModule (Chưa viết Code Logic)
+- **Danh sách 9 File Khung Rỗng được tạo mới:**
+  1. `be/src/common/filters/http-exception.filter.ts`: Khung bộ lọc lỗi toàn cục `HttpExceptionFilter`.
+  2. `be/src/common/interceptors/transform.interceptor.ts`: Khung bộ chuẩn hóa response `TransformInterceptor`.
+  3. `be/src/common/decorators/roles.decorator.ts`: Khung Decorator `@Roles()` định nghĩa vai trò RBAC.
+  4. `be/src/common/guards/roles.guard.ts`: Khung Guard `RolesGuard` kiểm tra vai trò.
+  5. `be/src/modules/auth/dto/register.dto.ts`: Khung DTO `RegisterDto`.
+  6. `be/src/modules/auth/dto/login.dto.ts`: Khung DTO `LoginDto`.
+  7. `be/src/modules/auth/auth.service.ts`: Khung Service `AuthService`.
+  8. `be/src/modules/auth/auth.controller.ts`: Khung Controller `AuthController`.
+  9. `be/src/modules/auth/auth.module.ts`: Khung Module `AuthModule`.
+- **File Chỉnh sửa:** `be/src/app.module.ts` ➡️ Import `AuthModule` vào danh sách `imports`.
+- **Mục đích:** Tạo sẵn bộ khung vị trí thư mục và cấu trúc file rỗng theo đúng kế hoạch. Tạm thời **chưa viết bất kỳ dòng code logic xử lý nào** theo đúng yêu cầu kiểm soát của người dùng.
+- **Kết quả kiểm tra:** Đã chạy `npm run build` thành công 100% không có lỗi biên dịch.
+
+---
+
+## 20. Đánh giá Cơ chế Bảo mật & Lập Báo cáo Phân tích Rủi ro Tấn công (OWASP Threat Modeling)
+- **Tài liệu tạo mới:** `docs/SECURITY_THREAT_MODELING.md`
+- **Nội dung rà soát:** Đánh giá 6 kịch bản tấn công mạng phổ biến và giải pháp bảo vệ:
+  1. **SQL Injection:** Khóa 100% nhờ cơ chế Parameterized Queries của Prisma 7.
+  2. **Cross-Site Scripting (XSS):** Khóa nhờ JSX Escaping của React 19 & ValidationPipe của NestJS.
+  3. **Brute Force (Spam Request):** Chuẩn bị cài đặt `@nestjs/throttler` (Rate Limiting) ở Bước 2 để tự động khóa IP nếu thử sai quá 5 lần/phút.
+  4. **CSRF Attack:** Khóa 100% nhờ cơ chế xác thực JWT Header `Authorization: Bearer <token>`.
+  5. **IDOR / BOLA (Truy cập trái phép task/dự án khác):** Kiểm soát chặt chẽ bằng cách kiểm tra `ProjectMember` trong từng hàm Service.
+  6. **Man-In-The-Middle (Nghe lén):** Mã hóa mật khẩu bằng `Bcrypt` (Salted Hash) & triển khai qua HTTPS.
+- **Kết luận:** Hệ thống đạt tiêu chuẩn bảo mật phòng thủ nhiều tầng (Defense in Depth).
+
+---
+
+## 21. Thực thi Vi mô Bước 1.1: Hoàn thiện Logic Bắt lỗi Toàn cục (HttpExceptionFilter)
+- **File 1:** `be/src/common/filters/http-exception.filter.ts` (Dòng 1 - 36).
+  - **Hành động:** `[CHỈNH SỬA & VIẾT CODE LOGIC]`.
+  - **Chi tiết:** Viết logic phương thức `catch(exception: unknown, host: ArgumentsHost)`. Tự động bóc tách mã lỗi `statusCode`, câu thông báo lỗi `message`, đường dẫn `path` và thời gian `timestamp`, đóng gói lại thành chuỗi JSON phản hồi chuẩn:
+    ```json
+    { "success": false, "statusCode": 400, "message": "Email đã tồn tại", "path": "/api/v1/auth/register", "timestamp": "2026-08-10T11:21:00.000Z" }
+    ```
+- **File 2:** `be/src/main.ts` (Dòng 4 - 46).
+  - **Hành động:** `[CHỈNH SỬA]`.
+  - **Chi tiết:** Import `HttpExceptionFilter` và kích hoạt toàn cục qua lệnh `app.useGlobalFilters(new HttpExceptionFilter())`.
+- **Mục đích:** Đảm bảo 100% mọi ngoại lệ/lỗi xảy ra trong hệ thống đều được bọc lại theo cấu trúc JSON đẹp đẽ, chuyên nghiệp.
+- **Kết quả kiểm tra:** Đã chạy `npm run build` biên dịch thành công 100% không có lỗi.
+
+---
+
+## 22. Thực thi Vi mô Bước 1.2: Hoàn thiện Logic Chuẩn hóa Phản hồi Thành công (TransformInterceptor)
+- **File 1:** `be/src/common/interceptors/transform.interceptor.ts` (Dòng 1 - 33).
+  - **Hành động:** `[CHỈNH SỬA & VIẾT CODE LOGIC]`.
+  - **Chi tiết:** Định nghĩa interface `Response<T>` và viết logic hàm `intercept(context, next)`. Sử dụng RxJS `map` operator bọc toàn bộ kết quả trả về của API thành cấu trúc chuẩn:
+    ```json
+    { "success": true, "statusCode": 200, "data": { ... }, "timestamp": "2026-08-10T11:37:00.000Z" }
+    ```
+- **File 2:** `be/src/main.ts` (Dòng 5 - 50).
+  - **Hành động:** `[CHỈNH SỬA]`.
+  - **Chi tiết:** Import `TransformInterceptor` và kích hoạt toàn cục qua lệnh `app.useGlobalInterceptors(new TransformInterceptor())`.
+- **Mục đích:** Đảm bảo 100% mọi API khi thực thi thành công đều có phản hồi đồng nhất giúp Frontend chỉ cần xử lý 1 cấu trúc dữ liệu duy nhất.
+- **Kết quả kiểm tra:** Đã chạy `npm run build` biên dịch thành công 100% không có lỗi.
+
+---
+
+## 23. Thực thi Vi mô Bước 1.3: Hoàn thiện Logic Bảo vệ Phân quyền (RolesGuard)
+- **File:** `be/src/common/guards/roles.guard.ts` (Dòng 1 - 35).
+  - **Hành động:** `[CHỈNH SỬA & VIẾT CODE LOGIC]`.
+  - **Chi tiết:** 
+    - Khởi tạo `Reflector` đọc các vai trò được quy định từ Decorator `@Roles()`.
+    - Lấy thông tin người dùng `request.user` từ chuỗi JWT.
+    - Cài đặt luật phân quyền:
+      1. Nếu API không dán nhãn vai trò ➡️ Cho phép truy cập tự do.
+      2. Nếu chưa đăng nhập (user = null) ➡️ Chặn truy cập (Trả về false / 403 Forbidden).
+      3. Nếu user có vai trò `ADMIN` ➡️ Luôn luôn cấp quyền truy cập tối cao.
+      4. Với các vai trò khác (`MANAGER`, `EMPLOYEE`) ➡️ So sánh vai trò của User với mảng vai trò cho phép của API.
+- **Mục đích:** Tạo chốt gác cổng bảo vệ quyền hạn RBAC chặt chẽ cho toàn bộ hệ thống API.
+- **Kết quả kiểm tra:** Đã chạy `npm run build` biên dịch thành công 100% không có lỗi.

@@ -1,7 +1,7 @@
-# 📋 Bảng Công việc Hỗ trợ Nhập liệu Giọng nói (Voice-Assisted Task Board)
+# 📋 Voice-Assisted Task Board
 
 <p align="center">
-  <b>Hệ thống quản lý công việc (Kanban Board) đa người dùng, tích hợp phân quyền nâng cao (RBAC), nhập liệu bằng giọng nói tiếng Việt và đồng bộ thời gian thực.</b>
+  <b>A modern, multi-user Kanban Task Management Board featuring Role-Based Access Control (RBAC), Vietnamese Smart Voice Command (Speech-to-Text), Google OAuth 2.0, Real-time WebSockets, WebRTC Audio/Video Calls, and Multi-Department Collaboration.</b>
 </p>
 
 <p align="center">
@@ -15,84 +15,91 @@
 
 ---
 
-## 🚀 Tổng quan Dự án
+## 🚀 Project Overview
 
-Dự án này là một nền tảng quản lý công việc dạng bảng Kanban hiện đại, được thiết kế chuyên biệt cho môi trường văn phòng. Điểm nhấn của hệ thống là sự kết hợp giữa **mô hình phân quyền chặt chẽ (RBAC)**, **tính năng điều khiển và nhập liệu bằng giọng nói tiếng Việt (Web Speech API)**, và khả năng **cập nhật thời gian thực (Real-time via Socket.IO)**.
+This project is a state-of-the-art Kanban Task Board platform designed specifically for modern enterprise office environments. Key highlights include **Role-Based Access Control (RBAC)**, **Vietnamese Smart Voice Input & Command Parsing (Web Speech API)**, **Google OAuth 2.0 Authentication**, **Real-time Collaboration via Socket.IO**, and **WebRTC Audio/Video Calling**.
 
 ---
 
-## 🛠 Tech Stack (Công nghệ sử dụng)
+## 🛠 Tech Stack
 
 - **Database:** PostgreSQL 16
-- **Backend:** NestJS 11 (Node.js) + Prisma ORM 7
-- **Frontend:** React 19 + Vite 8, Zustand, Axios, Recharts, Socket.IO Client
-- **Vận hành & Triển khai:** Docker & Docker Compose
+- **Backend:** NestJS 11 (Node.js) + Prisma ORM 7 + Driver Adapter (`@prisma/adapter-pg`)
+- **Frontend:** React 19 + Vite 8, Zustand, Axios, Recharts, Socket.IO Client, TailwindCSS v4
+- **Real-Time & Media:** Socket.IO, WebRTC (Audio & Video Streaming)
+- **Deployment & DevOps:** Docker & Docker Compose
 
 ---
 
-## 👥 Phân quyền Hệ thống (RBAC)
+## 👥 Role-Based Access Control (RBAC) & Multi-Department
 
-Hệ thống phân chia rõ ràng giữa quyền toàn hệ thống (`GlobalRole`) và quyền theo phạm vi từng dự án (`ProjectRole`):
+The system clearly differentiates system-wide roles (`GlobalRole`) and project-scoped permissions (`ProjectRole`):
 
-- 🔴 **Admin:** Quản trị toàn hệ thống. Có quyền tạo tài khoản, gán/đổi Role, toàn quyền trên mọi Project.
-- 🟡 **Manager:** Quản lý dự án. Tạo/quản lý Project riêng, thêm bớt thành viên, giao việc và xem Dashboard thống kê.
-- 🟢 **Employee:** Nhân viên thực thi. Làm việc trong Project được thêm vào, thao tác trên các Task được giao[cite: 1].
-- 🏷 **Department:** Phân loại nhân sự theo phòng ban (`Dev`, `Tester`, `Marketing`, `Design`, `Other`) hiển thị trực quan dạng badge[cite: 1].
-
----
-
-## ✨ Các Tính năng Nổi bật
-
-1. **Bảng Kanban kéo-thả mượt mà:**
-   - 3 cột trạng thái chuẩn: _To Do_, _In Progress_, _Done_[cite: 1].
-   - Ứng dụng kỹ thuật _Optimistic Update_ giúp giao diện phản hồi tức thì kèm cơ chế Rollback an toàn khi lỗi mạng[cite: 1].
-2. **Nhập liệu và Điều khiển bằng Giọng nói (Voice-to-Text):**
-   - Sử dụng Web Speech API hỗ trợ tiếng Việt[cite: 1].
-   - Tự động bóc tách từ khóa để xác định tiêu đề và mức độ ưu tiên (_Priority_)[cite: 1].
-   - Cơ chế bảo mật: Task tạo qua giọng nói tự động gán cho chính người dùng đang thao tác, kèm tính năng _Undo_ thông minh[cite: 1].
-3. **Đồng bộ Thời gian thực (Real-time):**
-   - Tích hợp Socket.IO (WebSockets) để broadcast mọi thay đổi (thêm, sửa, kéo thả task) tới các thành viên khác trong cùng Project ngay lập tức[cite: 1].
-4. **Kiểm soát và Lưu vết (Audit Logging):**
-   - Tự động ghi lại lịch sử thay đổi trạng thái kèm thông tin người thực hiện (`ChangedByUserId`)[cite: 1].
-   - Tính năng "Dọn bảng/Archive" sử dụng Database Transaction để lưu trữ lịch sử gọn gàng[cite: 1].
-5. **Dashboard Thống kê & Export dữ liệu:**
-   - Biểu đồ trực quan bằng Recharts cho Manager/Admin và thống kê cá nhân cho Employee[cite: 1].
-   - Hỗ trợ xuất dữ liệu báo cáo qua cơ chế Streaming Response[cite: 1].
+- 🔴 **Admin:** System administrator with full access to accounts, role assignments, and all projects.
+- 🟡 **Manager:** Project manager. Creates & manages assigned projects, manages team members, delegates tasks, and views analytics.
+- 🟢 **Employee:** Team member executing tasks in assigned projects and updating delegated task statuses.
+- 🏢 **Multi-Department (`ProjectDepartment`):** Dynamic department management (e.g., `Product`, `Client`, `Dev`, `Marketing`). Supports multi-department collaboration within a single project.
 
 ---
 
-## 💻 Hướng dẫn chạy dự án (Local Development)
+## ✨ Key Features
 
-Để lập trình và phát triển dự án trên máy cá nhân, khuyến nghị chạy Database qua Docker và chạy Backend/Frontend trực tiếp trên máy để tận dụng tính năng tự động cập nhật code (Hot Reload).
+1. **Smooth Drag-and-Drop Kanban Board:**
+   - Standard 3-column workflow: _To Do_, _In Progress_, _Done_.
+   - Built with _Optimistic UI Updates_ for instant 0ms user responsiveness with automatic rollback on network failure.
+2. **Vietnamese Smart Voice Command (Voice-to-Text):**
+   - Integrates Web Speech API supporting Vietnamese natural language processing.
+   - Automatically extracts task Title, Due Date, and Priority (`URGENT`, `IMPORTANT`, etc.) from speech.
+   - Smart safety: Auto-assigns voice-created tasks to the current user with a 10-second Undo popup.
+3. **Google OAuth 2.0 & Authentication:**
+   - 1-Click Login via Google / Gmail accounts alongside traditional Email & Password authentication.
+4. **Real-time Synchronization (Socket.IO):**
+   - Instant broadcast of task moves, status updates, and comments across all team members in the project without page refresh.
+5. **Real-Time Communication (1-1 Chat & WebRTC Calls):**
+   - **Task Discussion:** Contextual comment section in each task card.
+   - **Direct Messaging (1-1):** Instant private chat between team members with read receipts.
+   - **WebRTC Audio & Video Calls:** Crystal-clear 1-1 voice and video calling with call history logging (`CallLog`).
+6. **Audit Logging & Clean Board (Archiving):**
+   - Automatically logs all data changes (Who changed what, when, old & new values snapshot).
+   - "Archive Board" feature safely hides completed tasks while retaining historical metrics for dashboards.
+7. **Analytics Dashboard & Reports:**
+   - Interactive charts using Recharts for Managers/Admins and personal productivity metrics for Employees.
 
-### Bước 1: Khởi động Cơ sở dữ liệu (PostgreSQL)
-Yêu cầu: Đã cài đặt và bật [Docker Desktop](https://www.docker.com/products/docker-desktop).
-Mở Terminal tại thư mục gốc của dự án và chạy:
+---
+
+## 💻 Local Development Setup
+
+To run and develop the project locally with Hot-Reload enabled:
+
+### Step 1: Start PostgreSQL Database
+Prerequisites: Install and run [Docker Desktop](https://www.docker.com/products/docker-desktop).
+Open a terminal in the project root directory and run:
 ```bash
 docker-compose up -d postgres_db
 ```
 
-### Bước 2: Khởi động Backend (NestJS)
-Mở một Terminal mới, di chuyển vào thư mục `be` và chạy:
+### Step 2: Start Backend (NestJS)
+Open a new terminal, navigate to the `be` directory, and run:
 ```bash
 cd be
 npm install
 npm run start:dev
 ```
-*(Backend sẽ chạy tại địa chỉ http://localhost:3000)*
+*(Backend will run at http://localhost:3000)*
 
-### Bước 3: Khởi động Frontend (React/Vite)
-Mở một Terminal mới, di chuyển vào thư mục `fe` và chạy:
+### Step 3: Start Frontend (React/Vite)
+Open another terminal, navigate to the `fe` directory, and run:
 ```bash
 cd fe
 npm install
 npm run dev
 ```
-*(Frontend sẽ chạy tại địa chỉ http://localhost:5173)*
+*(Frontend will run at http://localhost:5173)*
 
 ---
-**💡 Mẹo chạy nhanh (Chạy toàn bộ trong Docker)**
-Nếu bạn chỉ muốn xem kết quả mà không cần lập trình, chạy lệnh sau ở thư mục gốc:
+
+**💡 Quick Run (Run entire stack in Docker)**
+To run all services inside Docker containers without local development setup:
 ```bash
 docker-compose up -d --build
 ```

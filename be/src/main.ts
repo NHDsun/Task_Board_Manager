@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import * as express from 'express';
 
 async function bootstrap() {
@@ -41,6 +43,12 @@ async function bootstrap() {
       forbidNonWhitelisted: false,
     }),
   );
+
+  // 4. Kích hoạt HttpExceptionFilter toàn cục để bắt lỗi và trả JSON đẹp
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // 5. Kích hoạt TransformInterceptor toàn cục để chuẩn hóa kết quả thành công
+  app.useGlobalInterceptors(new TransformInterceptor());
 
   await app.listen(process.env.PORT ?? 3000);
 }
