@@ -7,7 +7,6 @@ services:
     container_name: app_postgres
     restart: always
     environment:
-      # Lấy dữ liệu an toàn từ file .env ở root
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -15,6 +14,11 @@ services:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # 2. Backend NestJS 11
   backend_api:
@@ -26,11 +30,10 @@ services:
     ports:
       - '3000:3000'
     environment:
-      # Lấy dữ liệu an toàn từ file .env ở root
-      # Cấu hình Prisma kết nối tới container postgres_db
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}?schema=public
     depends_on:
-      - postgres_db
+      postgres_db:
+        condition: service_healthy
 
   # 3. Frontend React 19 + Vite 8
   frontend_web:
@@ -38,7 +41,6 @@ services:
       context: ./fe
       dockerfile: Dockerfile
       args:
-        # Bơm URL API từ file .env vào để React build
         - VITE_API_URL=${VITE_API_URL}
     container_name: app_frontend
     restart: always
