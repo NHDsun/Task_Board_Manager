@@ -5,26 +5,27 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/.NET-5C2D91?style=for-the-badge&logo=.net&logoColor=white" alt=".NET Core" />
+  <img src="https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS" />
+  <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
   <img src="https://img.shields.io/badge/React%2FVite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/SignalR-512BD4?style=for-the-badge&logo=visualstudio&logoColor=white" alt="SignalR" />
+  <img src="https://img.shields.io/badge/Socket.IO-010101?style=for-the-badge&logo=socket.io&logoColor=white" alt="Socket.IO" />
 </p>
 
 ---
 
 ## 🚀 Tổng quan Dự án
 
-Dự án này là một nền tảng quản lý công việc dạng bảng Kanban hiện đại, được thiết kế chuyên biệt cho môi trường văn phòng. Điểm nhấn của hệ thống là sự kết hợp giữa **mô hình phân quyền chặt chẽ (RBAC)**, **tính năng điều khiển và nhập liệu bằng giọng nói tiếng Việt (Web Speech API)**, và khả năng **cập nhật thời gian thực (Real-time via SignalR)**.
+Dự án này là một nền tảng quản lý công việc dạng bảng Kanban hiện đại, được thiết kế chuyên biệt cho môi trường văn phòng. Điểm nhấn của hệ thống là sự kết hợp giữa **mô hình phân quyền chặt chẽ (RBAC)**, **tính năng điều khiển và nhập liệu bằng giọng nói tiếng Việt (Web Speech API)**, và khả năng **cập nhật thời gian thực (Real-time via Socket.IO)**.
 
 ---
 
 ## 🛠 Tech Stack (Công nghệ sử dụng)
 
-- **Database:** PostgreSQL
-- **Backend:** .NET Core Web API (Entity Framework Core)
-- **Frontend:** Vite (React / Vue), Axios, Recharts, @microsoft/signalr
+- **Database:** PostgreSQL 16
+- **Backend:** NestJS 11 (Node.js) + Prisma ORM 7
+- **Frontend:** React 19 + Vite 8, Zustand, Axios, Recharts, Socket.IO Client
 - **Vận hành & Triển khai:** Docker & Docker Compose
 
 ---
@@ -50,7 +51,7 @@ Hệ thống phân chia rõ ràng giữa quyền toàn hệ thống (`GlobalRole
    - Tự động bóc tách từ khóa để xác định tiêu đề và mức độ ưu tiên (_Priority_)[cite: 1].
    - Cơ chế bảo mật: Task tạo qua giọng nói tự động gán cho chính người dùng đang thao tác, kèm tính năng _Undo_ thông minh[cite: 1].
 3. **Đồng bộ Thời gian thực (Real-time):**
-   - Tích hợp SignalR Hub để broadcast mọi thay đổi (thêm, sửa, kéo thả task) tới các thành viên khác trong cùng Project ngay lập tức[cite: 1].
+   - Tích hợp Socket.IO (WebSockets) để broadcast mọi thay đổi (thêm, sửa, kéo thả task) tới các thành viên khác trong cùng Project ngay lập tức[cite: 1].
 4. **Kiểm soát và Lưu vết (Audit Logging):**
    - Tự động ghi lại lịch sử thay đổi trạng thái kèm thông tin người thực hiện (`ChangedByUserId`)[cite: 1].
    - Tính năng "Dọn bảng/Archive" sử dụng Database Transaction để lưu trữ lịch sử gọn gàng[cite: 1].
@@ -59,3 +60,39 @@ Hệ thống phân chia rõ ràng giữa quyền toàn hệ thống (`GlobalRole
    - Hỗ trợ xuất dữ liệu báo cáo qua cơ chế Streaming Response[cite: 1].
 
 ---
+
+## 💻 Hướng dẫn chạy dự án (Local Development)
+
+Để lập trình và phát triển dự án trên máy cá nhân, khuyến nghị chạy Database qua Docker và chạy Backend/Frontend trực tiếp trên máy để tận dụng tính năng tự động cập nhật code (Hot Reload).
+
+### Bước 1: Khởi động Cơ sở dữ liệu (PostgreSQL)
+Yêu cầu: Đã cài đặt và bật [Docker Desktop](https://www.docker.com/products/docker-desktop).
+Mở Terminal tại thư mục gốc của dự án và chạy:
+```bash
+docker-compose up -d postgres_db
+```
+
+### Bước 2: Khởi động Backend (NestJS)
+Mở một Terminal mới, di chuyển vào thư mục `be` và chạy:
+```bash
+cd be
+npm install
+npm run start:dev
+```
+*(Backend sẽ chạy tại địa chỉ http://localhost:3000)*
+
+### Bước 3: Khởi động Frontend (React/Vite)
+Mở một Terminal mới, di chuyển vào thư mục `fe` và chạy:
+```bash
+cd fe
+npm install
+npm run dev
+```
+*(Frontend sẽ chạy tại địa chỉ http://localhost:5173)*
+
+---
+**💡 Mẹo chạy nhanh (Chạy toàn bộ trong Docker)**
+Nếu bạn chỉ muốn xem kết quả mà không cần lập trình, chạy lệnh sau ở thư mục gốc:
+```bash
+docker-compose up -d --build
+```
