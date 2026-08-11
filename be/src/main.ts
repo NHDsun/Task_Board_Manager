@@ -8,11 +8,11 @@ import * as express from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // 1. Cấu hình giới hạn dung lượng Payload (cho Giọng nói & Chat/Ảnh)
+  app.setGlobalPrefix('api');
+
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-  // 2. Cấu hình CORS đa cổng (Hỗ trợ cả Local 5173 và Docker 8000)
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:8000',
@@ -29,13 +29,12 @@ async function bootstrap() {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(null, true); // Cho phép kết nối linh hoạt trong môi trường DEV
+        callback(null, true);
       }
     },
     credentials: true,
   });
 
-  // 3. Kích hoạt ValidationPipe toàn cục để lọc sạch dữ liệu rác
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -44,10 +43,8 @@ async function bootstrap() {
     }),
   );
 
-  // 4. Kích hoạt HttpExceptionFilter toàn cục để bắt lỗi và trả JSON đẹp
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // 5. Kích hoạt TransformInterceptor toàn cục để chuẩn hóa kết quả thành công
   app.useGlobalInterceptors(new TransformInterceptor());
 
   await app.listen(process.env.PORT ?? 3000);

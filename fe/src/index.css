@@ -1,41 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
-  --obsidian-void: #070a12;
+  --obsidian-void: #030712;
   --eclipse-surface: #0f172a;
   --elevated-surface: #1e293b;
   --solar-corona: #f59e0b;
-  --solar-corona-dark: #d97706;
   --solar-flare: #ef4444;
   --eclipse-violet: #8b5cf6;
   --emerald-orbit: #10b981;
-  --solar-border: rgba(245, 158, 11, 0.18);
-  --solar-glow-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.25);
-  --text-primary: #f8fafc;
-  --text-muted: #94a3b8;
-
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  color-scheme: dark;
-  background-color: var(--obsidian-void);
-  color: var(--text-primary);
+  --solar-border: rgba(245, 158, 11, 0.25);
 }
 
 body {
-  margin: 0;
-  min-height: 100vh;
-  background-color: var(--obsidian-void);
-  color: var(--text-primary);
   font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--obsidian-void);
+  color: #f8fafc;
   overflow-x: hidden;
 }
 
 @keyframes coronaPulse {
   0%, 100% {
-    box-shadow: 0 0 20px 2px rgba(245, 158, 11, 0.25), 0 0 40px 6px rgba(139, 92, 246, 0.15);
+    box-shadow: 0 0 25px 3px rgba(245, 158, 11, 0.3), 0 0 50px 10px rgba(139, 92, 246, 0.2);
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 35px 8px rgba(245, 158, 11, 0.45), 0 0 60px 12px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 0 45px 12px rgba(245, 158, 11, 0.55), 0 0 80px 18px rgba(139, 92, 246, 0.4);
+    transform: scale(1.02);
   }
 }
 
@@ -52,29 +43,80 @@ body {
   }
 }
 
+@keyframes solarRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes ambientFloat {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -40px) scale(1.1); }
+  66% { transform: translate(-25px, 20px) scale(0.95); }
+}
+
+@keyframes solarNovaBurst {
+  0% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.4); filter: brightness(2) drop-shadow(0 0 40px #f59e0b); }
+  100% { transform: scale(0.8); opacity: 0; filter: brightness(3); }
+}
+
+@keyframes meteorWarpSweep {
+  0% { transform: translateX(-100%) skewX(-30deg); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateX(200%) skewX(-30deg); opacity: 0; }
+}
+
+@keyframes meteorTrail {
+  0% { transform: translateX(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
 .animate-corona-pulse {
-  animation: coronaPulse 3s infinite ease-in-out;
+  animation: coronaPulse 3.5s infinite ease-in-out;
 }
 
 .animate-accordion-expand {
   animation: accordionExpand 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.animate-solar-rotate {
+  animation: solarRotate 25s linear infinite;
+}
+
+.animate-ambient-float-1 {
+  animation: ambientFloat 18s ease-in-out infinite;
+}
+
+.animate-solar-nova {
+  animation: solarNovaBurst 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-meteor-warp {
+  animation: meteorWarpSweep 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.solar-grid-pattern {
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(245, 158, 11, 0.12) 1px, transparent 0);
+  background-size: 32px 32px;
+}
+
 .solar-glass-card {
-  background-color: var(--eclipse-surface);
-  border: 1px solid var(--solar-border);
-  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), var(--solar-glow-shadow);
-  backdrop-filter: blur(16px);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .solar-corona-btn {
-  background: linear-gradient(135deg, var(--solar-corona) 0%, var(--solar-corona-dark) 100%);
-  color: #070a12;
-  font-weight: 700;
-  transition: all 0.25s ease;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+  transition: all 0.3s ease;
 }
 
 .solar-corona-btn:hover {
-  box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.7);
   transform: translateY(-1px);
 }

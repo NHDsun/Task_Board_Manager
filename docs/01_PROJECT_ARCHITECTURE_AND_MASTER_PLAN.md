@@ -9,49 +9,44 @@ Tài liệu này tổng hợp toàn bộ **Bản Kế hoạch Tổng thể Hiệ
 > [!IMPORTANT]
 > **Trạng thái:** Tài liệu kế hoạch phê duyệt. Tạm thời **CHƯA CAN THIỆP MÃ NGUỒN CODE**.
 
-### 1. 6 Giá Trị Cốt Lõi Độc Nhất Của Dự Án (Unique Value Propositions)
+12. ### 1. 7 Giá Trị Cốt Lõi Độc Nhất Của Dự Án (Unique Value Propositions)
+13: 
+14: 1. **Nhập liệu & Điều khiển Giọng nói Tiếng Việt (Smart Voice Input):** Tích hợp Web Speech API tự động trích xuất Tiêu đề, Hạn chót, Độ ưu tiên (`URGENT`), tự gán chính chủ kèm Popup Undo 10 giây.
+15: 2. **Cơ chế Tiến trình Dự án Giai đoạn (Process Pipeline Stage):** Chia dự án thành các Giai đoạn/Tiến trình tuần tự (Giai đoạn 1 ➡️ Giai đoạn 2 ➡️ Giai đoạn 3). Tiến trình trước xong mới mở khóa (`UNLOCKED`) cho các phòng ban ở Tiến trình sau làm tiếp.
+16: 3. **Hàng chờ Công việc Cá nhân (My Focus Queue & URGENT Auto-Insert):** Nhân viên tập trung 100% vào 1 Task đang làm (`IN_PROGRESS`) và 1 Hàng chờ Pending (`TODO`). Khi có Task `URGENT` bắn về ➡️ Tự động nhảy lên vị trí **#1 hàng chờ Pending**.
+17: 4. **Liên phòng ban & Phân quyền RBAC (Multi-Department Collaboration):** Cho phép một Dự án được gán cho nhiều Phòng ban (`Product`, `Client`, `Dev`, `Tester`...) cùng phối hợp thực hiện.
+18: 5. **Phân biệt Độc lập giữa Phòng ban (`Department`) và Nghiệp vụ Chuyên môn (`Profession`):**
+19:    - **Phòng ban (`Department`):** Nơi quản lý tổ chức (VD: `Khối Product`, `Khối Client`, `Chi nhánh 1`...).
+20:    - **Nghiệp vụ Chuyên môn (`Profession`):** Tay nghề thực tế của nhân viên (`DEV`, `TESTER`, `MARKETING`, `DESIGNER`, `BA`...).
+21:    - **Ví dụ minh họa:** Nhân viên A thuộc *Phòng ban Khối Client* nhưng có *Nghiệp vụ là Dev*; Nhân viên B thuộc *Phòng ban Khối Product* nhưng có *Nghiệp vụ là Tester*.
+22:    - **Ứng dụng:** Khi giao việc ở từng Tiến trình Giai đoạn, Manager lọc danh sách theo đúng **Nghiệp vụ chuyên môn** của nhân viên để giao task chính xác tuyệt đối.
+23: 6. **Truyền thông Real-time & Cuộc gọi WebRTC (Chat & Video Call):** Chat riêng 1-1 (`DirectMessage`), Bình luận Task và Cuộc gọi thoại/Gọi Video sắc nét trực tiếp trên trình duyệt.
+24: 7. **Cơ chế Chấm công & Điểm danh Thông minh (Solaris Smart Attendance System):** Tích hợp Chấm công giọng nói (*"Solaris, tôi bắt đầu ca làm việc"*), Tự động Check-in khi đụng vào Task đầu tiên trong ngày (Task-Driven Check-In), Điểm danh vùng IP/Geofencing (`OFFICE` vs `REMOTE`), và Hệ thống Huy hiệu Uy tín Đúng giờ (Solar Streak Badges).
+25: 8. **Cơ chế Gửi Yêu Cầu & Chuyển Giao Task Liên Nhân Viên (Inter-User Task Request System):** Cho phép nhân viên tạo Yêu cầu Chuyển giao Task (`TRANSFER`), Nhờ hỗ trợ (`ASSIST`), hoặc Gửi duyệt bài (`REVIEW`). Mặc định ở trạng thái `PENDING` (Chờ phản hồi). Người nhận bấm Chấp nhận (`ACCEPTED` ➡️ Tự động gán chính chủ mới) hoặc Từ chối (`REJECTED` ➡️ Trả về kèm lý do).
+26: 9. **Thanh Menu Sao Băng Trượt Rìa Màn Hình (Meteor Shower Sliding Edge Menu):** Thiết kế Menu ẩn nấp dọc rìa màn hình duy trì trên mọi trang.
+27: 10. **Cơ chế Gửi Yêu Cầu Làm Việc Từ Xa (Remote Work Request System):** Cho phép nhân viên tạo Yêu cầu Làm từ xa (`/remote-requests`) chọn thời gian, lý do & kế hoạch công việc. Trạng thái tự động ở `PENDING` chờ Manager/Admin duyệt (`APPROVED` ➡️ Tự động cập nhật `workMode = REMOTE` trong CSDL Chấm công / `REJECTED` ➡️ Trả về kèm lý do).
+28: 
+29: ---
 
-1. **Nhập liệu & Điều khiển Giọng nói Tiếng Việt (Smart Voice Input):** Tích hợp Web Speech API tự động trích xuất Tiêu đề, Hạn chót, Độ ưu tiên (`URGENT`), tự gán chính chủ kèm Popup Undo 10 giây.
-2. **Cơ chế Tiến trình Dự án Giai đoạn (Process Pipeline Stage):** Chia dự án thành các Giai đoạn/Tiến trình tuần tự (Giai đoạn 1 ➡️ Giai đoạn 2 ➡️ Giai đoạn 3). Tiến trình trước xong mới mở khóa (`UNLOCKED`) cho các phòng ban ở Tiến trình sau làm tiếp.
-3. **Hàng chờ Công việc Cá nhân (My Focus Queue & URGENT Auto-Insert):** Nhân viên tập trung 100% vào 1 Task đang làm (`IN_PROGRESS`) và 1 Hàng chờ Pending (`TODO`). Khi có Task `URGENT` bắn về ➡️ Tự động nhảy lên vị trí **#1 hàng chờ Pending**.
-4. **Liên phòng ban & Phân quyền RBAC (Multi-Department Collaboration):** Cho phép một Dự án được gán cho nhiều Phòng ban (`Product`, `Client`, `Dev`, `Tester`...) cùng phối hợp thực hiện.
-5. **Phân biệt Độc lập giữa Phòng ban (`Department`) và Nghiệp vụ Chuyên môn (`Profession`):**
-   - **Phòng ban (`Department`):** Nơi quản lý tổ chức (VD: `Khối Product`, `Khối Client`, `Chi nhánh 1`...).
-   - **Nghiệp vụ Chuyên môn (`Profession`):** Tay nghề thực tế của nhân viên (`DEV`, `TESTER`, `MARKETING`, `DESIGNER`, `BA`...).
-   - **Ví dụ minh họa:** Nhân viên A thuộc *Phòng ban Khối Client* nhưng có *Nghiệp vụ là Dev*; Nhân viên B thuộc *Phòng ban Khối Product* nhưng có *Nghiệp vụ là Tester*.
-   - **Ứng dụng:** Khi giao việc ở từng Tiến trình Giai đoạn, Manager lọc danh sách theo đúng **Nghiệp vụ chuyên môn** của nhân viên để giao task chính xác tuyệt đối.
-6. **Truyền thông Real-time & Cuộc gọi WebRTC (Chat & Video Call):** Chat riêng 1-1 (`DirectMessage`), Bình luận Task và Cuộc gọi thoại/Gọi Video sắc nét trực tiếp trên trình duyệt.
 
----
+66: 
+67:   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+68: 
+69:   @@map("attendance_logs")
+70: }
+71: 
+72: enum AttendanceType {
+73:   VOICE
+74:   TASK_DRIVEN
+75:   MANUAL
+76: }
+77: 
+78: enum WorkMode {
+79:   OFFICE
+80:   REMOTE
+81: }
+82: ```
 
-### 2. Mô hình CSDL Bổ sung cho Cơ chế Tiến trình (Option 1)
-
-Để hiện thực hóa Phương án 1 (Tiến trình Giai đoạn), CSDL Prisma bổ sung 1 Bảng mới và 1 Cột mới:
-
-```prisma
-// Bảng Tiến trình Giai đoạn Dự án
-model ProjectStage {
-  id           String       @id @default(uuid())
-  projectId    String       @map("project_id")
-  name         String       // Ví dụ: "Giai đoạn 1: Phân tích & Thiết kế UI"
-  orderIndex   Int          @map("order_index") // 1, 2, 3...
-  status       StageStatus  @default(LOCKED)    // LOCKED, IN_PROGRESS, COMPLETED
-  departmentId String?      @map("department_id")// Phòng ban chủ trì
-  createdAt    DateTime     @default(now()) @map("created_at")
-
-  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  tasks      Task[]
-
-  @@map("project_stages")
-}
-
-enum StageStatus {
-  LOCKED
-  IN_PROGRESS
-  COMPLETED
-}
-```
 - **Bảng `Task` bổ sung:** Cột `stageId String? @map("stage_id")` liên kết Task thuộc Tiến trình nào.
 
 ---

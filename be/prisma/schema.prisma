@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,16 +6,36 @@ datasource db {
   provider = "postgresql"
 }
 
-// Enums
 enum Role {
   ADMIN
   MANAGER
   EMPLOYEE
 }
 
+enum Profession {
+  DEV
+  TESTER
+  DESIGNER
+  BA
+  MARKETING
+  DEVOPS
+  PRODUCT_OWNER
+}
+
+enum UserStatusSignal {
+  ONLINE
+  BUSY
+  IN_MEETING
+  AWAY
+  OFFLINE
+}
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
+  PAUSED
+  BLOCKED
+  IN_REVIEW
   DONE
 }
 
@@ -41,7 +58,30 @@ enum CallStatus {
   BUSY
 }
 
-// 1. Department Model
+enum AttendanceType {
+  VOICE
+  TASK_DRIVEN
+  MANUAL
+}
+
+enum WorkMode {
+  OFFICE
+  REMOTE
+}
+
+enum TaskRequestType {
+  TRANSFER
+  ASSIST
+  REVIEW
+}
+
+enum TaskRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
 model Department {
   id          String   @id @default(uuid())
   name        String   @unique
@@ -56,35 +96,43 @@ model Department {
   @@map("departments")
 }
 
-// 2. User Model
 model User {
-  id           String      @id @default(uuid())
-  email        String      @unique
+  id           String           @id @default(uuid())
+  email        String           @unique
   password     String?
-  fullName     String      @map("full_name")
+  fullName     String           @map("full_name")
   avatar       String?
-  googleId     String?     @unique @map("google_id")
-  role         Role        @default(EMPLOYEE)
-  departmentId String?     @map("department_id")
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+  coverImage   String?          @map("cover_image")
+  googleId     String?          @unique @map("google_id")
+  role         Role             @default(EMPLOYEE)
+  profession   Profession       @default(DEV)
+  jobTitle     String?          @map("job_title")
+  phone        String?
+  bio          String?
+  statusSignal UserStatusSignal @default(ONLINE) @map("status_signal")
+  customStatus String?          @map("custom_status")
+  departmentId String?          @map("department_id")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
 
-  department     Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  ownedProjects  Project[]       @relation("ProjectOwner")
-  memberships    ProjectMember[]
-  assignedTasks  Task[]          @relation("TaskAssignee")
-  createdTasks   Task[]          @relation("TaskCreator")
-  comments       Comment[]
-  auditLogs      AuditLog[]
+  department             Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  ownedProjects          Project[]       @relation("ProjectOwner")
+  memberships            ProjectMember[]
+  assignedTasks          Task[]          @relation("TaskAssignee")
+  createdTasks           Task[]          @relation("TaskCreator")
+  comments               Comment[]
+  auditLogs              AuditLog[]
   sentDirectMessages     DirectMessage[] @relation("SentMessages")
   receivedDirectMessages DirectMessage[] @relation("ReceivedMessages")
   sentCalls              CallLog[]       @relation("SentCalls")
   receivedCalls          CallLog[]       @relation("ReceivedCalls")
+  attendanceLogs         AttendanceLog[]
+  sentTaskRequests       TaskRequest[]   @relation("SentTaskRequests")
+  receivedTaskRequests   TaskRequest[]   @relation("ReceivedTaskRequests")
 
   @@map("users")
 }
 
-// 3. Project Model
 model Project {
   id          String   @id @default(uuid())
   name        String
@@ -102,7 +150,6 @@ model Project {
   @@map("projects")
 }
 
-// 4. ProjectDepartment Junction Model (n-n Multi-Department)
 model ProjectDepartment {
   projectId    String @map("project_id")
   departmentId String @map("department_id")
@@ -114,7 +161,6 @@ model ProjectDepartment {
   @@map("project_departments")
 }
 
-// 5. ProjectMember Junction Model
 model ProjectMember {
   projectId String   @map("project_id")
   userId    String   @map("user_id")
@@ -127,13 +173,13 @@ model ProjectMember {
   @@map("project_members")
 }
 
-// 6. Task Model
 model Task {
   id             String       @id @default(uuid())
   title          String
   description    String?
   status         TaskStatus   @default(TODO)
   priority       TaskPriority @default(NORMAL)
+  progress       Int          @default(0)
   dueDate        DateTime?    @map("due_date")
   recurrenceRule String?      @map("recurrence_rule")
   isArchived     Boolean      @default(false) @map("is_archived")
@@ -143,34 +189,34 @@ model Task {
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assignee  User?     @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  createdBy User      @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  subtasks  Subtask[]
-  tags      TaskTag[]
-  comments  Comment[]
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee     User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy    User          @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  subtasks     Subtask[]
+  tags         TaskTag[]
+  comments     Comment[]
+  taskRequests TaskRequest[]
 
   @@map("tasks")
 }
 
-// 7. Subtask Model
 model Subtask {
-  id          String   @id @default(uuid())
-  title       String
-  isCompleted Boolean  @default(false) @map("is_completed")
-  taskId      String   @map("task_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  title     String
+  isDone    Boolean  @default(false) @map("is_done")
+  taskId    String   @map("task_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@map("subtasks")
 }
 
-// 8. Tag Model
 model Tag {
   id        String   @id @default(uuid())
   name      String
-  color     String   @default("#6B7280")
+  color     String?
   projectId String   @map("project_id")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -180,7 +226,6 @@ model Tag {
   @@map("tags")
 }
 
-// 9. TaskTag Junction Model
 model TaskTag {
   taskId String @map("task_id")
   tagId  String @map("tag_id")
@@ -192,7 +237,6 @@ model TaskTag {
   @@map("task_tags")
 }
 
-// 10. Comment Model
 model Comment {
   id        String   @id @default(uuid())
   content   String
@@ -207,7 +251,6 @@ model Comment {
   @@map("comments")
 }
 
-// 11. AuditLog Model
 model AuditLog {
   id         String   @id @default(uuid())
   action     String
@@ -223,7 +266,6 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// 12. DirectMessage Model (Chat riêng 1-1 giữa nhân viên)
 model DirectMessage {
   id         String   @id @default(uuid())
   content    String
@@ -238,7 +280,6 @@ model DirectMessage {
   @@map("direct_messages")
 }
 
-// 13. CallLog Model (Lịch sử cuộc gọi thoại AUDIO và VIDEO)
 model CallLog {
   id         String     @id @default(uuid())
   callerId   String     @map("caller_id")
@@ -253,4 +294,40 @@ model CallLog {
   receiver User @relation("ReceivedCalls", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@map("call_logs")
+}
+
+model AttendanceLog {
+  id         String         @id @default(uuid())
+  userId     String         @map("user_id")
+  checkInAt  DateTime       @default(now()) @map("check_in_at")
+  checkOutAt DateTime?      @map("check_out_at")
+  type       AttendanceType @default(VOICE)
+  workMode   WorkMode       @default(OFFICE)
+  ipAddress  String?        @map("ip_address")
+  location   String?
+  note       String?
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_logs")
+}
+
+model TaskRequest {
+  id           String            @id @default(uuid())
+  taskId       String            @map("task_id")
+  senderId     String            @map("sender_id")
+  receiverId   String            @map("receiver_id")
+  type         TaskRequestType   @default(TRANSFER)
+  status       TaskRequestStatus @default(PENDING)
+  note         String?
+  responseNote String?           @map("response_note")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  task     Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  sender   User @relation("SentTaskRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedTaskRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("task_requests")
 }

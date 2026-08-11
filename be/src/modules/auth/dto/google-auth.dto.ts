@@ -1,7 +1,11 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class GoogleAuthDto {
+  @IsOptional()
   @IsString({ message: 'Google ID Token phải là chuỗi ký tự' })
-  @IsNotEmpty({ message: 'Google ID Token không được để trống' })
-  idToken: string;
+  idToken?: string;
+
+  @IsOptional()
+  @IsString({ message: 'Google Token phải là chuỗi ký tự' })
+  googleToken?: string;
 }
