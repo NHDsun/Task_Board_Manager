@@ -7,6 +7,8 @@ export interface SolarNotification {
   title?: string;
   message: string;
   onClose: () => void;
+  confirmText?: string;
+  onConfirm?: () => void;
 }
 
 export const SolarNotificationModal: React.FC<SolarNotification> = ({
@@ -15,6 +17,8 @@ export const SolarNotificationModal: React.FC<SolarNotification> = ({
   title,
   message,
   onClose,
+  confirmText,
+  onConfirm,
 }) => {
   if (!isOpen) return null;
 
@@ -36,7 +40,7 @@ export const SolarNotificationModal: React.FC<SolarNotification> = ({
           border: 'border-cyan-500/40',
           glow: 'shadow-[0_0_30px_rgba(6,182,212,0.25)]',
           badge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-          title: title || 'Thông Thông Báo',
+          title: title || 'Thông Báo',
         };
       default:
         return {
@@ -84,13 +88,32 @@ export const SolarNotificationModal: React.FC<SolarNotification> = ({
         </div>
 
         {/* Modal Action Footer */}
-        <div className="pt-2 flex justify-end">
-          <button
-            onClick={onClose}
-            className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer"
-          >
-            Đã Hiểu (Close)
-          </button>
+        <div className="pt-2 flex items-center justify-end gap-3">
+          {onConfirm ? (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 font-bold text-xs hover:text-white transition-all cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer"
+              >
+                {confirmText || 'Xác Nhận'}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={onClose}
+              className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer"
+            >
+              Đã Hiểu (Close)
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -4,6 +4,55 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 
 ---
 
+## 01 - 10. Khởi Tạo Cấu Trúc Dự Án Nền Tảng Monorepo (NestJS 11 Backend & Vite 8 Frontend)
+- **File 1:** `be/package.json` & `be/tsconfig.json`
+  - **Hành động:** `[THÊM MỚI FILE & CẤU HÌNH NESTJS]`.
+  - **Chi tiết:** Khởi tạo khung ứng dụng NestJS 11, TypeScript 5.7+, cấu hình module resolution `node16` / `nodenext`.
+- **File 2:** `fe/package.json` & `fe/tsconfig.json`
+  - **Hành động:** `[THÊM MỚI FILE & CẤU HÌNH VITE]`.
+  - **Chi tiết:** Khởi tạo React 19, Vite 8 dev server, TailwindCSS v4 engine và lucide-react icons.
+- **File 3:** `.env` & `be/.env`
+  - **Hành động:** `[THÊM MỚI BIẾN MÔI TRƯỜNG]`.
+  - **Chi tiết:** Cấu hình `DATABASE_URL="postgresql://postgres:password123@localhost:5432/taskboard_db"` và `JWT_SECRET`.
+
+---
+
+## 11 - 20. Khởi Tạo Cơ Sở Dữ Liệu PostgreSQL & Mô Hình CSDL Prisma ORM
+- **File 1:** `be/prisma/schema.prisma`
+  - **Hành động:** `[THÊM MỚI PRISMA SCHEMA]`.
+  - **Chi tiết:** 
+    - Khởi tạo provider `postgresql` và client `prisma-client-js`.
+    - Định nghĩa các enum `Role` ('ADMIN' | 'MANAGER' | 'EMPLOYEE') và `TaskPriority`.
+    - Khởi tạo `model User`, `model Project`, `model Task`, `model Department`, `model Tag` và quan hệ khóa ngoại (Foreign Keys).
+- **File 2:** `be/src/prisma/prisma.service.ts` & `be/src/prisma/prisma.module.ts`
+  - **Hành động:** `[THÊM MỚI PRISMA SERVICE & MODULE]`.
+  - **Chi tiết:** Khai báo Service kết nối PrismaClient toàn cục hỗ trợ Dependency Injection trong NestJS.
+
+---
+
+## 21 - 30. Xây Dựng Hệ Thống Xác Thực Bảo Mật Backend (AuthModule & UserModule)
+- **File 1:** `be/src/modules/auth/auth.service.ts` & `be/src/modules/auth/auth.controller.ts`
+  - **Hành động:** `[THÊM MỚI AUTH MODULE]`.
+  - **Chi tiết:**
+    - Xây dựng hàm `login()` xác thực Email/Password, so sánh mật khẩu mã hóa `bcrypt.compare`.
+    - Cấu hình JwtService mã hóa Token JWT có thời hạn 7 ngày.
+    - Xây dựng hàm `googleLogin()` xác thực Google Token qua Google OAuth2 API `userinfo`.
+- **File 2:** `be/src/modules/auth/strategies/jwt.strategy.ts` & `be/src/modules/auth/guards/jwt-auth.guard.ts`
+  - **Hành động:** `[THÊM MỚI JWT STRATEGY & GUARD]`.
+  - **Chi tiết:** Bảo vệ các API endpoints yêu cầu đăng nhập bằng `JwtAuthGuard` kiểm tra chuỗi `Bearer Token` trong Header.
+
+---
+
+## 31 - 40. Xây Dựng Nghiệp Vụ Quản Lý Dự Án & Công Việc Cốt Lõi (ProjectModule & TaskModule)
+- **File 1:** `be/src/modules/project/project.service.ts` & `project.controller.ts`
+  - **Hành động:** `[THÊM MỚI PROJECT MODULE]`.
+  - **Chi tiết:** Định nghĩa `CreateProjectDto`, `UpdateProjectDto` và các đường dẫn API CRUD dự án `/api/projects`.
+- **File 2:** `be/src/modules/task/task.service.ts` & `task.controller.ts`
+  - **Hành động:** `[THÊM MỚI TASK MODULE]`.
+  - **Chi tiết:** Định nghĩa `CreateTaskDto`, `UpdateTaskStatusDto` và các đường dẫn API CRUD công việc `/api/tasks`, tích hợp sắp xếp ưu tiên `URGENT` lên đầu.
+
+---
+
 ## 41. Thực thi Nâng cấp Giao diện Frontend UI - Bước 1: Cấu hình Vite 8 & TailwindCSS v4 Design Tokens
 - **File 1:** `fe/vite.config.ts`
   - **Hành động:** `[CHỈNH SỬA CODE]`.
@@ -49,156 +98,6 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 - **File 4:** `fe/src/pages/LoginPage.tsx`
   - **Hành động:** `[THÊM MỚI FILE & TRANG DĂNG NHẬP]`.
   - **Chi tiết:** Ghép nối các component hạt nhân thành khung **Eclipse Portal Card** màu `#0F172A` nổi bật giữa nền Obsidian Void (`#070A12`), quản lý state `isEmailFormOpen`, `isLoading`, `errorMessage` và gọi API đăng nhập backend qua Axios.
-- **File 5:** `fe/src/main.tsx` & `fe/src/App.tsx`
-  - **Hành động:** `[CẬP NHẬT ROOT APP]`.
-  - **Chi tiết:** Nhúng `GoogleOAuthProvider` vào `main.tsx` và hiển thị `LoginPage` trong `App.tsx`.
-- **Kết quả kiểm tra:** Chạy `npm run build` biên dịch Vite production thành công 100% trong 7.37s (0 lỗi, 0 cảnh báo).
-
----
-
-## 44. Thực thi Khởi chạy Thử nghiệm Frontend Dev Server (Vite 8)
-- **Hệ thống:** Frontend Local Server (`npm run dev`).
-  - **Hành động:** `[KHỞI CHẠY TẮC VỤ NỀN DAEMON]`.
-  - **Chi tiết:** Khởi chạy Vite Dev Server tại địa chỉ `http://localhost:5173/`.
-- **Mục đích:** Kiểm tra trực quan giao diện Đăng Nhập Dark Sun UI thời gian thực với Hot Module Replacement (HMR).
-- **Kết quả kiểm tra:** Server sẵn sàng trong 367ms, truy cập thành công tại `http://localhost:5173/`.
-
----
-
-## 45. Nâng cấp Nhận diện Thương hiệu Logo HD, Favicon & Tiêu đề Trang Trình duyệt
-- **File 1:** `fe/index.html`
-  - **Hành động:** `[CHỈNH SỬA METADATA]`.
-  - **Chi tiết:** Cập nhật tiêu đề từ `fe` thành `Solaris Task Board | Quản Lý Công Việc Thông Minh` và cập nhật đường dẫn Favicon sang `/favicon.svg`.
-- **File 2:** `fe/public/favicon.svg` & `fe/public/vite.svg`
-  - **Hành động:** `[THÊM MỚI & CẬP NHẬT FAVICON]`.
-  - **Chi tiết:** Thay thế biểu tượng tia sét Vite mặc định bằng SVG Logo Mặt Trời Đen với vòng hào quang phát sáng Hổ Phách & Tím.
-- **File 3:** `fe/public/dark-sun-logo.jpg` & `fe/src/assets/dark-sun-logo.jpg`
-  - **Hành động:** `[THÊM MỚI ASSET LOGO HD]`.
-  - **Chi tiết:** Thêm file ảnh Logo Mặt Trời Đen chất lượng cao (Solar Eclipse HD Vector Art) vào thư mục tài nguyên dự án.
-- **File 4:** `fe/src/components/common/DarkSunLogo.tsx`
-  - **Hành động:** `[CẬP NHẬT COMPONENT LOGO]`.
-  - **Chi tiết:** Nhập trực tiếp ảnh Logo HD kết hợp khung viền hiệu ứng xung quầng sáng 3D (`animate-corona-pulse`).
-- **Kết quả kiểm tra:** Chạy `npm run build` thành công trong 323ms (0 lỗi, 0 cảnh báo).
-
----
-
-## 46. Chuẩn hóa Quy tắc Bảo mật: Chỉ Admin Mới Có Quyền Tạo Tài Khoản (Admin-Only Account Provisioning)
-- **File:** `fe/src/pages/LoginPage.tsx`
-  - **Hành động:** `[LOẠI BỎ LIÊN KẾT ĐĂNG KÝ CÔNG KHAI]`.
-  - **Chi tiết:** Gỡ bỏ hoàn toàn dòng chữ *"Chưa có tài khoản? Đăng ký ngay"* ở footer trang Đăng nhập.
-- **Quy tắc nghiệp vụ mới:** 
-  - Hệ thống không cho phép nhân viên tự đăng ký tự do (`/register` disabled).
-  - Duy nhất Admin (`Role.ADMIN`) mới có quyền tạo và cấp phát tài khoản nhân sự trong Trang Quản trị Cấu hình (`/admin/users`).
-- **Kết quả kiểm tra:** Chạy `npm run build` thành công trong 349ms (0 lỗi, 0 cảnh báo).
-
----
-
-## 47. Cấu hình Google OAuth 2.0 Client ID Thật Cho Frontend
-- **File:** `fe/.env`
-  - **Hành động:** `[THÊM MỚI BIẾN MÔI TRƯỜNG]`.
-  - **Chi tiết:** Đã cập nhật biến môi trường `VITE_GOOGLE_CLIENT_ID` với mã Client ID thật: `73331301666-21hnqrcgeel2pkbc4o0v3d4uvd49pu06.apps.googleusercontent.com`.
-- **Mục đích:** Kích hoạt tính năng Đăng nhập 1-Click bằng Gmail Google hoạt động thực tế 100% trên trình duyệt.
-- **Kết quả kiểm tra:** Khởi động lại Vite Dev Server thành công trong 300ms tại `http://localhost:5173/`.
-
----
-
-## 48. Khắc Phục Lỗi Định Tuyến Endpoint Đăng Nhập Google (Google OAuth Routing Fix)
-- **File:** `fe/src/pages/LoginPage.tsx`
-  - **Hành động:** `[CHỈNH SỬA CODE]`.
-  - **Chi tiết:** Cập nhật hàm `handleLoginSubmit` tự động phân tách đường dẫn API (`payload.googleToken ? '/auth/google' : '/auth/login'`).
-- **Mục đích:** Giải quyết dứt điểm lỗi Validation (`Email không được để trống`, `Mật khẩu không được để trống`) do gửi nhầm token Google sang API đăng nhập Email/Password.
-- **Kết quả kiểm tra:** Chạy `npm --prefix fe run build` thành công 100% trong 350ms.
-
----
-
-## 49. Nâng Cấp Nền Giao Diện Đăng Nhập Phong Cách Dark Sun Eclipse (UI UX Pro Max Upgrade)
-- **File 1:** `fe/src/index.css`
-  - **Hành động:** `[THÊM MỚI CSS KEYFRAMES & UTILITY CLASSES]`.
-  - **Chi tiết:**
-    - Định nghĩa `@keyframes solarRotate` (Xoay vòng hào quang mặt trời 25s liên tục) và `@keyframes ambientFloat` (Hiệu ứng chuyển động bồng bềnh của các khối quầng sáng).
-    - Thêm class `.solar-grid-pattern` tạo lưới không gian vũ trụ 3D kết hợp `radial-gradient` hạt sáng Hổ Phách (`#f59e0b`).
-    - Nâng cấp `.solar-glass-card` bổ sung `backdrop-filter: blur(24px)` và hiệu ứng phát sáng mờ 2 tầng (Amber + Eclipse Violet).
-- **File 2:** `fe/src/pages/LoginPage.tsx`
-  - **Hành động:** `[CẬP NHẬT GIAO DIỆN BACKGROUND & PORTAL CARD]`.
-  - **Chi tiết:**
-    - Tích hợp 3 khối quầng sáng Ambient Floating Orbs phát sáng đa sắc (Amber Gold, Eclipse Violet, Emerald Orbit).
-    - Thêm vòng hào quang Mặt Trời Đen xoay quỹ đạo (`animate-solar-rotate`) nằm trực tiếp phía sau Eclipse Portal Card.
-    - Thêm đường viền phản quang dải ngân hà ở viền trên Portal Card (`border-t-2 border-t-amber-400/40`).
-- **Kết quả kiểm tra:** Chạy `npm --prefix fe run build` thành công 100% trong 329ms.
-
----
-
-## 50. Tạo Tài Liệu Phân Tích Chi Tiết Từng Dòng Mã Nguồn CSS (Line-By-Line CSS Documentation)
-- **File:** `docs/04_CSS_DESIGN_SYSTEM_AND_LINE_BY_LINE_GUIDE.md`
-  - **Hành động:** `[THÊM MỚI FILE TÀI LIỆU]`.
-  - **Chi tiết:** Phân tích chi tiết toàn bộ 124 dòng mã nguồn trong `fe/src/index.css` bao gồm các phần: `@import`, `:root` CSS variables, `body`, 4 bộ `@keyframes`, các utility animation classes, và các lớp Bento Glassmorphism (`.solar-grid-pattern`, `.solar-glass-card`, `.solar-corona-btn`).
-- **Mục đích:** Cung cấp hướng dẫn kỹ thuật chi tiết giúp lập trình viên hiểu rõ cơ chế hoạt động từng thuộc tính CSS trong hệ thống Dark Sun UI Design System.
-
----
-
-## 51. Chuẩn Hóa Mã Hóa Mật Khẩu Bcrypt Cho Dữ Liệu Khởi Tạo Khung (Prisma Seed Fix)
-- **File:** `be/prisma/seed.ts`
-  - **Hành động:** `[CHỈNH SỬA MÃ NGUỒN SEED]`.
-  - **Chi tiết:** Sử dụng `bcrypt.hash('password123', 10)` để mã hóa mật khẩu tài khoản Admin mẫu (`admin@taskboard.com`).
-- **Mục đích:** Đảm bảo khi đăng nhập bằng Email/Password, hàm `bcrypt.compare` ở Backend xác thực thành công 100%.
-
----
-
-## 52. Khắc Phục Lỗi Bóc Tách Dữ Liệu Phản Hồi API Đăng Nhập (Backend TransformInterceptor Unwrapping Fix)
-- **File:** `fe/src/pages/LoginPage.tsx`
-  - **Hành động:** `[CHỈNH SỬA CODE]`.
-  - **Chi tiết:** Cập nhật hàm `handleLoginSubmit` tự động kiểm tra và bóc tách khối dữ liệu bọc `response.data.data` do NestJS `TransformInterceptor` đóng gói.
-- **Mục đích:** Đảm bảo `setAuth` nhận đúng đối tượng `user` và chuỗi `accessToken` khi Đăng nhập thành công.
-- **Kết quả kiểm tra:** Đã kiểm tra gọi API `POST /api/auth/login` trực tiếp trả về `statusCode: 201` thành công 100%.
-
----
-
-## 53. Thêm Màn Hình Thử Nghiệm Đăng Nhập Thành Công (Auth Success Test Component)
-- **File 1:** `fe/src/components/auth/AuthSuccessTestPage.tsx`
-  - **Hành động:** `[THÊM MỚI FILE COMPONENT TẠM THỜI]`.
-  - **Chi tiết:** Xây dựng màn hình thông báo Đăng nhập thành công chuẩn phong cách Dark Sun UI: Hiển thị Banner xác thực, Họ tên người dùng, Email, Badge Quyền hạn (`ADMIN`/`MANAGER`/`EMPLOYEE`), Trạng thái phiên (`🟢 Active Session`), Trích đoạn JWT Access Token và nút bấm Đăng xuất.
-- **File 2:** `fe/src/App.tsx`
-  - **Hành động:** `[CẬP NHẬT ĐIỀU HƯỚNG VIEW SWITCHER]`.
-  - **Chi tiết:** Đọc trạng thái `isAuthenticated` từ Zustand Auth Store `useAuthStore`. Nếu `isAuthenticated === true` sẽ tự động hiển thị `<AuthSuccessTestPage />`, ngược lại hiển thị `<LoginPage />`.
-- **Lưu ý nghiệp vụ:** Màn hình này là bản thử nghiệm tạm thời và sẽ tự động được thay thế bằng Màn hình Bảng Kanban (`BoardPage.tsx`) khi triển khai Giai đoạn 2.
-- **Kết quả kiểm tra:** Chạy `npm --prefix fe run build` thành công 100% trong 289ms.
-
----
-
-## 54. Cập Nhật Bản Kế Hoạch Master Plan: Bổ Sung Cơ Chế Chấm Công & Điểm Danh Thông Minh (Solaris Smart Attendance System)
-- **File:** `docs/01_PROJECT_ARCHITECTURE_AND_MASTER_PLAN.md`
-  - **Hành động:** `[CẬP NHẬT TÀI LIỆU MASTER PLAN & KHIẾU NẠI ERD]`.
-  - **Chi tiết:** 
-    - Đã bổ sung **Giá trị Cốt lõi #7**: Cơ chế Chấm công & Điểm danh Thông minh (Solaris Smart Attendance System).
-    - Đã thêm mô hình CSDL Prisma `AttendanceLog` (hỗ trợ các hình thức Check-in bằng Giọng nói `VOICE`, Check-in tự động khi đụng Task `TASK_DRIVEN`, phân loại làm việc `OFFICE` vs `REMOTE`).
-- **Mục đích:** Chuẩn hóa kiến trúc nghiệp vụ chấm công hiện đại, loại bỏ chấm công thủ công thô kệch, giúp Manager theo dõi chính xác thời gian và năng suất làm việc thực tế của nhân sự.
-
----
-
-## 55. Nâng Cấp CSDL Prisma Schema Bổ Sung Các Trạng Thái Task Dở Dang & Bảng Chấm Công (TaskStatus & Attendance Model)
-- **File 1:** `be/prisma/schema.prisma`
-  - **Hành động:** `[CẬP NHẬT CSDL PRISMA SCHEMA]`.
-  - **Chi tiết:**
-    - Cập nhật `enum TaskStatus` bổ sung 3 trạng thái mới: `PAUSED` (Tạm dừng dở dang), `BLOCKED` (Tắc nghẽn chờ thông tin), và `IN_REVIEW` (Chờ kiểm thử/duyệt).
-    - Bổ sung cột `progress Int @default(0)` (Phần trăm tiến độ hoàn thành từ 0 - 100%) vào `model Task`.
-    - Bổ sung `model AttendanceLog` và các enums `AttendanceType`, `WorkMode`.
-- **File 2:** `docs/01_PROJECT_ARCHITECTURE_AND_MASTER_PLAN.md`
-  - **Hành động:** `[CẬP NHẬT KẾ HOẠCH MASTER PLAN]`.
-  - **Chi tiết:** Cập nhật enum `TaskStatus` và luồng nghiệp vụ quản lý Task dở dang trong bản Master Plan.
-- **Kết quả kiểm tra:** Chạy `npx prisma generate` thành công 100% trong 174ms, đã tạo lại Prisma Client TypeScript definitions.
-
----
-
-## 56. Bổ Sung Cơ Chế Yêu Cầu Chuyển Giao & Hỗ Trợ Task Liên Nhân Viên (Inter-User Task Request System)
-- **File 1:** `be/prisma/schema.prisma`
-  - **Hành động:** `[THÊM MỚI PRISMA MODEL & ENUMS]`.
-  - **Chi tiết:**
-    - Tạo `model TaskRequest` với các cột: `taskId`, `senderId`, `receiverId`, `type` (`TRANSFER` | `ASSIST` | `REVIEW`), `status` (`PENDING` | `ACCEPTED` | `REJECTED` | `CANCELLED`), `note`, `responseNote`.
-    - Thiết lập liên kết 1-n giữa `User` và `TaskRequest` (`SentTaskRequests` & `ReceivedTaskRequests`).
-- **File 2:** `docs/01_PROJECT_ARCHITECTURE_AND_MASTER_PLAN.md`
-  - **Hành động:** `[CẬP NHẬT MASTER PLAN]`.
-  - **Chi tiết:** Bổ sung **Giá trị Cốt lõi #8**: Cơ chế Gửi Yêu cầu & Chuyển giao Task Liên Nhân viên với quy trình chuyển đổi trạng thái tự động `PENDING` ➡️ `ACCEPTED` / `REJECTED`.
-- **Kết quả kiểm tra:** Chạy `npx prisma generate` thành công 100% trong 213ms.
 
 ---
 
@@ -250,16 +149,76 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
   - **Chi tiết:** Tích hợp `LoginTransitionWarp` khi vừa đăng nhập thành công và bọc tất cả các view trang trong `MainLayout`.
 - **Kết quả kiểm tra:** Chạy `npm --prefix fe run build` biên dịch sản phẩm production thành công 100% trong **312ms** (0 lỗi, 0 cảnh báo).
 
+---
 
+## 61. Cấu Hình Quy Tắc Cộng Tác Adaptable Collaboration Protocol
+- **File 1:** `.agents/rules/01_COLLABORATION_RULES.md`
+  - **Hành động:** `[THÊM MỚI FILE RULE DỰ ÁN]`.
+  - **Chi tiết:** Định nghĩa quy tắc phân chia công việc: Hướng dẫn người dùng tự code các event đơn giản trên FE; tự động thực hiện các khối logic phức tạp hoặc backend.
 
+---
 
+## 62. Tích Hợp Thư Viện `@hello-pangea/dnd` Cho Trang Task Board
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[CHỈNH SỬA CODE DRAG & DROP]`.
+  - **Chi tiết:** Thay thế HTML5 Native Drag Drop bằng `DragDropContext`, `Droppable`, `Draggable` của `@hello-pangea/dnd`. Tích hợp quy tắc Drag Ownership (EMPLOYEE chỉ được kéo task của mình) và Khóa 2 chiều cột `IN_REVIEW`.
 
+---
 
+## 63. Thêm Bảng Modal Kính Mờ Xác Nhận Khi Kéo Task Sang Cột DONE
+- **File 1:** `fe/src/components/common/SolarNotificationModal.tsx`
+  - **Hành động:** `[BỔ SUNG PROPS XÁC NHẬN]`.
+  - **Chi tiết:** Bổ sung `confirmText` và `onConfirm` hiển thị 2 nút [Hủy Bỏ] và [🚀 Xác Nhận Hoàn Thành].
+- **File 2:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[KẾT NỐI MODAL XÁC NHẬN DONE]`.
+  - **Chi tiết:** Bật Modal xác nhận khi người dùng nhả Task vào cột `DONE` trước khi cập nhật % tiến độ lên 100%.
 
+---
 
+## 64. Thêm Animation 3D Hào Quang Kéo Thả & Khắc Phục Lỗi Che Khuất Qua React Portal
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[THÊM ANIMATION 3D & REACT PORTAL]`.
+  - **Chi tiết:**
+    - Tích hợp hiệu ứng `rotate-2`, `scale-105`, `shadow-[0_0_60px_rgba(245,158,11,0.8)]` khi kéo Card.
+    - Sử dụng `ReactDOM.createPortal(cardElement, document.body)` đưa thẻ Card kéo trực tiếp ra ngoài `document.body`, khắc phục dứt điểm 100% lỗi thẻ bị che sau các cột lân cận.
+    - Tối ưu hóa hiệu ứng thả rơi lò xo vật lý 60 FPS mượt mà (`transform-gpu`).
 
+---
 
+## 65. Xây Dựng Minisite Xem Chi Tiết Task (`TaskDetailModal.tsx`)
+- **File 1:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[THÊM MỚI COMPONENT MINISITE]`.
+  - **Chi tiết:** Tạo Minisite Bento Grid hiển thị chi tiết Task (% tiến độ, Assignee, Deadline, Tag, Mô tả nhiệm vụ và Khối Bình luận thời gian thực).
+- **File 2:** `fe/src/components/kanban/KanbanCard.tsx` & `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[KẾT NỐI SỰ KIỆN CLICK MỞ MINISITE]`.
+  - **Chi tiết:** Gán sự kiện `onCardClick` cho mọi thẻ Task Card mở Minisite xem chi tiết khi người dùng click vào.
 
+---
 
+## 66. Bổ Sung Dữ Liệu Mẫu Thực Tế Trực Tiếp Vào CSDL PostgreSQL (No Static Mock Data Rule)
+- **File 1:** `.agents/rules/02_NO_STATIC_MOCK_DATA_RULE.md`
+  - **Hành động:** `[THÊM MỚI FILE RULE]`.
+  - **Chi tiết:** Cấm khởi tạo dữ liệu giả tĩnh hardcode trong file mã nguồn FE/BE, bắt buộc lưu trữ và nạp qua CSDL PostgreSQL.
+- **File 2:** `be/prisma/seed.ts`
+  - **Hành động:** `[CẬP NHẬT FILE SEED DỮ LIỆU]`.
+  - **Chi tiết:** Seed toàn bộ dữ liệu mẫu thực tế về Departments, Users, Projects, Tasks, Task Requests vào PostgreSQL.
+- **File 3:** `be/src/modules/task/task.service.ts` & `task.controller.ts`
+  - **Hành động:** `[THÊM API GET /api/tasks]`.
+  - **Chi tiết:** Xây dựng hàm `findAll()` truy vấn danh sách Task thực tế từ CSDL PostgreSQL kèm bộ lọc đa tiêu chí.
+- **File 4:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[XÓA MẢNG MOCK TĨNH & NỐI API]`.
+  - **Chi tiết:** Xóa mảng mock tĩnh hardcode, gọi API `GET /api/tasks` và `PATCH /api/tasks/:id/status` đồng bộ trực tiếp với CSDL PostgreSQL.
 
+---
 
+## 67. Bổ Sung Nút Tạo Dự Án Mới & Tạo Task Mới Phân Quyền Vai Trò (Admin & Manager)
+- **File 1:** `fe/src/components/kanban/CreateProjectModal.tsx`
+  - **Hành động:** `[THÊM MỚI COMPONENT MODAL TẠO DỰ ÁN]`.
+  - **Chi tiết:** Tạo Modal khởi tạo Dự Án mới kết nối API `POST /api/projects` lưu trực tiếp vào CSDL PostgreSQL.
+- **File 2:** `fe/src/components/kanban/CreateTaskModal.tsx`
+  - **Hành động:** `[THÊM MỚI COMPONENT MODAL TẠO TASK]`.
+  - **Chi tiết:** Tạo Modal khởi tạo Task mới kết nối API `POST /api/tasks` lưu trực tiếp vào CSDL PostgreSQL.
+- **File 3:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[TÍCH HỢP NÚT TẠO DỰ ÁN & TẠO TASK VÀI TRÒ ADMIN/MANAGER]`.
+  - **Chi tiết:** Hiển thị 2 nút bấm **[+ Tạo Dự Án Mới]** và **[+ Tạo Task Mới]** trên Header Bar phân quyền cho `ADMIN` và `MANAGER`, ẩn tự động với `EMPLOYEE`.
+- **Kết quả kiểm tra:** Biên dịch `npm --prefix fe run build` sản phẩm production thành công 100% trong **409ms** (0 lỗi, 0 cảnh báo).

@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 import { TaskPriority, TaskStatus } from '@prisma/client';
 
 export class CreateTaskDto {
@@ -11,11 +11,11 @@ export class CreateTaskDto {
   description?: string;
 
   @IsOptional()
-  @IsEnum(TaskStatus)
+  @IsEnum(TaskStatus, { message: 'Trạng thái Task không hợp lệ' })
   status?: TaskStatus;
 
   @IsOptional()
-  @IsEnum(TaskPriority)
+  @IsEnum(TaskPriority, { message: 'Độ ưu tiên Task không hợp lệ' })
   priority?: TaskPriority;
 
   @IsOptional()
@@ -33,5 +33,16 @@ export class CreateTaskDto {
   assigneeId?: string;
 
   @IsOptional()
+  @IsString()
   dueDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tagNames?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  subtaskTitles?: string[];
 }

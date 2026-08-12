@@ -5,18 +5,25 @@ import {
   Body,
   Patch,
   Param,
+  Query,
   UseGuards,
   Request
 } from '@nestjs/common';
 import { TaskService } from './task.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
+import { QueryTaskFilterDto } from './dto/query-task-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
 export class TaskController {
   constructor(private readonly taskService: TaskService) {}
+
+  @Get()
+  findAll(@Query() query: QueryTaskFilterDto) {
+    return this.taskService.findAll(query);
+  }
 
   @Post()
   create(@Request() req: { user: { userId?: string; sub?: string; id?: string } }, @Body() createTaskDto: CreateTaskDto) {

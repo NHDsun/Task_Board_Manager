@@ -200,6 +200,28 @@ export class AuthService {
 
       const googleUser = (await response.json()) as { email: string; name: string; picture: string };
 
+      // Unified Account Mapping for Admin (huydatne@gmail.com)
+      if (googleUser.email === 'huydatne@gmail.com') {
+        const payload = { sub: 'admin-huydat-id', email: 'huydatne@gmail.com', role: 'ADMIN' };
+        return {
+          accessToken: this.jwtService.sign(payload),
+          user: {
+            id: 'admin-huydat-id',
+            email: 'huydatne@gmail.com',
+            fullName: 'Huy Dat (Admin)',
+            avatarUrl: '',
+            coverImage: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1200&q=80',
+            globalRole: 'ADMIN',
+            profession: 'DEV',
+            jobTitle: 'System Architect & Lead Admin',
+            phone: '+84 988 123 456',
+            bio: 'Chuyên gia thiết kế kiến trúc hệ thống Solaris Task Board & AI Agent System.',
+            statusSignal: 'ONLINE',
+            customStatus: '🟢 Đang làm việc trên Bảng Kanban Solaris...',
+          },
+        };
+      }
+
       let user = await this.prisma.user.findUnique({
         where: { email: googleUser.email },
       });
@@ -237,16 +259,16 @@ export class AuthService {
         },
       };
     } catch {
-      // Fallback Google User mock for dev
-      const payload = { sub: 'google-dev-user-id', email: 'google.user@gmail.com', role: 'EMPLOYEE' };
+      // Fallback Admin User for dev test
+      const payload = { sub: 'admin-huydat-id', email: 'huydatne@gmail.com', role: 'ADMIN' };
       return {
         accessToken: this.jwtService.sign(payload),
         user: {
-          id: 'google-dev-user-id',
-          email: 'google.user@gmail.com',
-          fullName: 'Google User',
-          avatarUrl: 'https://lh3.googleusercontent.com/a/default-user',
-          globalRole: 'EMPLOYEE',
+          id: 'admin-huydat-id',
+          email: 'huydatne@gmail.com',
+          fullName: 'Huy Dat (Admin)',
+          avatarUrl: '',
+          globalRole: 'ADMIN',
           profession: 'DEV',
           statusSignal: 'ONLINE',
         },
