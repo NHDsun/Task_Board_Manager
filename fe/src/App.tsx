@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { BoardPage } from './pages/BoardPage';
 import { MainLayout } from './layouts/MainLayout';
-import { Kanban, Video, MessageSquare, Clock, Inbox, Users, Settings } from 'lucide-react';
+import { Video, MessageSquare, Inbox, Users, Clock } from 'lucide-react';
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -17,17 +18,19 @@ export default function App() {
   const renderCurrentView = () => {
     switch (currentRoute) {
       case '/profile':
-        return <ProfilePage />;
+        return <ProfilePage onNavigate={(route) => setCurrentRoute(route)} />;
       case '/tasks':
+        return <BoardPage />;
+      case '/remote-requests':
         return (
           <div className="p-8 max-w-7xl mx-auto space-y-6">
-            <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-amber-500/30">
-              <h1 className="text-3xl font-extrabold text-amber-300 flex items-center gap-3">
-                <Kanban className="w-8 h-8 text-amber-400" />
-                Bảng Task Workspace (Giai Đoạn 2 Kanban)
+            <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-emerald-500/30">
+              <h1 className="text-3xl font-extrabold text-emerald-300 flex items-center gap-3">
+                <Inbox className="w-8 h-8 text-emerald-400" />
+                Yêu Cầu Làm Việc Từ Xa (Remote Work Requests)
               </h1>
               <p className="text-slate-300 mt-2">
-                Hệ thống Bảng Kanban 6 cột kéo thả mượt mà, Tiến trình Pipeline Stage & Hàng chờ cá nhân My Focus Queue.
+                Gửi Đơn xin làm Remote chọn ngày, nhập lý do &amp; kế hoạch công việc. Trạng thái PENDING chờ Manager/Admin duyệt (APPROVED ➡️ Tự động chuyển workMode = REMOTE trong CSDL Chấm công).
               </p>
             </div>
           </div>
@@ -52,7 +55,7 @@ export default function App() {
             <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-cyan-500/30">
               <h1 className="text-3xl font-extrabold text-cyan-300 flex items-center gap-3">
                 <MessageSquare className="w-8 h-8 text-cyan-400" />
-                Tin Nhắn Chat 1-1 & Cuộc Gọi
+                Tin Nhắn Chat 1-1 &amp; Cuộc Gọi
               </h1>
               <p className="text-slate-300 mt-2">
                 Hệ thống DirectMessage real-time và nhật ký cuộc gọi CallLog.
@@ -60,30 +63,16 @@ export default function App() {
             </div>
           </div>
         );
-      case '/attendance':
-        return (
-          <div className="p-8 max-w-7xl mx-auto space-y-6">
-            <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-emerald-500/30">
-              <h1 className="text-3xl font-extrabold text-emerald-300 flex items-center gap-3">
-                <Clock className="w-8 h-8 text-emerald-400" />
-                Chấm Công Giọng Nói & Geofencing (Solaris Smart Attendance)
-              </h1>
-              <p className="text-slate-300 mt-2">
-                Chấm công bằng giọng nói Tiếng Việt ("Solaris, tôi bắt đầu ca làm việc"), Task-Driven Check-In tự động & Huy hiệu Solaris Streak.
-              </p>
-            </div>
-          </div>
-        );
-      case '/requests':
+      case '/admin/attendance':
         return (
           <div className="p-8 max-w-7xl mx-auto space-y-6">
             <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-amber-500/30">
               <h1 className="text-3xl font-extrabold text-amber-300 flex items-center gap-3">
-                <Inbox className="w-8 h-8 text-amber-400" />
-                Yêu Cầu Chuyển Giao & Hỗ Trợ Task (Task Requests)
+                <Clock className="w-8 h-8 text-amber-400" />
+                Giám Sát Chấm Công Toàn Công Ty (Admin Attendance Monitoring)
               </h1>
               <p className="text-slate-300 mt-2">
-                Danh sách Yêu cầu TRANSFER / ASSIST / REVIEW ở trạng thái <span className="text-amber-400 font-bold">PENDING</span> chờ duyệt.
+                Bảng nhật ký điểm danh toàn bộ nhân sự công ty, theo dõi ca làm việc, lọc theo ngày/tuần/tháng, phòng ban và địa điểm Geofencing (<span className="text-emerald-400 font-bold">OFFICE</span> vs <span className="text-blue-400 font-bold">REMOTE</span>).
               </p>
             </div>
           </div>
@@ -102,22 +91,8 @@ export default function App() {
             </div>
           </div>
         );
-      case '/settings':
-        return (
-          <div className="p-8 max-w-7xl mx-auto space-y-6">
-            <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-slate-500/30">
-              <h1 className="text-3xl font-extrabold text-slate-200 flex items-center gap-3">
-                <Settings className="w-8 h-8 text-slate-400" />
-                Cấu Hình Hệ Thống & Tùy Chỉnh
-              </h1>
-              <p className="text-slate-300 mt-2">
-                Tùy chỉnh giao diện Dark Sun Eclipse, phím tắt và thông báo.
-              </p>
-            </div>
-          </div>
-        );
       default:
-        return <ProfilePage />;
+        return <ProfilePage onNavigate={(route) => setCurrentRoute(route)} />;
     }
   };
 

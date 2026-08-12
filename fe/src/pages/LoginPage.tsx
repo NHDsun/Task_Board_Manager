@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, ShieldAlert, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, ShieldAlert, Sparkles, UserCheck, Shield, Briefcase } from 'lucide-react';
 import { DarkSunLogo } from '../components/common/DarkSunLogo';
 import { GoogleOAuthButton } from '../components/auth/GoogleOAuthButton';
 import { EmailLoginForm } from '../components/auth/EmailLoginForm';
@@ -45,6 +45,10 @@ export const LoginPage = () => {
     }
   };
 
+  const handleQuickRoleLogin = async (email: string, pass: string) => {
+    await handleLoginSubmit({ email, password: pass });
+  };
+
   const handleGoogleSuccess = async (response: { access_token?: string }) => {
     if (!response.access_token) return;
     await handleLoginSubmit({ googleToken: response.access_token });
@@ -76,7 +80,7 @@ export const LoginPage = () => {
         <div className="solar-glass-card rounded-3xl p-8 backdrop-blur-2xl bg-[#0F172A]/80 border-t-2 border-t-amber-400/40 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
 
-          <div className="flex flex-col items-center text-center space-y-4 mb-8">
+          <div className="flex flex-col items-center text-center space-y-4 mb-6">
             <DarkSunLogo className="w-24 h-24 mb-1 filter drop-shadow-[0_0_20px_rgba(245,158,11,0.4)]" />
 
             <div className="space-y-1">
@@ -95,6 +99,38 @@ export const LoginPage = () => {
               <span>{errorMessage}</span>
             </div>
           )}
+
+          {/* Quick Role Selection Buttons for Demo */}
+          <div className="space-y-2 mb-6">
+            <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block text-center mb-2">
+              ⚡ Đăng Nhập Nhanh Theo Vai Trò (Quick Role Demo)
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handleQuickRoleLogin('huydatne@gmail.com', '11032005')}
+                className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer"
+              >
+                <Shield className="w-4 h-4 text-amber-400" />
+                <span>ADMIN</span>
+              </button>
+
+              <button
+                onClick={() => handleQuickRoleLogin('manager@taskboard.com', 'password123')}
+                className="p-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 text-purple-300 text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer"
+              >
+                <Briefcase className="w-4 h-4 text-purple-400" />
+                <span>MANAGER</span>
+              </button>
+
+              <button
+                onClick={() => handleQuickRoleLogin('employee@taskboard.com', 'password123')}
+                className="p-2 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/40 text-blue-300 text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4 text-blue-400" />
+                <span>EMPLOYEE</span>
+              </button>
+            </div>
+          </div>
 
           <div className="space-y-4">
             <GoogleOAuthButton onSuccess={handleGoogleSuccess} />

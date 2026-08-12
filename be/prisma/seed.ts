@@ -86,8 +86,56 @@ async function main() {
     },
   });
 
+  // 1. MANAGER Account
+  const managerUser = await prisma.user.upsert({
+    where: { email: 'manager@taskboard.com' },
+    update: {
+      password: defaultAdminPassword,
+      role: Role.MANAGER,
+      profession: Profession.PRODUCT_OWNER,
+      jobTitle: 'Project Manager & Scrum Master',
+      statusSignal: UserStatusSignal.ONLINE,
+    },
+    create: {
+      email: 'manager@taskboard.com',
+      password: defaultAdminPassword,
+      fullName: 'Minh Anh (Manager)',
+      role: Role.MANAGER,
+      profession: Profession.PRODUCT_OWNER,
+      jobTitle: 'Project Manager & Scrum Master',
+      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80',
+      statusSignal: UserStatusSignal.ONLINE,
+      departmentId: deptProduct.id,
+    },
+  });
+
+  // 2. EMPLOYEE Account
+  const employeeUser = await prisma.user.upsert({
+    where: { email: 'employee@taskboard.com' },
+    update: {
+      password: defaultAdminPassword,
+      role: Role.EMPLOYEE,
+      profession: Profession.DEV,
+      jobTitle: 'Frontend & Fullstack Developer',
+      statusSignal: UserStatusSignal.ONLINE,
+    },
+    create: {
+      email: 'employee@taskboard.com',
+      password: defaultAdminPassword,
+      fullName: 'Hoang Nam (Developer)',
+      role: Role.EMPLOYEE,
+      profession: Profession.DEV,
+      jobTitle: 'Frontend & Fullstack Developer',
+      avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80',
+      statusSignal: UserStatusSignal.ONLINE,
+      departmentId: deptClient.id,
+    },
+  });
+
   console.log('✅ Created Admin User 1:', adminUser.email);
   console.log('✅ Created Admin User 2:', huyDatUser.email);
+  console.log('✅ Created Manager User:', managerUser.email);
+  console.log('✅ Created Employee User:', employeeUser.email);
 
   console.log('🎉 Database Seeding completed successfully!');
 }

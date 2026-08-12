@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
+import { useAuthStore } from '../../store/useAuthStore';
 import {
   User,
   Kanban,
   Video,
   MessageSquare,
-  Clock,
   Inbox,
   Users,
-  Settings,
+  Clock,
   ChevronRight,
   Sparkles,
-  Mic
+  Mic,
+  LogOut
 } from 'lucide-react';
 
 interface MeteorEdgeMenuProps {
@@ -20,6 +21,7 @@ interface MeteorEdgeMenuProps {
 
 export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, onNavigate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const logout = useAuthStore((state) => state.logout);
 
   const menuItems = [
     {
@@ -32,11 +34,20 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
     },
     {
       id: 'tasks',
-      label: 'Bảng Task Kanban',
+      label: 'Bảng Task Workspace',
       route: '/tasks',
       icon: Kanban,
       trailColor: 'from-amber-400 to-amber-500',
       badge: 'CORE',
+    },
+    {
+      id: 'remote-requests',
+      label: 'Yêu Cầu Làm Remote',
+      route: '/remote-requests',
+      icon: Inbox,
+      trailColor: 'from-emerald-500 to-teal-300',
+      badge: 'NEW',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
     },
     {
       id: 'meetings',
@@ -54,19 +65,12 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
       trailColor: 'from-blue-500 to-cyan-300',
     },
     {
-      id: 'attendance',
-      label: 'Chấm Công Voice',
-      route: '/attendance',
+      id: 'admin-attendance',
+      label: 'Giám Sát Chấm Công',
+      route: '/admin/attendance',
       icon: Clock,
-      trailColor: 'from-emerald-500 to-teal-300',
-    },
-    {
-      id: 'requests',
-      label: 'Yêu Cầu Task',
-      route: '/requests',
-      icon: Inbox,
-      trailColor: 'from-amber-400 to-yellow-200',
-      badge: 'PENDING',
+      trailColor: 'from-amber-500 to-emerald-300',
+      badge: 'ADMIN',
       badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
     },
     {
@@ -75,13 +79,6 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
       route: '/admin/users',
       icon: Users,
       trailColor: 'from-rose-500 to-amber-300',
-    },
-    {
-      id: 'settings',
-      label: 'Cấu Hình Hệ Thống',
-      route: '/settings',
-      icon: Settings,
-      trailColor: 'from-slate-400 to-slate-200',
     },
   ];
 
@@ -169,11 +166,12 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
           })}
         </nav>
 
-        {/* Bottom Voice Check-In Quick Trigger (Centered Icon When Collapsed) */}
-        <div className="pt-3 border-t border-slate-800/80 flex justify-center">
+        {/* Bottom Actions Cluster */}
+        <div className="pt-3 border-t border-slate-800/80 space-y-2 flex flex-col items-center">
+          {/* Voice Check-In Trigger */}
           <button
-            onClick={() => onNavigate('/attendance')}
-            className={`w-full flex items-center gap-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 text-emerald-300 hover:border-emerald-400 transition-all duration-300 shadow-md group ${
+            onClick={() => onNavigate('/tasks')}
+            className={`w-full flex items-center gap-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 text-emerald-300 hover:border-emerald-400 transition-all duration-300 shadow-md group ${
               isExpanded ? 'px-3 justify-start' : 'px-0 justify-center'
             }`}
           >
@@ -186,6 +184,24 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
                 <span className="text-xs font-bold text-emerald-300">Voice Check-In</span>
                 <span className="text-[10px] text-slate-400">Solaris Voice Attendance</span>
               </div>
+            )}
+          </button>
+
+          {/* 🚪 LOGOUT BUTTON */}
+          <button
+            onClick={logout}
+            className={`w-full flex items-center gap-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 transition-all duration-300 group cursor-pointer ${
+              isExpanded ? 'px-3 justify-start' : 'px-0 justify-center'
+            }`}
+          >
+            <div className="w-9 h-9 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <LogOut className="w-5 h-5 text-rose-400" />
+            </div>
+
+            {isExpanded && (
+              <span className="text-xs font-bold text-rose-300 whitespace-nowrap">
+                Đăng Xuất Phiên Làm Việc
+              </span>
             )}
           </button>
         </div>
