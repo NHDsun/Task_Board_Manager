@@ -80,7 +80,7 @@ export const BoardPage: React.FC = () => {
       assignee: {
         id: 'admin-huydat-id',
         fullName: 'Huy Dat (Admin)',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+        avatar: '',
         profession: 'DEV',
       },
       commentsCount: 5,
@@ -112,7 +112,7 @@ export const BoardPage: React.FC = () => {
       assignee: {
         id: 'admin-huydat-id',
         fullName: 'Huy Dat (Admin)',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+        avatar: '',
         profession: 'DEV',
       },
       commentsCount: 8,
@@ -128,7 +128,7 @@ export const BoardPage: React.FC = () => {
       assignee: {
         id: 'admin-huydat-id',
         fullName: 'Huy Dat (Admin)',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+        avatar: '',
         profession: 'DEV',
       },
       commentsCount: 3,

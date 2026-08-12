@@ -120,12 +120,18 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onRequestTransfer 
       <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
         {/* Assignee Avatar */}
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg overflow-hidden border border-amber-400/40 bg-slate-900 shrink-0">
-            <img
-              src={task.assignee?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
-              alt={task.assignee?.fullName || 'Assignee'}
-              className="w-full h-full object-cover"
-            />
+          <div className="w-7 h-7 rounded-lg overflow-hidden border border-amber-400/40 bg-slate-900 shrink-0 flex items-center justify-center">
+            {task.assignee?.avatar ? (
+              <img
+                src={task.assignee.avatar}
+                alt={task.assignee.fullName || 'Assignee'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-amber-500 to-purple-600 flex items-center justify-center text-slate-950 font-black text-[10px] tracking-tight">
+                {task.assignee?.fullName ? task.assignee.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'HD'}
+              </div>
+            )}
           </div>
           <span className="text-xs text-slate-300 font-medium truncate max-w-[90px]">
             {task.assignee?.fullName?.split(' ')[0] || 'User'}

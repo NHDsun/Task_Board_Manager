@@ -86,12 +86,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             <div className="flex flex-col md:flex-row items-start md:items-end gap-6">
               {/* 3D Avatar Pulse Circle */}
               <div className="relative group">
-                <div className="w-32 h-32 md:w-36 md:h-36 rounded-3xl overflow-hidden border-2 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.4)] bg-slate-900">
-                  <img
-                    src={user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'}
-                    alt={user?.fullName}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="w-32 h-32 md:w-36 md:h-36 rounded-3xl overflow-hidden border-2 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.4)] bg-slate-900 flex items-center justify-center">
+                  {user?.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.fullName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-amber-500 via-amber-400 to-purple-600 flex items-center justify-center text-slate-950 font-black text-4xl tracking-widest shadow-inner">
+                      {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'HD'}
+                    </div>
+                  )}
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-[#0F172A] shadow-md animate-pulse" />
               </div>
