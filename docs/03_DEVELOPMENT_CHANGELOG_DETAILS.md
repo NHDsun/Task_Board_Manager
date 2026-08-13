@@ -225,14 +225,7 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 
 ---
 
-## 68. Thêm Quy Tắc Tuân Thủ Luồng Nghiệp Vụ Bắt Buộc (Business Flow Rule)
-- **File 1:** `.agents/rules/03_BUSINESS_FLOW_RULE.md`
-  - **Hành động:** `[THÊM MỚI FILE RULE NGHIỆP VỤ]`.
-  - **Chi tiết:** Quy định nghiêm ngặt vòng đời Task (`TODO/IN_PROGRESS` -> `TaskRequest` -> `ACCEPTED` -> `IN_REVIEW` -> `DONE`), cấm nhảy cóc trạng thái hoặc tự chuyển giao cho chính mình.
-
----
-
-## 69. Thêm Tính Năng Xóa Task Phân Quyền Vai Trò (Admin & Manager)
+## 68. Thêm Tính Năng Xóa Task Phân Quyền Vai Trò (Admin & Manager)
 - **File 1:** `be/src/modules/task/task.service.ts` & `task.controller.ts`
   - **Hành động:** `[THÊM API DELETE /api/tasks/:id]`.
   - **Chi tiết:** Xây dựng hàm `deleteTask()` kiểm tra quyền `ADMIN` hoặc `MANAGER` trước khi thực thi xóa Task khỏi CSDL PostgreSQL.
@@ -245,7 +238,7 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 
 ---
 
-## 70. Nâng Cấp Tối Ưu Chỉ Mục CSDL PostgreSQL Composite Indexes & Phân Trang
+## 69. Nâng Cấp Tối Ưu Chỉ Mục CSDL PostgreSQL Composite Indexes & Phân Trang
 - **File 1:** `be/prisma/schema.prisma`
   - **Hành động:** `[BỔ SUNG COMPOSITE INDEXES]`.
   - **Chi tiết:** Thêm các chỉ mục composite `@@index([projectId, status])`, `@@index([assigneeId, status])`, `@@index([receiverId, status])` tối ưu tốc độ truy vấn CSDL PostgreSQL.
@@ -255,7 +248,7 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 
 ---
 
-## 71. Tối Ưu Phản Hồi Kéo Thả 0ms Latency & Hiệu Ứng Solar Drop Snap Animation
+## 70. Tối Ưu Phản Hồi Kéo Thả 0ms Latency & Hiệu Ứng Solar Drop Snap Animation
 - **File 1:** `fe/src/components/kanban/KanbanCard.tsx`
   - **Hành động:** `[TỐI ƯU TRANSITION & REACT.MEMO]`.
   - **Chi tiết:** Chuyển `transition-all` sang `transition-[border-color,box-shadow,background-color] duration-150`, bọc `React.memo` cho Card chống re-render giật lag.
@@ -268,7 +261,7 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 
 ---
 
-## 72. Chuẩn Hóa Dữ Liệu Minisite Bàn Giao (Task Transfer Detail)
+## 71. Chuẩn Hóa Dữ Liệu Minisite Bàn Giao (Task Transfer Detail)
 - **File 1:** `be/src/modules/task/task.service.ts` & `fe/src/components/kanban/KanbanCard.tsx`
   - **Hành động:** `[BỔ SUNG CREATED BY & TYPED REFERENCES]`.
   - **Chi tiết:** Trả về `createdBy` từ backend DTO, định nghĩa lại `TaskItem` interface và hiển thị linh hoạt Badge trạng thái `🔒 IN_REVIEW (CHỜ DUYỆT BÀI)` / `✅ BÀN GIAO THÀNH CÔNG` cùng thông tin Avatar/Tên người chuyển và người nhận.
@@ -278,7 +271,7 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 
 ---
 
-## 73. Cài Đặt Kiến Trúc Retry Enterprise (Exponential Backoff + Full Jitter + Circuit Breaker + Idempotency Interceptor)
+## 72. Cài Đặt Kiến Trúc Retry Enterprise (Exponential Backoff + Full Jitter + Circuit Breaker + Idempotency Interceptor)
 - **File 1:** `fe/src/utils/circuitBreaker.ts`
   - **Hành động:** `[THÊM MỚI UTILITY CIRCUIT BREAKER]`.
   - **Chi tiết:** Xây dựng bộ Cầu dao ngắt tự động 3 trạng thái (`CLOSED`, `OPEN`, `HALF_OPEN`) tự ngắt kết nối 15s nếu gặp 4 lỗi liên tiếp (Fail-Fast).
@@ -291,7 +284,7 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 
 ---
 
-## 74. Sửa Lỗi Bảo Mật & Đa Truy VẤN CSDL (Code Audit Bug Fixes)
+## 73. Sửa Lỗi Bảo Mật & Đa Truy VẤN CSDL (Code Audit Bug Fixes)
 - **File 1:** `be/src/modules/task/task.service.ts`
   - **Hành động:** `[BỌC PRISMA TRANSACTIONS]`.
   - **Chi tiết:** Bọc toàn bộ các lệnh đa truy vấn CSDL trong `cancelTaskRequest` và `respondToRequest` vào `this.prisma.$transaction(...)` đảm bảo tính nguyên tố Atomic 100%.
@@ -301,4 +294,5 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 - **File 3:** `fe/src/pages/BoardPage.tsx`
   - **Hành động:** `[TÍCH HỢP PHÂN TRANG FETCH TASKS]`.
   - **Chi tiết:** Thêm `limit=300` vào `GET /api/tasks?limit=300` bảo vệ bộ nhớ RAM trình duyệt.
+
 
