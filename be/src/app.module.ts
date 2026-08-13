@@ -8,6 +8,9 @@ import { ProjectModule } from './modules/project/project.module';
 import { TaskModule } from './modules/task/task.module';
 import { ProfileModule } from './modules/profile/profile.module';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+
 @Module({
   imports: [
     PrismaModule,
@@ -18,6 +21,12 @@ import { ProfileModule } from './modules/profile/profile.module';
     ProfileModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: IdempotencyInterceptor,
+    },
+  ],
 })
 export class AppModule {}

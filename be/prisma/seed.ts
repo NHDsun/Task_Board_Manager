@@ -298,6 +298,23 @@ async function main() {
     },
   });
 
+  // Seed PENDING TaskRequest for task-103 (Duy Khang -> Minh Anh)
+  await prisma.taskRequest.upsert({
+    where: { id: 'req-seed-103' },
+    update: {
+      status: 'PENDING',
+    },
+    create: {
+      id: 'req-seed-103',
+      taskId: task3.id,
+      senderId: empDuyKhang.id,
+      receiverId: managerUser.id,
+      type: 'TRANSFER',
+      status: 'PENDING',
+      note: 'Đã hoàn thiện 90% giao diện Bento Grid Đêm Vũ Trụ trên Mobile. Kính gửi Manager Minh Anh kiểm duyệt bài và nhận bàn giao.',
+    },
+  });
+
   const task4 = await prisma.task.upsert({
     where: { id: 'task-104' },
     update: {

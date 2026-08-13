@@ -1,7 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuthStore } from '../store/useAuthStore';
+
+// 🚀 Dedicated Fixed DND Portal Container (Zero Clipping + Zero Screen Shift + No Scrollbar Flash)
+const getPortalRoot = () => {
+  let element = document.getElementById('solar-dnd-portal');
+  if (!element) {
+    element = document.createElement('div');
+    element.id = 'solar-dnd-portal';
+    element.style.position = 'fixed';
+    element.style.top = '0';
+    element.style.left = '0';
+    element.style.right = '0';
+    element.style.bottom = '0';
+    element.style.overflow = 'hidden';
+    element.style.pointerEvents = 'none';
+    element.style.zIndex = '999999';
+    document.body.appendChild(element);
+  }
+  return element;
+};
 import { KanbanCard, type TaskItem } from '../components/kanban/KanbanCard';
+import { fetchWithRetry } from '../utils/apiRetry';
 import { SolarNotificationModal } from '../components/common/SolarNotificationModal';
 import { TaskRequestModal } from '../components/kanban/TaskRequestModal';
 import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
@@ -26,6 +46,7 @@ import {
 } from 'lucide-react';
 
 import { TaskTransferInboxModal } from '../components/kanban/TaskTransferInboxModal';
+import { DeleteTaskConfirmModal } from '../components/kanban/DeleteTaskConfirmModal';
 
 export const BoardPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -38,6 +59,11 @@ export const BoardPage: React.FC = () => {
 
   const [selectedTaskForRequest, setSelectedTaskForRequest] = useState<TaskItem | null>(null);
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<TaskItem | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<string | null>(null);
+
   const [isCheckedIn, setIsCheckedIn] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -107,16 +133,20 @@ export const BoardPage: React.FC = () => {
   // 🗄️ Task dataset fetched straight from PostgreSQL Database
   const [tasks, setTasks] = useState<Array<TaskItem & { assigneeId?: string }>>([]);
 
-  // Fetch real task dataset from Backend API
+  // Fetch real task dataset from Backend API (với mô hình Retry)
   const fetchTasksFromBackend = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/api/tasks', {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
+      const res = await fetchWithRetry(
+        'http://localhost:3000/api/tasks?limit=300',
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token || ''}`,
+          },
         },
-      });
+        { maxRetries: 3, initialDelayMs: 500 }
+      );
 
       if (res.ok) {
         const responseData = await res.json();
@@ -138,8 +168,8 @@ export const BoardPage: React.FC = () => {
     fetchTasksFromBackend();
   }, [token]);
 
-  // Handle Drag and Drop via @hello-pangea/dnd Library
-  const handleDragEnd = async (result: DropResult) => {
+  // Handle Drag and Drop via @hello-pangea/dnd Library (Tối ưu phản hồi tức thì 0s trễ + Mô hình Retry)
+  const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
     // Drop outside any container
@@ -188,7 +218,12 @@ export const BoardPage: React.FC = () => {
       return;
     }
 
-    // ✅ Cột khác: Cập nhật trạng thái Task im lặng
+    // ⚡ 4. CẬP NHẬT TỨC THÌ TRÊN GIAO DIỆN & BẬT ANIMATION DROP SNAP (0ms Delay)
+    setRecentlyMovedTaskId(draggableId);
+    setTimeout(() => {
+      setRecentlyMovedTaskId(null);
+    }, 800);
+
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === draggableId) {
@@ -200,9 +235,10 @@ export const BoardPage: React.FC = () => {
       })
     );
 
-    // Call Backend API to update status
-    try {
-      await fetch(`http://localhost:3000/api/tasks/${draggableId}/status`, {
+    // 🚀 🔄 Bắn API cập nhật CSDL ngầm với Mô hình RETRY (Exponential Backoff)
+    fetchWithRetry(
+      `http://localhost:3000/api/tasks/${draggableId}/status`,
+      {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -212,13 +248,21 @@ export const BoardPage: React.FC = () => {
           status: targetStatus,
           progress: targetStatus === 'TODO' ? 0 : taskToMove.progress,
         }),
-      });
-    } catch {
-      // Ignore API errors
-    }
+      },
+      {
+        maxRetries: 3,
+        initialDelayMs: 500,
+        onRetry: (attempt) => {
+          console.warn(`🔄 [Retry API] Thử lại lần ${attempt}/3 khi cập nhật trạng thái Task ${draggableId}`);
+        },
+      }
+    ).catch(() => {
+      // Đã thử lại 3 lần thất bại -> Khôi phục giao diện theo dữ liệu chuẩn từ CSDL
+      fetchTasksFromBackend();
+    });
   };
 
-  // Hàm thực thi Chuyển sang DONE sau khi User bấm Xác Nhận trên Modal
+  // Hàm thực thi Chuyển sang DONE sau khi User bấm Xác Nhận trên Modal (Áp dụng Retry)
   const executeMoveToDone = async () => {
     if (!confirmDoneTask) return;
 
@@ -236,19 +280,57 @@ export const BoardPage: React.FC = () => {
     setConfirmDoneTask(null);
 
     try {
-      await fetch(`http://localhost:3000/api/tasks/${taskId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
+      await fetchWithRetry(
+        `http://localhost:3000/api/tasks/${taskId}/status`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token || ''}`,
+          },
+          body: JSON.stringify({
+            status: 'DONE',
+            progress: 100,
+          }),
         },
-        body: JSON.stringify({
-          status: 'DONE',
-          progress: 100,
-        }),
-      });
+        { maxRetries: 3, initialDelayMs: 500 }
+      );
     } catch {
-      // Ignore API errors
+      fetchTasksFromBackend();
+    }
+  };
+
+  // 🗑️ Hàm thực thi Xóa Task khỏi CSDL PostgreSQL khi User bấm Xác Nhận trên Modal (Áp dụng Retry)
+  const handleConfirmDeleteTask = async () => {
+    if (!taskToDelete) return;
+    setIsDeleting(true);
+
+    try {
+      const res = await fetchWithRetry(
+        `http://localhost:3000/api/tasks/${taskToDelete.id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token || ''}`,
+          },
+        },
+        { maxRetries: 2, initialDelayMs: 400 }
+      );
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || 'Xóa Task thất bại');
+      }
+
+      showNotification(`🟢 Solaris: Đã xóa vĩnh viễn Task "${taskToDelete.title}" khỏi CSDL!`, 'success', 'Xóa Task Thành Công');
+      setIsDeleteModalOpen(false);
+      setSelectedTaskForDetail(null);
+      setTaskToDelete(null);
+      fetchTasksFromBackend();
+    } catch (err: any) {
+      showNotification(`❌ Lỗi: ${err.message || 'Không thể xóa Task'}`, 'warning', 'Xóa Task Thất Bại');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -545,37 +627,39 @@ export const BoardPage: React.FC = () => {
 
                           return (
                             <Draggable key={t.id} draggableId={t.id} index={index} isDragDisabled={isDragDisabled}>
-                            {(providedDraggable, snapshotDraggable) => {
-                              const cardElement = (
-                                <div
-                                  ref={providedDraggable.innerRef}
-                                  {...providedDraggable.draggableProps}
-                                  {...providedDraggable.dragHandleProps}
-                                  style={{
-                                    ...providedDraggable.draggableProps.style,
-                                  }}
-                                  className={`transform-gpu ${
-                                    snapshotDraggable.isDragging
-                                      ? '!z-[999999] rotate-2 scale-105 shadow-[0_0_60px_rgba(245,158,11,0.8)] border-2 border-amber-400 rounded-2xl bg-[#0F172A] cursor-grabbing'
-                                      : 'hover:-translate-y-0.5 transition-transform duration-150'
-                                  }`}
-                                >
-                                  <KanbanCard
-                                    task={t}
-                                    onRequestTransfer={handleQuickRequest}
-                                    onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
-                                  />
-                                </div>
-                              );
+                              {(providedDraggable, snapshotDraggable) => {
+                                const cardElement = (
+                                  <div
+                                    ref={providedDraggable.innerRef}
+                                    {...providedDraggable.draggableProps}
+                                    {...providedDraggable.dragHandleProps}
+                                    style={{
+                                      ...providedDraggable.draggableProps.style,
+                                      pointerEvents: 'auto',
+                                    }}
+                                    className={`transform-gpu ${
+                                      snapshotDraggable.isDragging
+                                        ? '!z-[999999] rotate-2 scale-105 shadow-[0_0_60px_rgba(245,158,11,0.8)] border-2 border-amber-400 rounded-2xl bg-[#0F172A] cursor-grabbing'
+                                        : snapshotDraggable.isDropAnimating || recentlyMovedTaskId === t.id
+                                        ? 'animate-solar-drop-snap border-2 border-amber-400/90 rounded-2xl shadow-[0_0_35px_rgba(245,158,11,0.6)]'
+                                        : 'hover:-translate-y-0.5 transition-transform duration-150'
+                                    }`}
+                                  >
+                                    <KanbanCard
+                                      task={t}
+                                      onRequestTransfer={handleQuickRequest}
+                                      onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                                    />
+                                  </div>
+                                );
 
-                              // 🚀 RENDER VIA PORTAL WHEN DRAGGING FOR ZERO CLIPPING
-                              if (snapshotDraggable.isDragging) {
-                                return ReactDOM.createPortal(cardElement, document.body);
-                              }
+                                if (snapshotDraggable.isDragging) {
+                                  return ReactDOM.createPortal(cardElement, getPortalRoot());
+                                }
 
-                              return cardElement;
-                            }}
-                          </Draggable>
+                                return cardElement;
+                              }}
+                            </Draggable>
                         );
                       })}
                         {provided.placeholder}
@@ -724,6 +808,22 @@ export const BoardPage: React.FC = () => {
         isOpen={!!selectedTaskForDetail}
         onClose={() => setSelectedTaskForDetail(null)}
         task={selectedTaskForDetail}
+        onDeleteTask={(t) => {
+          setTaskToDelete(t);
+          setIsDeleteModalOpen(true);
+        }}
+      />
+
+      {/* 🗑️ DELETE TASK CONFIRMATION MODAL */}
+      <DeleteTaskConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setTaskToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteTask}
+        taskTitle={taskToDelete?.title || ''}
+        isSubmitting={isDeleting}
       />
 
       {/* 📬 TASK REQUEST MODAL */}

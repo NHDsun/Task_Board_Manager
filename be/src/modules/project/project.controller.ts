@@ -7,7 +7,8 @@ import {
   Param,
   Delete,
   UseGuards,
-  Request
+  Request,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -19,16 +20,22 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
+  private extractUserId(req: any): string {
+    const userId = req.user?.id || req.user?.sub || req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ hoặc đã hết hạn');
+    }
+    return userId;
+  }
+
   @Post()
-  create(@Request() req: { user: { userId?: string; sub?: string; id?: string } }, @Body() createProjectDto: CreateProjectDto) {
-    const userId = req.user?.userId || req.user?.sub || req.user?.id || 'admin-huydat-id';
-    return this.projectService.create(userId, createProjectDto);
+  create(@Request() req: any, @Body() createProjectDto: CreateProjectDto) {
+    return this.projectService.create(this.extractUserId(req), createProjectDto);
   }
 
   @Get()
-  findAll(@Request() req: { user: { userId?: string; sub?: string; id?: string } }) {
-    const userId = req.user?.userId || req.user?.sub || req.user?.id || 'admin-huydat-id';
-    return this.projectService.findAll(userId);
+  findAll(@Request() req: any) {
+    return this.projectService.findAll(this.extractUserId(req));
   }
 
   @Get(':id')

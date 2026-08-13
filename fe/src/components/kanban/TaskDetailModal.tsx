@@ -24,6 +24,7 @@ interface TaskDetailModalProps {
   onClose: () => void;
   task: TaskItem | null;
   onStatusChange?: (taskId: string, newStatus: TaskItem['status']) => void;
+  onDeleteTask?: (task: TaskItem) => void;
 }
 
 interface CommentItem {
@@ -47,6 +48,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   isOpen,
   onClose,
   task,
+  onDeleteTask,
 }) => {
   if (!isOpen || !task) return null;
 
@@ -255,7 +257,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         {/* 🚀 Minisite Body Content */}
         <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1 relative z-10 text-xs">
 
-          {/* 🔄 IN_REVIEW TRANSFER ROUTE BENTO CARD */}
+          {/* 🔄 IN_REVIEW & TRANSFER ROUTE BENTO CARD */}
           {(task.status === 'IN_REVIEW' || task.transferInfo) && (
             <div className="solar-glass-card p-5 rounded-2xl bg-gradient-to-r from-purple-950/80 via-slate-950 to-amber-950/60 border border-purple-500/60 space-y-4 animate-fade-in shadow-2xl">
               <div className="flex items-center justify-between border-b border-purple-500/30 pb-2.5">
@@ -263,9 +265,15 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <Paperclip className="w-4 h-4 text-purple-400" />
                   THÔNG TIN CHUYỂN GIAO NHIỆM VỤ (TASK TRANSFER DETAIL)
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-mono font-bold animate-pulse">
-                  🔒 TRẠNG THÁI: IN_REVIEW (CHỜ DUYỆT)
-                </span>
+                {task.status === 'IN_REVIEW' ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-mono font-bold animate-pulse">
+                    🔒 TRẠNG THÁI: IN_REVIEW (CHỜ DUYỆT BÀI)
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold">
+                    ✅ BÀN GIAO THÀNH CÔNG
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -278,21 +286,23 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400 bg-slate-950 flex items-center justify-center font-extrabold text-amber-400 text-sm shrink-0">
                       {task.transferInfo?.senderAvatar ? (
                         <img src={task.transferInfo.senderAvatar} alt="Sender" className="w-full h-full object-cover" />
+                      ) : task.createdBy?.avatar ? (
+                        <img src={task.createdBy.avatar} alt="Sender" className="w-full h-full object-cover" />
                       ) : (
                         <span>
                           {task.transferInfo?.senderName
                             ? task.transferInfo.senderName.slice(0, 2).toUpperCase()
-                            : (task as any).createdBy?.fullName
-                            ? (task as any).createdBy.fullName.slice(0, 2).toUpperCase()
+                            : task.createdBy?.fullName
+                            ? task.createdBy.fullName.slice(0, 2).toUpperCase()
                             : 'SD'}
                         </span>
                       )}
                     </div>
                     <div>
                       <h4 className="font-extrabold text-white text-sm">
-                        {task.transferInfo?.senderName || (task as any).createdBy?.fullName || 'Người khởi tạo'}
+                        {task.transferInfo?.senderName || task.createdBy?.fullName || 'Người khởi tạo'}
                       </h4>
-                      <span className="text-[10px] text-amber-300 font-mono">Người gửi yêu cầu bàn giao</span>
+                      <span className="text-[10px] text-amber-300 font-mono">Người khởi tạo / Gửi bàn giao</span>
                     </div>
                   </div>
                 </div>
@@ -306,6 +316,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     <div className="w-10 h-10 rounded-xl overflow-hidden border border-blue-400 bg-slate-950 flex items-center justify-center font-extrabold text-blue-400 text-sm shrink-0">
                       {task.transferInfo?.receiverAvatar ? (
                         <img src={task.transferInfo.receiverAvatar} alt="Receiver" className="w-full h-full object-cover" />
+                      ) : task.assignee?.avatar ? (
+                        <img src={task.assignee.avatar} alt="Receiver" className="w-full h-full object-cover" />
                       ) : (
                         <span>
                           {task.transferInfo?.receiverName
@@ -327,12 +339,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </div>
 
               {/* 📝 GHI CHÚ NỘI DUNG CHUYỂN GIAO */}
-              {task.transferInfo?.note && (
-                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 space-y-1">
-                  <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider block">Lý do / Ghi chú chuyển giao:</span>
-                  <p className="italic text-xs text-white">"{task.transferInfo.note}"</p>
-                </div>
-              )}
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 space-y-1">
+                <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider block">Lý do / Ghi chú chuyển giao:</span>
+                <p className="italic text-xs text-white">
+                  "{task.transferInfo?.note || 'Yêu cầu chuyển giao và bàn giao nhiệm vụ tác nghiệp.'}"
+                </p>
+              </div>
             </div>
           )}
 
@@ -553,12 +565,26 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <span>Mã Task ID: <strong className="font-mono text-amber-300">{task.id}</strong></span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer"
-          >
-            Đóng Minisite
-          </button>
+          <div className="flex items-center gap-3">
+            {(currentUser?.globalRole === 'ADMIN' || currentUser?.globalRole === 'MANAGER') && (
+              <button
+                onClick={() => {
+                  onDeleteTask?.(task);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md hover:border-rose-400"
+              >
+                <Trash2 className="w-4 h-4 text-rose-400" />
+                <span>Xóa Nhiệm Vụ</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer"
+            >
+              Đóng Minisite
+            </button>
+          </div>
         </div>
 
       </div>

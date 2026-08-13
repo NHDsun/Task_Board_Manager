@@ -19,6 +19,11 @@ export interface TaskItem {
     avatar?: string;
     profession?: string;
   };
+  createdBy?: {
+    id: string;
+    fullName: string;
+    avatar?: string;
+  };
   transferInfo?: {
     senderName: string;
     senderAvatar?: string;
@@ -37,7 +42,7 @@ interface KanbanCardProps {
   onCardClick?: (task: TaskItem) => void;
 }
 
-export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onRequestTransfer, onCardClick }) => {
+export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({ task, onRequestTransfer, onCardClick }) => {
   const getPriorityBadge = (priority: TaskItem['priority']) => {
     switch (priority) {
       case 'URGENT':
@@ -72,7 +77,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onRequestTransfer,
   return (
     <div
       onClick={() => onCardClick?.(task)}
-      className="solar-glass-card p-4 rounded-2xl bg-[#0F172A]/90 border border-slate-800/80 hover:border-amber-500/50 shadow-lg space-y-3 transition-all duration-300 group relative overflow-hidden cursor-pointer"
+      className="solar-glass-card p-4 rounded-2xl bg-[#0F172A]/90 border border-slate-800/80 hover:border-amber-500/50 shadow-lg space-y-3 transition-[border-color,box-shadow,background-color] duration-150 group relative overflow-hidden cursor-pointer"
     >
       {/* Glow Hover Line */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -153,4 +158,4 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onRequestTransfer,
       </button>
     </div>
   );
-};
+});

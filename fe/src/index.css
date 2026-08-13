@@ -12,11 +12,12 @@
   --solar-border: rgba(245, 158, 11, 0.25);
 }
 
-body {
+html, body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   background-color: var(--obsidian-void);
   color: #f8fafc;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 @keyframes coronaPulse {
@@ -119,4 +120,23 @@ body {
 .solar-corona-btn:hover {
   box-shadow: 0 0 30px rgba(245, 158, 11, 0.7);
   transform: translateY(-1px);
+}
+
+@keyframes solarDropSnap {
+  0% {
+    transform: scale(1.05) translateY(-6px);
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.6), 0 0 15px rgba(168, 85, 247, 0.4);
+    border-color: rgba(245, 158, 11, 0.9);
+  }
+  50% {
+    transform: scale(0.97) translateY(2px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.animate-solar-drop-snap {
+  animation: solarDropSnap 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }

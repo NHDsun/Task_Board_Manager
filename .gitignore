@@ -1,0 +1,7 @@
+# Antigravity Rules & Local Configs
+.agents/
+node_modules/
+dist/
+build/
+.env
+.env.local

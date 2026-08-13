@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
@@ -39,8 +39,15 @@ export class TaskService {
       where.assignee = { profession: query.profession };
     }
 
+    const page = query?.page ? Math.max(1, Number(query.page)) : undefined;
+    const limit = query?.limit ? Math.min(200, Math.max(1, Number(query.limit))) : undefined;
+    const skip = page && limit ? (page - 1) * limit : undefined;
+    const take = limit || undefined;
+
     const tasks = await this.prisma.task.findMany({
       where,
+      skip,
+      take,
       include: {
         project: { select: { id: true, name: true } },
         assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
@@ -80,6 +87,14 @@ export class TaskService {
             fullName: t.assignee.fullName,
             avatar: t.assignee.avatar || undefined,
             profession: t.assignee.profession,
+          }
+        : undefined,
+      createdById: t.createdById,
+      createdBy: t.createdBy
+        ? {
+            id: t.createdBy.id,
+            fullName: t.createdBy.fullName,
+            avatar: t.createdBy.avatar || undefined,
           }
         : undefined,
       transferInfo:
@@ -366,28 +381,28 @@ export class TaskService {
       throw new BadRequestException('Yêu cầu đã được xử lý hoặc không ở trạng thái Chờ Duyệt (PENDING)');
     }
 
-    // 1. Update request status to CANCELLED
-    const updated = await this.prisma.taskRequest.update({
-      where: { id: requestId },
-      data: { status: 'CANCELLED' as any },
-    });
+    // 🔒 Bọc tất cả thao tác CSDL trong 1 Prisma Transaction nguyên tố (Atomic Transaction)
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.taskRequest.update({
+        where: { id: requestId },
+        data: { status: 'CANCELLED' as any },
+      });
 
-    // 2. Restore task status from IN_REVIEW back to IN_PROGRESS
-    await this.prisma.task.update({
-      where: { id: reqItem.taskId },
-      data: { status: 'IN_PROGRESS' },
-    });
+      await tx.task.update({
+        where: { id: reqItem.taskId },
+        data: { status: 'IN_PROGRESS' },
+      });
 
-    // 3. Record Cancellation Comment Log
-    await this.prisma.comment.create({
-      data: {
-        taskId: reqItem.taskId,
-        userId: effectiveUserId,
-        content: `🚫 [HỦY YÊU CẦU CHUYỂN GIAO] ${reqItem.sender.fullName} đã hủy yêu cầu chuyển giao Task tới ${reqItem.receiver.fullName}. Task quay trở lại trạng thái Thực hiện.`,
-      },
-    });
+      await tx.comment.create({
+        data: {
+          taskId: reqItem.taskId,
+          userId: effectiveUserId,
+          content: `🚫 [HỦY YÊU CẦU CHUYỂN GIAO] ${reqItem.sender.fullName} đã hủy yêu cầu chuyển giao Task tới ${reqItem.receiver.fullName}. Task quay trở lại trạng thái Thực hiện.`,
+        },
+      });
 
-    return updated;
+      return updated;
+    });
   }
 
   // 📬 Get incoming task transfer requests targeted strictly to the logged-in user
@@ -445,54 +460,79 @@ export class TaskService {
 
     const targetStatus = action === 'APPROVED' ? 'ACCEPTED' : 'REJECTED';
 
-    const updated = await this.prisma.taskRequest.update({
-      where: { id: requestId },
-      data: { status: targetStatus as any },
+    // 🔒 Bọc tất cả thao tác CSDL trong 1 Prisma Transaction nguyên tố (Atomic Transaction)
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.taskRequest.update({
+        where: { id: requestId },
+        data: { status: targetStatus as any },
+      });
+
+      if (action === 'APPROVED') {
+        await tx.task.update({
+          where: { id: reqItem.taskId },
+          data: {
+            assigneeId: reqItem.receiverId,
+            status: 'IN_PROGRESS',
+          },
+        });
+
+        try {
+          await tx.comment.create({
+            data: {
+              taskId: reqItem.taskId,
+              userId: effectiveUserId || reqItem.receiverId,
+              content: `🔄 [LỊCH SỬ CHUYỂN GIAO BAN GIAO TASK] Nhiệm vụ đã được chuyển giao thành công từ ${reqItem.sender?.fullName || 'Đồng nghiệp'} sang ${reqItem.receiver?.fullName || 'Người nhận'}. Chú thích: "${reqItem.note || 'Không có ghi chú'}"`,
+            },
+          });
+        } catch {
+          // Fallback silently if comment creation fails
+        }
+      } else if (action === 'REJECTED') {
+        await tx.task.update({
+          where: { id: reqItem.taskId },
+          data: { status: 'IN_PROGRESS' },
+        });
+
+        try {
+          await tx.comment.create({
+            data: {
+              taskId: reqItem.taskId,
+              userId: effectiveUserId || reqItem.receiverId,
+              content: `❌ [LỊCH SỬ TỪ CHỐI CHUYỂN GIAO] ${reqItem.receiver?.fullName || 'Người nhận'} đã từ chối yêu cầu bàn giao từ ${reqItem.sender?.fullName || 'Đồng nghiệp'}. Nhiệm vụ giữ nguyên cho người thực hiện cũ.`,
+            },
+          });
+        } catch {
+          // Fallback silently if comment creation fails
+        }
+      }
+
+      return updated;
     });
+  }
 
-    // 🟢 If APPROVED -> Transfer ownership to receiver + Un-lock from IN_REVIEW + Record History Log with Note
-    if (action === 'APPROVED') {
-      await this.prisma.task.update({
-        where: { id: reqItem.taskId },
-        data: {
-          assigneeId: reqItem.receiverId,
-          status: 'IN_PROGRESS',
-        },
-      });
-
-      // 📝 Ghi lại Lịch Sử Chuyển Giao kèm Chú thích vào CSDL (Bọc try-catch để an toàn 100%)
-      try {
-        await this.prisma.comment.create({
-          data: {
-            taskId: reqItem.taskId,
-            userId: effectiveUserId || reqItem.receiverId,
-            content: `🔄 [LỊCH SỬ CHUYỂN GIAO BAN GIAO TASK] Nhiệm vụ đã được chuyển giao thành công từ ${reqItem.sender?.fullName || 'Đồng nghiệp'} sang ${reqItem.receiver?.fullName || 'Người nhận'}. Chú thích: "${reqItem.note || 'Không có ghi chú'}"`,
-          },
-        });
-      } catch {
-        // Fallback silently if comment creation fails
-      }
-    } else if (action === 'REJECTED') {
-      // 🔴 If REJECTED -> Unlock from IN_REVIEW back to IN_PROGRESS for current owner + Record History Log
-      await this.prisma.task.update({
-        where: { id: reqItem.taskId },
-        data: { status: 'IN_PROGRESS' },
-      });
-
-      try {
-        await this.prisma.comment.create({
-          data: {
-            taskId: reqItem.taskId,
-            userId: effectiveUserId || reqItem.receiverId,
-            content: `❌ [LỊCH SỬ TỪ CHỐI CHUYỂN GIAO] ${reqItem.receiver?.fullName || 'Người nhận'} đã từ chối yêu cầu bàn giao từ ${reqItem.sender?.fullName || 'Đồng nghiệp'}. Nhiệm vụ giữ nguyên cho người thực hiện cũ.`,
-          },
-        });
-      } catch {
-        // Fallback silently if comment creation fails
-      }
+  // 🗑️ Delete Task (Allowed only for ADMIN & MANAGER)
+  async deleteTask(id: string, userId: string) {
+    let effectiveUserId = userId;
+    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
+      const realAdmin = await this.prisma.user.findUnique({ where: { email: 'huydatne@gmail.com' } });
+      if (realAdmin) effectiveUserId = realAdmin.id;
     }
 
-    return updated;
+    const task = await this.prisma.task.findUnique({ where: { id } });
+    if (!task) {
+      throw new NotFoundException('Task không tồn tại');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: effectiveUserId } });
+    const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+
+    if (!isManagerOrAdmin) {
+      throw new ForbiddenException('Chỉ có Cấp Quản Lý (Manager) hoặc Quản Trị Viên (Admin) mới có quyền xóa Task!');
+    }
+
+    await this.prisma.task.delete({ where: { id } });
+
+    return { success: true, message: `Đã xóa thành công Task: "${task.title}"` };
   }
 
   private async triggerTaskDrivenCheckIn(userId: string) {

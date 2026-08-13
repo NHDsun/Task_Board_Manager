@@ -197,6 +197,12 @@ model Task {
   comments     Comment[]
   taskRequests TaskRequest[]
 
+  @@index([projectId, status])
+  @@index([assigneeId, status])
+  @@index([createdById])
+  @@index([status])
+  @@index([isArchived])
+
   @@map("tasks")
 }
 
@@ -247,6 +253,8 @@ model Comment {
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
 
   @@map("comments")
 }
@@ -328,6 +336,10 @@ model TaskRequest {
   task     Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   sender   User @relation("SentTaskRequests", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("ReceivedTaskRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([receiverId, status])
+  @@index([senderId, status])
+  @@index([taskId, status])
 
   @@map("task_requests")
 }

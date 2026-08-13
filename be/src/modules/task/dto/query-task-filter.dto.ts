@@ -25,4 +25,10 @@ export class QueryTaskFilterDto {
   @IsOptional()
   @IsEnum(Profession)
   profession?: Profession;
+
+  @IsOptional()
+  page?: string | number;
+
+  @IsOptional()
+  limit?: string | number;
 }
