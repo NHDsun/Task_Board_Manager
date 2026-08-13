@@ -222,3 +222,83 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
   - **Hành động:** `[TÍCH HỢP NÚT TẠO DỰ ÁN & TẠO TASK VÀI TRÒ ADMIN/MANAGER]`.
   - **Chi tiết:** Hiển thị 2 nút bấm **[+ Tạo Dự Án Mới]** và **[+ Tạo Task Mới]** trên Header Bar phân quyền cho `ADMIN` và `MANAGER`, ẩn tự động với `EMPLOYEE`.
 - **Kết quả kiểm tra:** Biên dịch `npm --prefix fe run build` sản phẩm production thành công 100% trong **409ms** (0 lỗi, 0 cảnh báo).
+
+---
+
+## 68. Thêm Quy Tắc Tuân Thủ Luồng Nghiệp Vụ Bắt Buộc (Business Flow Rule)
+- **File 1:** `.agents/rules/03_BUSINESS_FLOW_RULE.md`
+  - **Hành động:** `[THÊM MỚI FILE RULE NGHIỆP VỤ]`.
+  - **Chi tiết:** Quy định nghiêm ngặt vòng đời Task (`TODO/IN_PROGRESS` -> `TaskRequest` -> `ACCEPTED` -> `IN_REVIEW` -> `DONE`), cấm nhảy cóc trạng thái hoặc tự chuyển giao cho chính mình.
+
+---
+
+## 69. Thêm Tính Năng Xóa Task Phân Quyền Vai Trò (Admin & Manager)
+- **File 1:** `be/src/modules/task/task.service.ts` & `task.controller.ts`
+  - **Hành động:** `[THÊM API DELETE /api/tasks/:id]`.
+  - **Chi tiết:** Xây dựng hàm `deleteTask()` kiểm tra quyền `ADMIN` hoặc `MANAGER` trước khi thực thi xóa Task khỏi CSDL PostgreSQL.
+- **File 2:** `fe/src/components/kanban/DeleteTaskConfirmModal.tsx`
+  - **Hành động:** `[THÊM MỚI MODAL XÁC NHẬN XÓA]`.
+  - **Chi tiết:** Tạo Modal xác nhận xóa Task phong cách Solar Dark Glassmorphic với nút xác nhận xóa vĩnh viễn.
+- **File 3:** `fe/src/components/kanban/TaskDetailModal.tsx` & `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[TÍCH HỢP NÚT XÓA VÀ HÀM THỰC THI]`.
+  - **Chi tiết:** Thêm nút **[🗑️ Xóa Nhiệm Vụ]** ở footer Minisite phân quyền cho Admin/Manager và kết nối handler xóa Optimistic UI.
+
+---
+
+## 70. Nâng Cấp Tối Ưu Chỉ Mục CSDL PostgreSQL Composite Indexes & Phân Trang
+- **File 1:** `be/prisma/schema.prisma`
+  - **Hành động:** `[BỔ SUNG COMPOSITE INDEXES]`.
+  - **Chi tiết:** Thêm các chỉ mục composite `@@index([projectId, status])`, `@@index([assigneeId, status])`, `@@index([receiverId, status])` tối ưu tốc độ truy vấn CSDL PostgreSQL.
+- **File 2:** `be/src/modules/task/dto/query-task-filter.dto.ts` & `task.service.ts`
+  - **Hành động:** `[THÊM THAM SỐ PAGE & LIMIT]`.
+  - **Chi tiết:** Bổ sung `page` và `limit` vào Query DTO và áp dụng `skip`/`take` trong Prisma query.
+
+---
+
+## 71. Tối Ưu Phản Hồi Kéo Thả 0ms Latency & Hiệu Ứng Solar Drop Snap Animation
+- **File 1:** `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[TỐI ƯU TRANSITION & REACT.MEMO]`.
+  - **Chi tiết:** Chuyển `transition-all` sang `transition-[border-color,box-shadow,background-color] duration-150`, bọc `React.memo` cho Card chống re-render giật lag.
+- **File 2:** `fe/src/index.css`
+  - **Hành động:** `[THÊM ANIMATION KEYFRAMES]`.
+  - **Chi tiết:** Định nghĩa `@keyframes solarDropSnap` và `.animate-solar-drop-snap` tạo hiệu ứng nảy nhún đàn hồi và tỏa ánh hổ phách khi thả Card.
+- **File 3:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[TỐI ƯU PORTAL CONTAINER & SYNCHRONOUS DRAG END]`.
+  - **Chi tiết:** Xây dựng `#solar-dnd-portal` cố định (`inset: 0`, `overflow: hidden`) triệt tiêu 100% hiện tượng bị che bởi cột và giật nảy thanh cuộn màn hình.
+
+---
+
+## 72. Chuẩn Hóa Dữ Liệu Minisite Bàn Giao (Task Transfer Detail)
+- **File 1:** `be/src/modules/task/task.service.ts` & `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[BỔ SUNG CREATED BY & TYPED REFERENCES]`.
+  - **Chi tiết:** Trả về `createdBy` từ backend DTO, định nghĩa lại `TaskItem` interface và hiển thị linh hoạt Badge trạng thái `🔒 IN_REVIEW (CHỜ DUYỆT BÀI)` / `✅ BÀN GIAO THÀNH CÔNG` cùng thông tin Avatar/Tên người chuyển và người nhận.
+- **File 2:** `be/prisma/seed.ts`
+  - **Hành động:** `[CẬP NHẬT TASK REQUEST SEED]`.
+  - **Chi tiết:** Đã tạo bản ghi `TaskRequest` chuẩn nghiệp vụ cho Task Mobile Bento Grid (Sender: Duy Khang -> Receiver: Minh Anh).
+
+---
+
+## 73. Cài Đặt Kiến Trúc Retry Enterprise (Exponential Backoff + Full Jitter + Circuit Breaker + Idempotency Interceptor)
+- **File 1:** `fe/src/utils/circuitBreaker.ts`
+  - **Hành động:** `[THÊM MỚI UTILITY CIRCUIT BREAKER]`.
+  - **Chi tiết:** Xây dựng bộ Cầu dao ngắt tự động 3 trạng thái (`CLOSED`, `OPEN`, `HALF_OPEN`) tự ngắt kết nối 15s nếu gặp 4 lỗi liên tiếp (Fail-Fast).
+- **File 2:** `fe/src/utils/apiRetry.ts`
+  - **Hành động:** `[THÊM MỚI UTILITY FETCH WITH RETRY]`.
+  - **Chi tiết:** Tích hợp lùi thời gian ngẫu nhiên Full Jitter, tự động gắn Header `X-Idempotency-Key` UUID cho các lệnh `POST`, `PATCH`, `PUT`, `DELETE` và kết nối với Circuit Breaker.
+- **File 3:** `be/src/common/interceptors/idempotency.interceptor.ts` & `be/src/app.module.ts`
+  - **Hành động:** `[THÊM MỚI INTERCEPTOR & ĐĂNG KÝ TOÀN CỤC]`.
+  - **Chi tiết:** Xây dựng `IdempotencyInterceptor` trong NestJS Backend đăng ký `APP_INTERCEPTOR` cache kết quả theo Key 5 phút, chặn 100% rủi ro ghi trùng CSDL PostgreSQL khi Retry.
+
+---
+
+## 74. Sửa Lỗi Bảo Mật & Đa Truy VẤN CSDL (Code Audit Bug Fixes)
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[BỌC PRISMA TRANSACTIONS]`.
+  - **Chi tiết:** Bọc toàn bộ các lệnh đa truy vấn CSDL trong `cancelTaskRequest` và `respondToRequest` vào `this.prisma.$transaction(...)` đảm bảo tính nguyên tố Atomic 100%.
+- **File 2:** `be/src/modules/task/task.controller.ts` & `project.controller.ts`
+  - **Hành động:** `[LOẠI BỎ HARDCODED ADMIN FALLBACK]`.
+  - **Chi tiết:** Thay thế chuỗi fallback `'admin-huydat-id'` bằng hàm `extractUserId(req)` quăng `UnauthorizedException` chuẩn mực nếu phiên đăng nhập không hợp lệ.
+- **File 3:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[TÍCH HỢP PHÂN TRANG FETCH TASKS]`.
+  - **Chi tiết:** Thêm `limit=300` vào `GET /api/tasks?limit=300` bảo vệ bộ nhớ RAM trình duyệt.
+
