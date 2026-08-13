@@ -8,6 +8,20 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 export class ProfileService {
   constructor(private prisma: PrismaService) {}
 
+  async getAllUsers() {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        avatar: true,
+        profession: true,
+      },
+      orderBy: { fullName: 'asc' },
+    });
+  }
+
   async getProfile(userId: string) {
     let effectiveUserId = userId;
     if (userId === 'admin-huydat-id' || userId === 'admin-id') {

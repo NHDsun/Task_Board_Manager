@@ -1,7 +1,11 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class CreateTaskCommentDto {
-  @IsNotEmpty({ message: 'Nội dung bình luận không được để trống' })
+  @IsOptional()
   @IsString({ message: 'Nội dung bình luận phải là chuỗi' })
-  text: string;
+  text?: string;
+
+  @IsOptional()
+  @IsString({ message: 'Nội dung bình luận phải là chuỗi' })
+  content?: string;
 }

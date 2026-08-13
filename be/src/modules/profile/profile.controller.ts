@@ -15,6 +15,11 @@ export class ProfileController {
     return this.profileService.getProfile(req.user.id);
   }
 
+  @Get('users')
+  async getAllUsers() {
+    return this.profileService.getAllUsers();
+  }
+
   @Patch('me')
   async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
     return this.profileService.updateProfile(req.user.id, dto);

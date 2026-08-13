@@ -10,11 +10,21 @@ export interface TaskItem {
   progress: number;
   dueDate?: string;
   projectName?: string;
+  assigneeId?: string;
+  createdById?: string;
   assignee?: {
     id: string;
     fullName: string;
+    email?: string;
     avatar?: string;
     profession?: string;
+  };
+  transferInfo?: {
+    senderName: string;
+    senderAvatar?: string;
+    receiverName: string;
+    receiverAvatar?: string;
+    note?: string;
   };
   tags?: Array<{ id: string; name: string; color?: string }>;
   commentsCount?: number;
@@ -97,19 +107,6 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onRequestTransfer,
         {task.title}
       </h3>
 
-      {/* Progress Bar */}
-      <div className="space-y-1">
-        <div className="flex justify-between text-[10px] font-mono text-slate-400">
-          <span>Tiến Độ</span>
-          <span className="text-amber-400 font-bold">{task.progress}%</span>
-        </div>
-        <div className="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden border border-slate-800">
-          <div
-            className="h-full bg-gradient-to-r from-amber-500 to-purple-500 rounded-full transition-all duration-500"
-            style={{ width: `${task.progress}%` }}
-          />
-        </div>
-      </div>
 
       {/* Footer Info */}
       <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">

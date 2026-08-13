@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
-import { X, PlusCircle, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, PlusCircle, Sparkles, UserCheck } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (task: any) => void;
+}
+
+interface DBProject {
+  id: string;
+  name: string;
+}
+
+interface DBUser {
+  id: string;
+  fullName: string;
+  profession?: string;
 }
 
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
@@ -16,13 +27,51 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   if (!isOpen) return null;
 
   const token = useAuthStore((state) => state.token);
+  const currentUser = useAuthStore((state) => state.user);
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'LOW' | 'NORMAL' | 'IMPORTANT' | 'URGENT'>('NORMAL');
-  const [projectId, setProjectId] = useState('project-solaris-core-id');
+  const [projectId, setProjectId] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const [dueDate, setDueDate] = useState('2026-08-20');
+
+  const [dbProjects, setDbProjects] = useState<DBProject[]>([]);
+  const [dbUsers, setDbUsers] = useState<DBUser[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // 🔄 Fetch real Projects & Users list from PostgreSQL database via API
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const [projRes, userRes] = await Promise.all([
+          fetch('http://localhost:3000/api/projects', { headers: { Authorization: `Bearer ${token || ''}` } }),
+          fetch('http://localhost:3000/api/profile/users', { headers: { Authorization: `Bearer ${token || ''}` } }),
+        ]);
+
+        if (projRes.ok) {
+          const projData = await projRes.json();
+          const projList = Array.isArray(projData) ? projData : projData?.data || [];
+          setDbProjects(projList);
+          if (projList.length > 0) setProjectId(projList[0].id);
+        }
+
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          const userList = Array.isArray(userData) ? userData : userData?.data || [];
+          setDbUsers(userList);
+          if (userList.length > 0) setAssigneeId(currentUser?.id || userList[0].id);
+        }
+      } catch {
+        // Fallback
+      }
+    };
+
+    if (isOpen) {
+      fetchMetadata();
+    }
+  }, [isOpen, token, currentUser?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +94,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           title,
           description,
           priority,
-          projectId,
+          projectId: projectId || undefined,
+          assigneeId: assigneeId || undefined,
           dueDate,
           status: 'TODO',
           progress: 0,
@@ -125,7 +175,27 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             />
           </div>
 
+          {/* 👤 CHỌN NGƯỜI THỰC HIỆN (ASSIGNEE) */}
+          <div className="space-y-1.5">
+            <label className="font-bold text-amber-300 uppercase tracking-wider block flex items-center gap-1.5">
+              <UserCheck className="w-4 h-4 text-amber-400" />
+              Giao Cho Nhân Viên Nào (Assignee) <span className="text-rose-400">*</span>
+            </label>
+            <select
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
+            >
+              {dbUsers.map((u) => (
+                <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200 py-1">
+                  👤 {u.fullName} ({u.profession || 'DEV'})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
+            {/* CHỌN DỰ ÁN */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-300 uppercase tracking-wider block">
                 Thuộc Dự Án
@@ -135,11 +205,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 onChange={(e) => setProjectId(e.target.value)}
                 className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
               >
-                <option value="project-solaris-core-id">Solaris Task Board Core</option>
-                <option value="project-solaris-ui-id">Solaris UI Redesign</option>
+                {dbProjects.map((p) => (
+                  <option key={p.id} value={p.id} className="bg-[#0F172A] text-slate-200 py-1">
+                    📁 {p.name}
+                  </option>
+                ))}
               </select>
             </div>
 
+            {/* MỨC ƯU TIÊN */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-300 uppercase tracking-wider block">
                 Mức Ưu Tiên
@@ -149,10 +223,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 onChange={(e: any) => setPriority(e.target.value)}
                 className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
               >
-                <option value="LOW">LOW (Thấp)</option>
-                <option value="NORMAL">NORMAL (Thường)</option>
-                <option value="IMPORTANT">IMPORTANT (Quan trọng)</option>
-                <option value="URGENT">URGENT (Khẩn cấp)</option>
+                <option value="LOW" className="bg-[#0F172A] text-slate-200 py-1">LOW (Thấp)</option>
+                <option value="NORMAL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">NORMAL (Thường)</option>
+                <option value="IMPORTANT" className="bg-[#0F172A] text-slate-200 font-semibold py-1">IMPORTANT (Quan trọng)</option>
+                <option value="URGENT" className="bg-[#0F172A] text-slate-200 font-semibold py-1">URGENT (Khẩn cấp)</option>
               </select>
             </div>
           </div>
@@ -169,7 +243,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             />
           </div>
 
-          <div className="pt-2 flex justify-end gap-3">
+          <div className="pt-2 flex justify-end gap-3 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}

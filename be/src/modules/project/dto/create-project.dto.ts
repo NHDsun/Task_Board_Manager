@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateProjectDto {
   @IsNotEmpty({ message: 'Tên dự án không được để trống' })
@@ -8,4 +8,8 @@ export class CreateProjectDto {
   @IsOptional()
   @IsString({ message: 'Mô tả dự án phải là chuỗi' })
   description?: string;
+
+  @IsOptional()
+  @IsArray({ message: 'Danh sách thành viên phải là mảng' })
+  memberIds?: string[];
 }

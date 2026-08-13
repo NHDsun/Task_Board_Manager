@@ -36,7 +36,7 @@ export const LoginTransitionWarp: React.FC<LoginTransitionWarpProps> = ({ onComp
         <div className="relative flex flex-col items-center justify-center animate-solar-nova">
           <DarkSunLogo className="w-36 h-36 filter drop-shadow-[0_0_50px_rgba(245,158,11,0.8)]" />
           <span className="mt-6 font-extrabold text-xl tracking-widest text-amber-300 animate-pulse">
-            SOLARIS WARP...
+            SOLARIS
           </span>
         </div>
       )}

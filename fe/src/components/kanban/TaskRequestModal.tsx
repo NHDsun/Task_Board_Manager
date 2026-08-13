@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Inbox, X, UserCheck, Send, Layers } from 'lucide-react';
 import type { TaskItem } from './KanbanCard';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface TaskRequestModalProps {
   isOpen: boolean;
@@ -10,6 +11,14 @@ interface TaskRequestModalProps {
   onSubmitSuccess: (message: string) => void;
 }
 
+interface MemberUser {
+  id: string;
+  fullName: string;
+  email: string;
+  role?: string;
+  profession?: string;
+}
+
 export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
   isOpen,
   onClose,
@@ -17,37 +26,106 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
   initialTask,
   onSubmitSuccess,
 }) => {
+  const token = useAuthStore((state) => state.token);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [requestType, setRequestType] = useState<'TRANSFER' | 'ASSIST' | 'REVIEW'>('TRANSFER');
-  const [selectedRecipientId, setSelectedRecipientId] = useState('manager-minhanh-id');
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string>('');
   const [requestReason, setRequestReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [projectMembers, setProjectMembers] = useState<MemberUser[]>([]);
 
-  // Project Members List
-  const projectMembers = [
-    { id: 'admin-huydat-id', name: 'Huy Dat (Admin)', role: 'ADMIN', profession: 'DEV' },
-    { id: 'manager-minhanh-id', name: 'Minh Anh (Manager)', role: 'MANAGER', profession: 'PRODUCT_OWNER' },
-    { id: 'employee-hoangnam-id', name: 'Hoang Nam (Developer)', role: 'EMPLOYEE', profession: 'DEV' },
-  ];
+  // 🔄 Fetch real users list from PostgreSQL database via API
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/profile/users', {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token || ''}`,
+          },
+        });
+        if (res.ok) {
+          const responseData = await res.json();
+          const list = Array.isArray(responseData)
+            ? responseData
+            : Array.isArray(responseData?.data)
+            ? responseData.data
+            : [];
+          setProjectMembers(list);
+          if (list.length > 0) {
+            setSelectedRecipientId(list[0].id);
+          }
+        }
+      } catch {
+        // Fallback
+      }
+    };
+
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen, token]);
+
+  const currentUser = useAuthStore((state) => state.user);
+
+  // 🔒 CHỈ CHO PHÉP CHỌN CÁC TASK THUỘC VỀ CHÍNH MÌNH BAN ĐẦU
+  const myOwnTasks = tasks.filter((t) => {
+    if (currentUser?.globalRole === 'ADMIN') return true;
+    return (
+      t.assigneeId === currentUser?.id ||
+      t.assignee?.email === currentUser?.email ||
+      (t as any).createdById === currentUser?.id
+    );
+  });
 
   useEffect(() => {
     if (initialTask) {
       setSelectedTaskId(initialTask.id);
-    } else if (tasks.length > 0) {
-      setSelectedTaskId(tasks[0].id);
+    } else if (myOwnTasks.length > 0) {
+      setSelectedTaskId(myOwnTasks[0].id);
     }
-  }, [initialTask, tasks]);
+  }, [initialTask, tasks, currentUser?.id]);
 
   if (!isOpen) return null;
 
-  const handleSendRequest = () => {
+  const handleSendRequest = async () => {
+    if (!selectedTaskId || isSubmitting) return;
+
+    setIsSubmitting(true);
     const targetTask = tasks.find((t) => t.id === selectedTaskId);
     const recipient = projectMembers.find((m) => m.id === selectedRecipientId);
     
-    onSubmitSuccess(
-      `🟢 Đã gửi thành công Yêu cầu ${requestType} cho Task "${targetTask?.title || 'được chọn'}" tới ${recipient?.name || 'đồng nghiệp'}! Trạng thái: PENDING.`
-    );
-    onClose();
-    setRequestReason('');
+    // ⚡ SAVE TASK REQUEST ROW IN POSTGRESQL CSDL & UPDATE STATUS TO 'IN_REVIEW'
+    try {
+      const res = await fetch('http://localhost:3000/api/tasks/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token || ''}`,
+        },
+        body: JSON.stringify({
+          taskId: selectedTaskId,
+          receiverId: selectedRecipientId,
+          type: requestType,
+          note: requestReason,
+        }),
+      });
+
+      if (res.ok) {
+        onSubmitSuccess(
+          `🟢 Đã gửi yêu cầu ${requestType} tới ${recipient?.fullName || 'đồng nghiệp'}! Task "${targetTask?.title || 'được chọn'}" đã tự động chuyển sang trạng thái CHỜ DUYỆT (IN_REVIEW) 🔒!`
+        );
+        onClose();
+        setRequestReason('');
+      } else {
+        const errData = await res.json();
+        alert(errData.message || 'Không thể gửi yêu cầu chuyển giao');
+      }
+    } catch {
+      alert('Lỗi kết nối Server NestJS');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -63,8 +141,8 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
               <Inbox className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white tracking-tight">Gửi Yêu Cầu Task Mới</h2>
-              <p className="text-xs text-slate-400">Chuyển giao, yêu cầu hỗ trợ hoặc duyệt bài</p>
+              <h2 className="text-xl font-black text-white tracking-tight">Gửi Yêu Cầu Chuyển Giao Task</h2>
+              <p className="text-xs text-slate-400">Task sẽ tự động đổi trạng thái thành CHỜ DUYỆT (IN_REVIEW) 🔒</p>
             </div>
           </div>
 
@@ -89,96 +167,99 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
               onChange={(e) => setSelectedTaskId(e.target.value)}
               className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 font-medium focus:outline-none focus:border-amber-500 cursor-pointer shadow-inner"
             >
-              {tasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  📋 [{t.status}] {t.title} ({t.projectName})
+              {myOwnTasks.length === 0 ? (
+                <option value="" className="bg-[#0F172A] text-slate-400 py-1">
+                  ⚠️ Bạn chưa sở hữu Task nào để thực hiện chuyển giao
                 </option>
-              ))}
+              ) : (
+                myOwnTasks.map((t) => (
+                  <option key={t.id} value={t.id} className="bg-[#0F172A] text-slate-200 py-1">
+                    📋 [{t.status}] {t.title} ({t.projectName})
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
           {/* Mục 2: Loại Yêu Cầu */}
           <div className="space-y-2">
-            <label className="text-xs font-extrabold text-amber-300 block uppercase tracking-wider">
-              2. Loại Yêu Cầu (Request Type)
+            <label className="text-xs font-extrabold text-amber-300 flex items-center gap-1.5 uppercase tracking-wider">
+              <Send className="w-4 h-4 text-amber-400" />
+              2. Chọn Loại Yêu Cầu (Request Type)
             </label>
-            <div className="grid grid-cols-3 gap-2.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setRequestType('TRANSFER')}
-                className={`py-3 rounded-xl font-black tracking-wider border transition-all cursor-pointer ${
-                  requestType === 'TRANSFER'
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/20'
-                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                TRANSFER
-              </button>
-              <button
-                type="button"
-                onClick={() => setRequestType('ASSIST')}
-                className={`py-3 rounded-xl font-black tracking-wider border transition-all cursor-pointer ${
-                  requestType === 'ASSIST'
-                    ? 'bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-600/20'
-                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                ASSIST
-              </button>
-              <button
-                type="button"
-                onClick={() => setRequestType('REVIEW')}
-                className={`py-3 rounded-xl font-black tracking-wider border transition-all cursor-pointer ${
-                  requestType === 'REVIEW'
-                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-lg shadow-emerald-500/20'
-                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                REVIEW
-              </button>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'TRANSFER', label: 'Chuyển Giao' },
+                { id: 'ASSIST', label: 'Cần Hỗ Trợ' },
+                { id: 'REVIEW', label: 'Chờ Duyệt' },
+              ].map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  onClick={() => setRequestType(type.id as any)}
+                  className={`p-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                    requestType === type.id
+                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md'
+                      : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                  }`}
+                >
+                  {type.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Mục 3: Chọn Người Nhận Trong Cùng Dự Án */}
+          {/* Mục 3: Người Nhận Yêu Cầu */}
           <div className="space-y-2">
             <label className="text-xs font-extrabold text-amber-300 flex items-center gap-1.5 uppercase tracking-wider">
               <UserCheck className="w-4 h-4 text-amber-400" />
-              3. Chọn Người Nhận Trong Cùng Dự Án (Recipient Member)
+              3. Người Nhận Yêu Cầu (Recipient)
             </label>
             <select
               value={selectedRecipientId}
               onChange={(e) => setSelectedRecipientId(e.target.value)}
               className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 font-medium focus:outline-none focus:border-amber-500 cursor-pointer shadow-inner"
             >
-              {projectMembers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} — ({m.role} / {m.profession})
+              {projectMembers.map((member) => (
+                <option key={member.id} value={member.id} className="bg-[#0F172A] text-slate-200 py-1">
+                  👤 {member.fullName} ({member.profession || 'DEV'})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Mục 4: Lý Do & Kế Hoạch Bàn Giao */}
+          {/* Mục 4: Lý Do / Ghi Chú */}
           <div className="space-y-2">
-            <label className="text-xs font-extrabold text-amber-300 block uppercase tracking-wider">
-              4. Lý Do &amp; Kế Hoạch Bàn Giao
+            <label className="text-xs font-extrabold text-amber-300 flex items-center gap-1.5 uppercase tracking-wider">
+              📝 Lý Do / Ghi Chú Chi Tiết
             </label>
             <textarea
               rows={3}
               value={requestReason}
               onChange={(e) => setRequestReason(e.target.value)}
-              placeholder="Nhập chi tiết lý do chuyển giao hoặc cần hỗ trợ..."
-              className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 resize-none shadow-inner"
+              placeholder="Nhập ghi chú hoặc lý do cần chuyển giao/hỗ trợ..."
+              className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 resize-none font-medium"
             />
           </div>
+        </div>
 
-          {/* Nút Gửi Yêu Cầu */}
+        {/* Modal Actions */}
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white font-bold text-xs transition-colors cursor-pointer"
+          >
+            Hủy Bỏ
+          </button>
           <button
             type="button"
             onClick={handleSendRequest}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm tracking-wider uppercase flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-all cursor-pointer"
+            disabled={isSubmitting}
+            className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg flex items-center gap-2 cursor-pointer transition-all"
           >
-            <Send className="w-4 h-4" /> Gửi Yêu Cầu (PENDING)
+            <Send className="w-4 h-4" />
+            <span>{isSubmitting ? 'Đang Gửi...' : 'Xác Nhận & Đổi Sang IN_REVIEW'}</span>
           </button>
         </div>
       </div>

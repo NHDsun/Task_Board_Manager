@@ -8,6 +8,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
+    console.error('❌ Exception caught in HttpExceptionFilter:', exception);
+
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
@@ -21,8 +23,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const message =
       typeof exceptionResponse === 'object' && exceptionResponse.message
         ? Array.isArray(exceptionResponse.message)
-          ? exceptionResponse.message.join(', ')
-          : exceptionResponse.message
         : typeof exceptionResponse === 'string'
         ? exceptionResponse
         : 'An error occurred';

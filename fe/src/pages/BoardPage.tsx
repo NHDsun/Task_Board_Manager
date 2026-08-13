@@ -25,11 +25,14 @@ import {
   FolderPlus
 } from 'lucide-react';
 
+import { TaskTransferInboxModal } from '../components/kanban/TaskTransferInboxModal';
+
 export const BoardPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const [activeView, setActiveView] = useState<'kanban' | 'pipeline' | 'focus'>('kanban');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isTransferInboxOpen, setIsTransferInboxOpen] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
 
@@ -38,12 +41,40 @@ export const BoardPage: React.FC = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Dynamic Metadata States (Read from PostgreSQL DB)
+  const [dbProjects, setDbProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [dbUsers, setDbUsers] = useState<Array<{ id: string; fullName: string }>>([]);
+
   // Multi-Criteria Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [filterProject, setFilterProject] = useState<string>('ALL');
   const [filterAssignee, setFilterAssignee] = useState<string>('ALL');
   const [filterPriority, setFilterPriority] = useState<string>('ALL');
   const [filterProfession, setFilterProfession] = useState<string>('ALL');
+
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const [projRes, userRes] = await Promise.all([
+          fetch('http://localhost:3000/api/projects', { headers: { Authorization: `Bearer ${token || ''}` } }),
+          fetch('http://localhost:3000/api/profile/users', { headers: { Authorization: `Bearer ${token || ''}` } }),
+        ]);
+
+        if (projRes.ok) {
+          const projData = await projRes.json();
+          setDbProjects(Array.isArray(projData) ? projData : projData?.data || []);
+        }
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          setDbUsers(Array.isArray(userData) ? userData : userData?.data || []);
+        }
+      } catch {
+        // Fallback
+      }
+    };
+
+    fetchMetadata();
+  }, [token]);
 
   // State xác nhận khi kéo Task vào cột DONE
   const [confirmDoneTask, setConfirmDoneTask] = useState<{
@@ -88,10 +119,13 @@ export const BoardPage: React.FC = () => {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setTasks(data);
-        }
+        const responseData = await res.json();
+        const taskArray = Array.isArray(responseData)
+          ? responseData
+          : Array.isArray(responseData?.data)
+          ? responseData.data
+          : [];
+        setTasks(taskArray);
       }
     } catch {
       // Fallback silently
@@ -118,10 +152,17 @@ export const BoardPage: React.FC = () => {
     const taskToMove = tasks.find((t) => t.id === draggableId);
     if (!taskToMove) return;
 
-    // 🔒 1. BỊ CẤM: Drag Ownership Rule (EMPLOYEE chỉ được kéo task của mình) -> HIỆN THÔNG BÁO CẢNH BÁO
-    if (user?.globalRole === 'EMPLOYEE' && taskToMove.assigneeId !== user.id) {
+    // 🔒 1. BỊ CẤM: Drag Ownership Rule (Tất cả User chỉ kéo Task của mình, TRỪ ADMIN có quyền kéo tất cả)
+    const isAdmin = user?.globalRole === 'ADMIN';
+    const isTaskOwner =
+      taskToMove.assigneeId === user?.id ||
+      taskToMove.assignee?.id === user?.id ||
+      taskToMove.assignee?.email === user?.email ||
+      (taskToMove as any).createdById === user?.id;
+
+    if (!isAdmin && !isTaskOwner) {
       showNotification(
-        `Bạn (${user.fullName}) chỉ có thể kéo thả các Task chính chủ được phân công cho mình!`,
+        `Bạn (${user?.fullName || 'Người dùng'}) chỉ có quyền kéo thả các Task chính chủ của mình! (Chỉ Admin mới có quyền kéo Task của mọi người).`,
         'warning',
         'Quyền Hạn Bị Từ Chối (Drag Ownership)'
       );
@@ -343,14 +384,12 @@ export const BoardPage: React.FC = () => {
           </div>
 
           <button
-            onClick={() => {
-              setSelectedTaskForRequest(null);
-              setIsRequestModalOpen(true);
-            }}
-            className="px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-2 transition-all relative cursor-pointer"
+            onClick={() => setIsTransferInboxOpen(true)}
+            className="px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-2 transition-all relative cursor-pointer shadow-md"
+            title="Xem các yêu cầu chuyển giao Task gửi chính chủ cho bạn"
           >
             <Inbox className="w-4 h-4 text-amber-400" />
-            <span>Yêu Cầu Task</span>
+            <span>Yêu Cầu Chuyển Giao</span>
           </button>
         </div>
       </div>
@@ -406,9 +445,12 @@ export const BoardPage: React.FC = () => {
               onChange={(e) => setFilterProject(e.target.value)}
               className="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer"
             >
-              <option value="ALL">Tất Cả Dự Án</option>
-              <option value="Solaris Task Board Core">Solaris Core</option>
-              <option value="Solaris UI Redesign">UI Redesign</option>
+              <option value="ALL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">Tất Cả Dự Án</option>
+              {dbProjects.map((p) => (
+                <option key={p.id} value={p.name} className="bg-[#0F172A] text-slate-200 font-semibold py-1">
+                  {p.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -420,10 +462,12 @@ export const BoardPage: React.FC = () => {
               onChange={(e) => setFilterAssignee(e.target.value)}
               className="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer"
             >
-              <option value="ALL">Tất Cả Nhân Sự</option>
-              <option value="admin-huydat-id">Huy Dat (Admin)</option>
-              <option value="manager-minhanh-id">Minh Anh (Manager)</option>
-              <option value="employee-hoangnam-id">Hoang Nam (Dev)</option>
+              <option value="ALL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">Tất Cả Nhân Sự</option>
+              {dbUsers.map((u) => (
+                <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200 font-semibold py-1">
+                  {u.fullName}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -435,11 +479,11 @@ export const BoardPage: React.FC = () => {
               onChange={(e) => setFilterPriority(e.target.value)}
               className="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer"
             >
-              <option value="ALL">Mọi Độ Ưu Tiên</option>
-              <option value="URGENT">URGENT (Khẩn cấp)</option>
-              <option value="IMPORTANT">IMPORTANT (Quan trọng)</option>
-              <option value="NORMAL">NORMAL (Thường)</option>
-              <option value="LOW">LOW (Thấp)</option>
+              <option value="ALL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">Mọi Độ Ưu Tiên</option>
+              <option value="URGENT" className="bg-[#0F172A] text-slate-200 font-semibold py-1">URGENT (Khẩn cấp)</option>
+              <option value="IMPORTANT" className="bg-[#0F172A] text-slate-200 font-semibold py-1">IMPORTANT (Quan trọng)</option>
+              <option value="NORMAL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">NORMAL (Thường)</option>
+              <option value="LOW" className="bg-[#0F172A] text-slate-200 font-semibold py-1">LOW (Thấp)</option>
             </select>
           </div>
 
@@ -451,11 +495,11 @@ export const BoardPage: React.FC = () => {
               onChange={(e) => setFilterProfession(e.target.value)}
               className="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer"
             >
-              <option value="ALL">Mọi Chuyên Môn</option>
-              <option value="DEV">DEV (Lập trình viên)</option>
-              <option value="PRODUCT_OWNER">PRODUCT_OWNER (Quản lý)</option>
-              <option value="TESTER">TESTER (Kiểm thử)</option>
-              <option value="DESIGNER">DESIGNER (Thiết kế)</option>
+              <option value="ALL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">Mọi Chuyên Môn</option>
+              <option value="DEV" className="bg-[#0F172A] text-slate-200 font-semibold py-1">DEV (Lập trình viên)</option>
+              <option value="PRODUCT_OWNER" className="bg-[#0F172A] text-slate-200 font-semibold py-1">PRODUCT_OWNER (Quản lý)</option>
+              <option value="TESTER" className="bg-[#0F172A] text-slate-200 font-semibold py-1">TESTER (Kiểm thử)</option>
+              <option value="DESIGNER" className="bg-[#0F172A] text-slate-200 font-semibold py-1">DESIGNER (Thiết kế)</option>
             </select>
           </div>
         </div>
@@ -469,7 +513,7 @@ export const BoardPage: React.FC = () => {
               const colTasks = filteredTasks.filter((t) => t.status === col.id);
 
               return (
-                <Droppable key={col.id} droppableId={col.id}>
+                <Droppable key={col.id} droppableId={col.id} isDropDisabled={col.id === 'IN_REVIEW'}>
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
@@ -482,7 +526,7 @@ export const BoardPage: React.FC = () => {
                     >
                       <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
                         <span className={`text-xs font-extrabold tracking-wider ${col.color}`}>
-                          {col.label}
+                          {col.label} {col.id === 'IN_REVIEW' && '🔒'}
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-400">
                           {colTasks.length}
@@ -490,8 +534,17 @@ export const BoardPage: React.FC = () => {
                       </div>
 
                       <div className="flex-1 space-y-3">
-                        {colTasks.map((t, index) => (
-                          <Draggable key={t.id} draggableId={t.id} index={index}>
+                        {colTasks.map((t, index) => {
+                          const isAdminRole = user?.globalRole === 'ADMIN';
+                          const isMyOwnTask =
+                            t.assigneeId === user?.id ||
+                            t.assignee?.id === user?.id ||
+                            t.assignee?.email === user?.email ||
+                            (t as any).createdById === user?.id;
+                          const isDragDisabled = t.status === 'IN_REVIEW' || (!isAdminRole && !isMyOwnTask);
+
+                          return (
+                            <Draggable key={t.id} draggableId={t.id} index={index} isDragDisabled={isDragDisabled}>
                             {(providedDraggable, snapshotDraggable) => {
                               const cardElement = (
                                 <div
@@ -523,7 +576,8 @@ export const BoardPage: React.FC = () => {
                               return cardElement;
                             }}
                           </Draggable>
-                        ))}
+                        );
+                      })}
                         {provided.placeholder}
 
                         {colTasks.length === 0 && (
@@ -588,57 +642,82 @@ export const BoardPage: React.FC = () => {
         </div>
       )}
 
-      {/* 🎯 VIEW 3: MY FOCUS QUEUE VIEW */}
-      {activeView === 'focus' && (
-        <div className="space-y-6 pb-12">
-          {/* Hero Focus Card #1 */}
-          <div className="solar-glass-card p-6 md:p-8 rounded-3xl bg-gradient-to-br from-amber-500/10 via-[#0F172A] to-purple-600/10 border border-amber-500/50 shadow-2xl relative space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500 text-slate-950 animate-pulse">
-                🎯 HERO FOCUS TASK #1 (ĐANG LÀM NGAY)
-              </span>
-              <span className="text-xs text-amber-300 font-mono">Ca Làm: 01h 45m</span>
-            </div>
+      {/* 🎯 VIEW 3: MY FOCUS QUEUE VIEW (CHỈ HIỂN THỊ TASK CÁ NHÂN CHÍNH CHỦ) */}
+      {activeView === 'focus' && (() => {
+        const myFocusTasks = filteredTasks.filter((t) => {
+          if (!user) return true;
+          return t.assigneeId === user.id || t.assignee?.id === user.id || t.assignee?.email === user.email;
+        });
 
-            <h2 className="text-2xl font-extrabold text-white">
-              {filteredTasks[0]?.title || 'Thiết Kế Kiến Trúc Backend Module Profile'}
-            </h2>
-            <p className="text-xs text-slate-300">
-              {filteredTasks[0]?.description || 'Tập trung xử lý hoàn tất các DTO validation và Service profile cá nhân.'}
-            </p>
+        const heroTask = myFocusTasks[0];
 
-            <div className="flex items-center gap-4 pt-2">
-              <button
-                onClick={() => showNotification('Đã ghi nhận tạm dừng Focus Task!', 'info', 'Focus Mode')}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all"
-              >
-                <Pause className="w-4 h-4" /> Tạm Dừng Ca
-              </button>
-              <button
-                onClick={() => showNotification('Đã hoàn thành Task thành công!', 'success', 'Task Done')}
-                className="px-5 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all"
-              >
-                <CheckCircle2 className="w-4 h-4" /> Đánh Dấu Hoàn Thành
-              </button>
-            </div>
+        return (
+          <div className="space-y-6 pb-12">
+            {/* Hero Focus Card #1 */}
+            {heroTask ? (
+              <div className="solar-glass-card p-6 md:p-8 rounded-3xl bg-gradient-to-br from-amber-500/10 via-[#0F172A] to-purple-600/10 border border-amber-500/50 shadow-2xl relative space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500 text-slate-950 animate-pulse">
+                    🎯 HERO FOCUS TASK #1 (ĐANG LÀM NGAY)
+                  </span>
+                  <span className="text-xs text-amber-300 font-mono">Dự Án: {heroTask.projectName || 'Solaris Core'}</span>
+                </div>
+
+                <h2 className="text-2xl font-extrabold text-white">
+                  {heroTask.title}
+                </h2>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  {heroTask.description || 'Tập trung xử lý hoàn tất các nhiệm vụ được phân công cá nhân.'}
+                </p>
+
+                <div className="flex items-center gap-4 pt-2 flex-wrap">
+                  <button
+                    onClick={() => showNotification(`Đã ghi nhận tạm dừng Task "${heroTask.title}"!`, 'info', 'Focus Mode')}
+                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Pause className="w-4 h-4" /> Tạm Dừng Ca
+                  </button>
+                  <button
+                    onClick={() => {
+                      setConfirmDoneTask({ taskId: heroTask.id, taskTitle: heroTask.title });
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Đánh Dấu Hoàn Thành
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-slate-800 text-center space-y-3">
+                <Target className="w-12 h-12 text-amber-400 mx-auto opacity-80" />
+                <h3 className="text-lg font-bold text-white">Hàng Chờ Focus Cá Nhân Trống</h3>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Bạn ({user?.fullName || 'Hiện tại'}) không có Task nào được phân công trực tiếp cần tập trung xử lý.
+                </p>
+              </div>
+            )}
+
+            {/* Queue List */}
+            {myFocusTasks.length > 1 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+                  Hàng Chờ Ưu Tiên Tiếp Theo Của Bạn ({myFocusTasks.length - 1})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {myFocusTasks.slice(1).map((t) => (
+                    <KanbanCard
+                      key={t.id}
+                      task={t}
+                      onRequestTransfer={handleQuickRequest}
+                      onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Queue List */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Hàng Chờ Ưu Tiên Tiếp Theo (Queue)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredTasks.slice(1).map((t) => (
-                <KanbanCard
-                  key={t.id}
-                  task={t}
-                  onRequestTransfer={handleQuickRequest}
-                  onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 🌌 TASK DETAIL MINISITE MODAL */}
       <TaskDetailModal
@@ -655,6 +734,17 @@ export const BoardPage: React.FC = () => {
         initialTask={selectedTaskForRequest}
         onSubmitSuccess={(msg) => {
           showNotification(msg, 'success', 'Yêu Cầu Task Đã Gửi');
+          fetchTasksFromBackend();
+        }}
+      />
+
+      {/* 📥 INCOMING TASK TRANSFER INBOX MODAL */}
+      <TaskTransferInboxModal
+        isOpen={isTransferInboxOpen}
+        onClose={() => setIsTransferInboxOpen(false)}
+        onSuccess={() => {
+          showNotification('🟢 Đã tiếp nhận và cập nhật phân công Task thành công!', 'success', 'Yêu Cầu Chuyển Giao');
+          fetchTasksFromBackend();
         }}
       />
 

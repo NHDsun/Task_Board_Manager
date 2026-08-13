@@ -9,10 +9,12 @@ export class ProjectService {
 
   async create(userId: string, createProjectDto: CreateProjectDto) {
     let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id') {
+    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
       const realAdmin = await this.prisma.user.findUnique({ where: { email: 'huydatne@gmail.com' } });
       if (realAdmin) effectiveUserId = realAdmin.id;
     }
+
+    const memberIds = Array.from(new Set([effectiveUserId, ...(createProjectDto.memberIds || [])]));
 
     return this.prisma.project.create({
       data: {
@@ -20,9 +22,7 @@ export class ProjectService {
         description: createProjectDto.description,
         createdById: effectiveUserId,
         members: {
-          create: {
-            userId: effectiveUserId,
-          },
+          create: memberIds.map((mId) => ({ userId: mId })),
         },
       },
       include: {
@@ -40,7 +40,7 @@ export class ProjectService {
 
   async findAll(userId: string) {
     let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id') {
+    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
       const realAdmin = await this.prisma.user.findUnique({ where: { email: 'huydatne@gmail.com' } });
       if (realAdmin) effectiveUserId = realAdmin.id;
     }

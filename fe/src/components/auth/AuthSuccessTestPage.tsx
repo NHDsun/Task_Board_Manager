@@ -19,7 +19,6 @@ export const AuthSuccessTestPage = () => {
             XÁC THỰC THÀNH CÔNG
           </h1>
           <p className="text-xs font-medium text-slate-400">
-            [MÀN HÌNH THỬ NGHIỆM TẠM THỜI - TỰ ĐỘNG THAY THẾ BỞI KANBAN BOARD]
           </p>
         </div>
 

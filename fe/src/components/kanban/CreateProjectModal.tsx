@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
-import { X, FolderPlus, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, FolderPlus, Sparkles, UserPlus, Check } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (project: any) => void;
+}
+
+interface MemberUser {
+  id: string;
+  fullName: string;
+  email: string;
+  profession?: string;
+  avatar?: string;
 }
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
@@ -18,8 +26,45 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const token = useAuthStore((state) => state.token);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [availableUsers, setAvailableUsers] = useState<MemberUser[]>([]);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // 🔄 Fetch real users list from PostgreSQL database via API
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/profile/users', {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token || ''}`,
+          },
+        });
+        if (res.ok) {
+          const responseData = await res.json();
+          const list = Array.isArray(responseData)
+            ? responseData
+            : Array.isArray(responseData?.data)
+            ? responseData.data
+            : [];
+          setAvailableUsers(list);
+        }
+      } catch {
+        // Fallback
+      }
+    };
+
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen, token]);
+
+  const toggleMemberSelect = (userId: string) => {
+    setSelectedMemberIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +83,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token || ''}`,
         },
-        body: JSON.stringify({ name, description }),
+        body: JSON.stringify({
+          name,
+          description,
+          memberIds: selectedMemberIds,
+        }),
       });
 
       if (res.ok) {
@@ -46,6 +95,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         onSuccess(data);
         setName('');
         setDescription('');
+        setSelectedMemberIds([]);
         onClose();
       } else {
         const errData = await res.json();
@@ -114,7 +164,48 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             />
           </div>
 
-          <div className="pt-2 flex justify-end gap-3">
+          {/* 👥 THÊM THÀNH VIÊN VÀO DỰ ÁN (ADD MEMBERS) */}
+          <div className="space-y-2 pt-1">
+            <label className="font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+              <UserPlus className="w-4 h-4 text-amber-400" />
+              Thêm Thành Viên Dự Án ({selectedMemberIds.length} đã chọn)
+            </label>
+
+            <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+              {availableUsers.map((user) => {
+                const isSelected = selectedMemberIds.includes(user.id);
+                return (
+                  <div
+                    key={user.id}
+                    onClick={() => toggleMemberSelect(user.id)}
+                    className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-purple-500/20 border-purple-500/50 text-white'
+                        : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 font-bold flex items-center justify-center text-[10px] text-amber-400">
+                        {user.fullName.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs">{user.fullName}</h4>
+                        <span className="text-[10px] text-slate-500">{user.email}</span>
+                      </div>
+                    </div>
+
+                    <div className={`w-5 h-5 rounded-lg border flex items-center justify-center ${
+                      isSelected ? 'bg-purple-500 border-purple-400 text-white' : 'border-slate-700 bg-slate-950'
+                    }`}>
+                      {isSelected && <Check className="w-3.5 h-3.5" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-3 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}

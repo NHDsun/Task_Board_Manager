@@ -38,7 +38,7 @@ async function main() {
   console.log('✅ Created Departments:', deptProduct.name, deptClient.name);
 
   // 2. Create Users
-  const defaultAdminPassword = await bcrypt.hash('password123', 10);
+  const defaultPassword = await bcrypt.hash('password123', 10);
   const huyDatPassword = await bcrypt.hash('11032005', 10);
 
   const huyDatUser = await prisma.user.upsert({
@@ -78,7 +78,7 @@ async function main() {
     where: { email: 'manager@taskboard.com' },
     update: {
       id: 'manager-minhanh-id',
-      password: defaultAdminPassword,
+      password: defaultPassword,
       role: Role.MANAGER,
       profession: Profession.PRODUCT_OWNER,
       jobTitle: 'Project Manager & Scrum Master',
@@ -88,7 +88,7 @@ async function main() {
     create: {
       id: 'manager-minhanh-id',
       email: 'manager@taskboard.com',
-      password: defaultAdminPassword,
+      password: defaultPassword,
       fullName: 'Minh Anh (Manager)',
       role: Role.MANAGER,
       profession: Profession.PRODUCT_OWNER,
@@ -103,7 +103,7 @@ async function main() {
     where: { email: 'employee@taskboard.com' },
     update: {
       id: 'employee-hoangnam-id',
-      password: defaultAdminPassword,
+      password: defaultPassword,
       role: Role.EMPLOYEE,
       profession: Profession.DEV,
       jobTitle: 'Frontend & Fullstack Developer',
@@ -113,7 +113,7 @@ async function main() {
     create: {
       id: 'employee-hoangnam-id',
       email: 'employee@taskboard.com',
-      password: defaultAdminPassword,
+      password: defaultPassword,
       fullName: 'Hoang Nam (Developer)',
       role: Role.EMPLOYEE,
       profession: Profession.DEV,
@@ -124,7 +124,77 @@ async function main() {
     },
   });
 
-  console.log('✅ Created Users:', huyDatUser.email, managerUser.email, employeeUser.email);
+  // ➕ NEW EMPLOYEES ADDED
+  const empLanHuong = await prisma.user.upsert({
+    where: { email: 'lanhuong@taskboard.com' },
+    update: {
+      password: defaultPassword,
+      role: Role.EMPLOYEE,
+      profession: Profession.TESTER,
+      jobTitle: 'Lead QA & Automation Tester',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+      statusSignal: UserStatusSignal.ONLINE,
+    },
+    create: {
+      email: 'lanhuong@taskboard.com',
+      password: defaultPassword,
+      fullName: 'Lan Huong (QA Tester)',
+      role: Role.EMPLOYEE,
+      profession: Profession.TESTER,
+      jobTitle: 'Lead QA & Automation Tester',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+      statusSignal: UserStatusSignal.ONLINE,
+      departmentId: deptProduct.id,
+    },
+  });
+
+  const empDuyKhang = await prisma.user.upsert({
+    where: { email: 'duykhang@taskboard.com' },
+    update: {
+      password: defaultPassword,
+      role: Role.EMPLOYEE,
+      profession: Profession.DESIGNER,
+      jobTitle: 'Senior UI/UX Designer',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+      statusSignal: UserStatusSignal.BUSY,
+    },
+    create: {
+      email: 'duykhang@taskboard.com',
+      password: defaultPassword,
+      fullName: 'Duy Khang (UI/UX Designer)',
+      role: Role.EMPLOYEE,
+      profession: Profession.DESIGNER,
+      jobTitle: 'Senior UI/UX Designer',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+      statusSignal: UserStatusSignal.BUSY,
+      departmentId: deptClient.id,
+    },
+  });
+
+  const empThanhTung = await prisma.user.upsert({
+    where: { email: 'thanhtung@taskboard.com' },
+    update: {
+      password: defaultPassword,
+      role: Role.EMPLOYEE,
+      profession: Profession.DEV,
+      jobTitle: 'Backend Specialist (NestJS & Microservices)',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+      statusSignal: UserStatusSignal.ONLINE,
+    },
+    create: {
+      email: 'thanhtung@taskboard.com',
+      password: defaultPassword,
+      fullName: 'Thanh Tung (Backend Dev)',
+      role: Role.EMPLOYEE,
+      profession: Profession.DEV,
+      jobTitle: 'Backend Specialist (NestJS & Microservices)',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+      statusSignal: UserStatusSignal.ONLINE,
+      departmentId: deptProduct.id,
+    },
+  });
+
+  console.log('✅ Created Users:', huyDatUser.email, managerUser.email, employeeUser.email, empLanHuong.email, empDuyKhang.email, empThanhTung.email);
 
   // 3. Create Projects
   const projectCore = await prisma.project.upsert({
@@ -152,23 +222,14 @@ async function main() {
   console.log('✅ Created Projects:', projectCore.name, projectUi.name);
 
   // 4. Create Project Memberships
-  await prisma.projectMember.upsert({
-    where: { projectId_userId: { projectId: projectCore.id, userId: huyDatUser.id } },
-    update: {},
-    create: { projectId: projectCore.id, userId: huyDatUser.id },
-  });
-
-  await prisma.projectMember.upsert({
-    where: { projectId_userId: { projectId: projectCore.id, userId: managerUser.id } },
-    update: {},
-    create: { projectId: projectCore.id, userId: managerUser.id },
-  });
-
-  await prisma.projectMember.upsert({
-    where: { projectId_userId: { projectId: projectCore.id, userId: employeeUser.id } },
-    update: {},
-    create: { projectId: projectCore.id, userId: employeeUser.id },
-  });
+  const memberUsers = [huyDatUser, managerUser, employeeUser, empLanHuong, empDuyKhang, empThanhTung];
+  for (const u of memberUsers) {
+    await prisma.projectMember.upsert({
+      where: { projectId_userId: { projectId: projectCore.id, userId: u.id } },
+      update: {},
+      create: { projectId: projectCore.id, userId: u.id },
+    });
+  }
 
   // 5. Create Tasks in Database
   const task1 = await prisma.task.upsert({
@@ -210,7 +271,7 @@ async function main() {
       progress: 0,
       projectId: projectCore.id,
       createdById: managerUser.id,
-      assigneeId: employeeUser.id,
+      assigneeId: empLanHuong.id,
       dueDate: new Date('2026-08-18'),
     },
   });
@@ -232,7 +293,7 @@ async function main() {
       progress: 90,
       projectId: projectUi.id,
       createdById: huyDatUser.id,
-      assigneeId: managerUser.id,
+      assigneeId: empDuyKhang.id,
       dueDate: new Date('2026-08-14'),
     },
   });
@@ -254,35 +315,12 @@ async function main() {
       progress: 100,
       projectId: projectCore.id,
       createdById: huyDatUser.id,
-      assigneeId: huyDatUser.id,
+      assigneeId: empThanhTung.id,
       dueDate: new Date('2026-08-10'),
     },
   });
 
   console.log('✅ Created Seed Tasks:', task1.title, task2.title, task3.title, task4.title);
-
-  // 6. Create Seed Attendance Logs
-  await prisma.attendanceLog.create({
-    data: {
-      userId: huyDatUser.id,
-      type: AttendanceType.VOICE,
-      workMode: WorkMode.OFFICE,
-      note: 'Điểm danh giọng nói thành công lúc 08:30 AM',
-    },
-  });
-
-  // 7. Create Seed Task Request
-  await prisma.taskRequest.create({
-    data: {
-      taskId: task2.id,
-      senderId: employeeUser.id,
-      receiverId: managerUser.id,
-      type: TaskRequestType.TRANSFER,
-      status: TaskRequestStatus.PENDING,
-      note: 'Yêu cầu bàn giao Task do cần tập trung cho module kiểm thử HMR',
-    },
-  });
-
   console.log('🎉 Database Seeding completed successfully!');
 }
 
