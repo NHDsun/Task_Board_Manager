@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, FolderPlus, Sparkles, UserPlus, Check } from 'lucide-react';
-import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../services/api';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -23,7 +23,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const token = useAuthStore((state) => state.token);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedManagerId, setSelectedManagerId] = useState<string>('');
@@ -44,21 +43,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch('http://localhost:3000/api/profile/users', {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token || ''}`,
-          },
-        });
-        if (res.ok) {
-          const responseData = await res.json();
-          const list = Array.isArray(responseData)
-            ? responseData
-            : Array.isArray(responseData?.data)
-            ? responseData.data
-            : [];
-          setAvailableUsers(list);
-        }
+        const res = await api.get('/profile/users');
+        const list = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+        setAvailableUsers(list);
       } catch {
         // Fallback
       }
@@ -67,7 +58,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     if (isOpen) {
       fetchUsers();
     }
-  }, [isOpen, token]);
+  }, [isOpen]);
 
   const toggleMemberSelect = (userId: string) => {
     setSelectedMemberIds((prev) =>
@@ -86,42 +77,30 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     setError('');
 
     try {
-      const res = await fetch('http://localhost:3000/api/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
-        body: JSON.stringify({
-          name,
-          description,
-          managerId: selectedManagerId,
-          memberIds: selectedMemberIds,
-          stagesJson: JSON.stringify(
-            customStages.map((stName, idx) => ({
-              id: `stage_${idx + 1}`,
-              name: stName,
-              status: idx === customStages.length - 1 ? 'DONE' : 'IN_PROGRESS',
-              color: 'border-purple-500/40 text-purple-300',
-            }))
-          ),
-        }),
+      const res = await api.post('/projects', {
+        name,
+        description,
+        managerId: selectedManagerId,
+        memberIds: selectedMemberIds,
+        stagesJson: JSON.stringify(
+          customStages.map((stName, idx) => ({
+            id: `stage_${idx + 1}`,
+            name: stName,
+            status: idx === customStages.length - 1 ? 'DONE' : 'IN_PROGRESS',
+            color: 'border-purple-500/40 text-purple-300',
+          }))
+        ),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        onSuccess(data);
-        setName('');
-        setDescription('');
-        setSelectedManagerId('');
-        setSelectedMemberIds([]);
-        onClose();
-      } else {
-        const errData = await res.json();
-        setError(errData.message || 'Không thể tạo Dự án mới');
-      }
-    } catch {
-      setError('Lỗi kết nối Server NestJS');
+      onSuccess(res.data?.data || res.data);
+      setName('');
+      setDescription('');
+      setSelectedManagerId('');
+      setSelectedMemberIds([]);
+      onClose();
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Không thể tạo Dự án mới';
+      setError(errMsg);
     } finally {
       setIsSubmitting(false);
     }

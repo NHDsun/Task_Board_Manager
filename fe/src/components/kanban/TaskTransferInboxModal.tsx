@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Inbox, CheckCircle2, XCircle, Clock, ShieldAlert, Send, Ban } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../services/api';
 
 interface TaskTransferInboxModalProps {
   isOpen: boolean;
@@ -30,7 +31,6 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
   if (!isOpen) return null;
 
   const currentUser = useAuthStore((state) => state.user);
-  const token = useAuthStore((state) => state.token);
 
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [incomingRequests, setIncomingRequests] = useState<RequestItem[]>([]);
@@ -42,25 +42,15 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
     setIsLoading(true);
     try {
       const [incRes, outRes] = await Promise.all([
-        fetch('http://localhost:3000/api/tasks/requests/incoming', {
-          headers: { Authorization: `Bearer ${token || ''}` },
-        }),
-        fetch('http://localhost:3000/api/tasks/requests/outgoing', {
-          headers: { Authorization: `Bearer ${token || ''}` },
-        }),
+        api.get('/tasks/requests/incoming'),
+        api.get('/tasks/requests/outgoing'),
       ]);
 
-      if (incRes.ok) {
-        const incData = await incRes.json();
-        const incList = Array.isArray(incData) ? incData : incData?.data || [];
-        setIncomingRequests(incList);
-      }
+      const incList = Array.isArray(incRes.data) ? incRes.data : incRes.data?.data || [];
+      setIncomingRequests(incList);
 
-      if (outRes.ok) {
-        const outData = await outRes.json();
-        const outList = Array.isArray(outData) ? outData : outData?.data || [];
-        setOutgoingRequests(outList);
-      }
+      const outList = Array.isArray(outRes.data) ? outRes.data : outRes.data?.data || [];
+      setOutgoingRequests(outList);
     } catch {
       // Fallback
     } finally {
@@ -72,25 +62,15 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
     if (isOpen) {
       fetchAllRequests();
     }
-  }, [isOpen, token]);
+  }, [isOpen]);
 
   const handleRespond = async (requestId: string, action: 'APPROVED' | 'REJECTED') => {
     setProcessingId(requestId);
     try {
-      const res = await fetch(`http://localhost:3000/api/tasks/requests/${requestId}/respond`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
-        body: JSON.stringify({ action }),
-      });
-
-      if (res.ok) {
-        setIncomingRequests((prev) => prev.filter((r) => r.id !== requestId));
-        fetchAllRequests();
-        onSuccess();
-      }
+      await api.patch(`/tasks/requests/${requestId}/respond`, { action });
+      setIncomingRequests((prev) => prev.filter((r) => r.id !== requestId));
+      fetchAllRequests();
+      onSuccess();
     } catch {
       // Ignore
     } finally {
@@ -101,23 +81,12 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
   const handleCancelRequest = async (requestId: string) => {
     setProcessingId(requestId);
     try {
-      const res = await fetch(`http://localhost:3000/api/tasks/requests/${requestId}/cancel`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
-      });
-
-      if (res.ok) {
-        fetchAllRequests();
-        onSuccess();
-      } else {
-        const errData = await res.json();
-        alert(errData.message || 'Không thể hủy yêu cầu');
-      }
-    } catch {
-      alert('Lỗi kết nối Server NestJS');
+      await api.patch(`/tasks/requests/${requestId}/cancel`);
+      fetchAllRequests();
+      onSuccess();
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Không thể hủy yêu cầu';
+      alert(errMsg);
     } finally {
       setProcessingId(null);
     }

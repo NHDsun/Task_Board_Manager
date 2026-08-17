@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import type { TaskItem } from './KanbanCard';
 import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../services/api';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -54,7 +55,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   if (!isOpen || !task) return null;
 
   const currentUser = useAuthStore((state) => state.user);
-  const token = useAuthStore((state) => state.token);
 
   // 🔒 PRECISE OWNERSHIP CHECK: Is this task assigned to me or created by me or am I Admin?
   const isMyTask =
@@ -73,25 +73,15 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [urlTitleInput, setUrlTitleInput] = useState('');
   const [showAddUrlForm, setShowAddUrlForm] = useState(false);
 
-  // Fetch real comments from Backend API
   const fetchComments = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/api/tasks/${task.id}/comments`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
-      });
-
-      if (res.ok) {
-        const responseData = await res.json();
-        const commentList = Array.isArray(responseData)
-          ? responseData
-          : Array.isArray(responseData?.data)
-          ? responseData.data
-          : [];
-        setComments(commentList);
-      }
+      const res = await api.get(`/tasks/${task.id}/comments`);
+      const commentList = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+        ? res.data.data
+        : [];
+      setComments(commentList);
     } catch {
       // Fallback
     }
@@ -109,19 +99,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
     setIsSubmittingComment(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/tasks/${task.id}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
-        body: JSON.stringify({ content: newComment }),
-      });
-
-      if (res.ok) {
-        setNewComment('');
-        fetchComments();
-      }
+      await api.post(`/tasks/${task.id}/comments`, { content: newComment });
+      setNewComment('');
+      fetchComments();
     } catch {
       // Fallback
     } finally {

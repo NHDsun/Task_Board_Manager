@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Inbox, X, UserCheck, Send, Layers } from 'lucide-react';
 import type { TaskItem } from './KanbanCard';
 import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../services/api';
 
 interface TaskRequestModalProps {
   isOpen: boolean;
@@ -26,7 +27,6 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
   initialTask,
   onSubmitSuccess,
 }) => {
-  const token = useAuthStore((state) => state.token);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [requestType, setRequestType] = useState<'TRANSFER' | 'ASSIST' | 'REVIEW'>('TRANSFER');
   const [selectedRecipientId, setSelectedRecipientId] = useState<string>('');
@@ -38,23 +38,15 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch('http://localhost:3000/api/profile/users', {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token || ''}`,
-          },
-        });
-        if (res.ok) {
-          const responseData = await res.json();
-          const list = Array.isArray(responseData)
-            ? responseData
-            : Array.isArray(responseData?.data)
-            ? responseData.data
-            : [];
-          setProjectMembers(list);
-          if (list.length > 0) {
-            setSelectedRecipientId(list[0].id);
-          }
+        const res = await api.get('/profile/users');
+        const list = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+        setProjectMembers(list);
+        if (list.length > 0) {
+          setSelectedRecipientId(list[0].id);
         }
       } catch {
         // Fallback
@@ -64,7 +56,7 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
     if (isOpen) {
       fetchUsers();
     }
-  }, [isOpen, token]);
+  }, [isOpen]);
 
   const currentUser = useAuthStore((state) => state.user);
 
@@ -97,32 +89,21 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
     
     // ⚡ SAVE TASK REQUEST ROW IN POSTGRESQL CSDL & UPDATE STATUS TO 'IN_REVIEW'
     try {
-      const res = await fetch('http://localhost:3000/api/tasks/requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
-        body: JSON.stringify({
-          taskId: selectedTaskId,
-          receiverId: selectedRecipientId,
-          type: requestType,
-          note: requestReason,
-        }),
+      await api.post('/tasks/requests', {
+        taskId: selectedTaskId,
+        receiverId: selectedRecipientId,
+        type: requestType,
+        note: requestReason,
       });
 
-      if (res.ok) {
-        onSubmitSuccess(
-          `🟢 Đã gửi yêu cầu ${requestType} tới ${recipient?.fullName || 'đồng nghiệp'}! Task "${targetTask?.title || 'được chọn'}" đã tự động chuyển sang trạng thái CHỜ DUYỆT (IN_REVIEW) 🔒!`
-        );
-        onClose();
-        setRequestReason('');
-      } else {
-        const errData = await res.json();
-        alert(errData.message || 'Không thể gửi yêu cầu chuyển giao');
-      }
-    } catch {
-      alert('Lỗi kết nối Server NestJS');
+      onSubmitSuccess(
+        `🟢 Đã gửi yêu cầu ${requestType} tới ${recipient?.fullName || 'đồng nghiệp'}! Task "${targetTask?.title || 'được chọn'}" đã tự động chuyển sang trạng thái CHỜ DUYỆT (IN_REVIEW) 🔒!`
+      );
+      onClose();
+      setRequestReason('');
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Không thể gửi yêu cầu chuyển giao';
+      alert(errMsg);
     } finally {
       setIsSubmitting(false);
     }

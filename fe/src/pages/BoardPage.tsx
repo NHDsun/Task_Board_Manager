@@ -21,7 +21,7 @@ const getPortalRoot = () => {
   return element;
 };
 import { KanbanCard, type TaskItem } from '../components/kanban/KanbanCard';
-import { fetchWithRetry } from '../utils/apiRetry';
+import { api } from '../services/api';
 import { SolarNotificationModal } from '../components/common/SolarNotificationModal';
 import { TaskRequestModal } from '../components/kanban/TaskRequestModal';
 import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
@@ -99,18 +99,12 @@ export const BoardPage: React.FC = () => {
     const fetchMetadata = async () => {
       try {
         const [projRes, userRes] = await Promise.all([
-          fetch('http://localhost:3000/api/projects', { headers: { Authorization: `Bearer ${token || ''}` } }),
-          fetch('http://localhost:3000/api/profile/users', { headers: { Authorization: `Bearer ${token || ''}` } }),
+          api.get('/projects'),
+          api.get('/profile/users'),
         ]);
 
-        if (projRes.ok) {
-          const projData = await projRes.json();
-          setDbProjects(Array.isArray(projData) ? projData : projData?.data || []);
-        }
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          setDbUsers(Array.isArray(userData) ? userData : userData?.data || []);
-        }
+        setDbProjects(Array.isArray(projRes.data) ? projRes.data : projRes.data?.data || []);
+        setDbUsers(Array.isArray(userRes.data) ? userRes.data : userRes.data?.data || []);
       } catch {
         // Fallback
       }
@@ -150,32 +144,20 @@ export const BoardPage: React.FC = () => {
   // 🗄️ Task dataset fetched straight from PostgreSQL Database
   const [tasks, setTasks] = useState<Array<TaskItem & { assigneeId?: string }>>([]);
 
-  // Fetch real task dataset from Backend API (với mô hình Retry)
+  // Fetch real task dataset from Backend API
   const fetchTasksFromBackend = async () => {
     setIsLoading(true);
     try {
-      const res = await fetchWithRetry(
-        'http://localhost:3000/api/tasks?limit=300',
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token || ''}`,
-          },
-        },
-        { maxRetries: 3, initialDelayMs: 500 }
-      );
-
-      if (res.ok) {
-        const responseData = await res.json();
-        const taskArray = Array.isArray(responseData)
-          ? responseData
-          : Array.isArray(responseData?.data)
-          ? responseData.data
-          : [];
-        setTasks(taskArray);
-      }
+      const res = await api.get('/tasks?limit=300');
+      const responseData = res.data;
+      const taskArray = Array.isArray(responseData)
+        ? responseData
+        : Array.isArray(responseData?.data)
+        ? responseData.data
+        : [];
+      setTasks(taskArray);
     } catch {
-      // Fallback silently
+      // Fallback
     } finally {
       setIsLoading(false);
     }
@@ -252,29 +234,12 @@ export const BoardPage: React.FC = () => {
       })
     );
 
-    // 🚀 🔄 Bắn API cập nhật CSDL ngầm với Mô hình RETRY (Exponential Backoff)
-    fetchWithRetry(
-      `http://localhost:3000/api/tasks/${draggableId}/status`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
-        body: JSON.stringify({
-          status: targetStatus,
-          progress: targetStatus === 'TODO' ? 0 : taskToMove.progress,
-        }),
-      },
-      {
-        maxRetries: 3,
-        initialDelayMs: 500,
-        onRetry: (attempt) => {
-          console.warn(`🔄 [Retry API] Thử lại lần ${attempt}/3 khi cập nhật trạng thái Task ${draggableId}`);
-        },
-      }
-    ).catch(() => {
-      // Đã thử lại 3 lần thất bại -> Khôi phục giao diện theo dữ liệu chuẩn từ CSDL
+    // 🚀 Cập nhật CSDL ngầm
+    api.patch(`/tasks/${draggableId}/status`, {
+      status: targetStatus,
+      progress: targetStatus === 'TODO' ? 0 : taskToMove.progress,
+    }).catch(() => {
+      // Khôi phục giao diện theo dữ liệu chuẩn từ CSDL nếu có lỗi
       fetchTasksFromBackend();
     });
   };
@@ -297,21 +262,10 @@ export const BoardPage: React.FC = () => {
     setConfirmDoneTask(null);
 
     try {
-      await fetchWithRetry(
-        `http://localhost:3000/api/tasks/${taskId}/status`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token || ''}`,
-          },
-          body: JSON.stringify({
-            status: 'DONE',
-            progress: 100,
-          }),
-        },
-        { maxRetries: 3, initialDelayMs: 500 }
-      );
+      await api.patch(`/tasks/${taskId}/status`, {
+        status: 'DONE',
+        progress: 100,
+      });
     } catch {
       fetchTasksFromBackend();
     }
@@ -323,21 +277,7 @@ export const BoardPage: React.FC = () => {
     setIsDeleting(true);
 
     try {
-      const res = await fetchWithRetry(
-        `http://localhost:3000/api/tasks/${taskToDelete.id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token || ''}`,
-          },
-        },
-        { maxRetries: 2, initialDelayMs: 400 }
-      );
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Xóa Task thất bại');
-      }
+      await api.delete(`/tasks/${taskToDelete.id}`);
 
       showNotification(`🟢 Solaris: Đã xóa vĩnh viễn Task "${taskToDelete.title}" khỏi CSDL!`, 'success', 'Xóa Task Thành Công');
       setIsDeleteModalOpen(false);
@@ -345,7 +285,8 @@ export const BoardPage: React.FC = () => {
       setTaskToDelete(null);
       fetchTasksFromBackend();
     } catch (err: any) {
-      showNotification(`❌ Lỗi: ${err.message || 'Không thể xóa Task'}`, 'warning', 'Xóa Task Thất Bại');
+      const errMsg = err.response?.data?.message || err.message || 'Không thể xóa Task';
+      showNotification(`❌ Lỗi: ${errMsg}`, 'warning', 'Xóa Task Thất Bại');
     } finally {
       setIsDeleting(false);
     }
@@ -986,18 +927,7 @@ export const BoardPage: React.FC = () => {
           setTasks((prev) =>
             prev.map((t) => (t.id === heroTask.id ? { ...t, progress: newProgress, status: newStatus } : t))
           );
-          fetchWithRetry(
-            `http://localhost:3000/api/tasks/${heroTask.id}/status`,
-            {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token || ''}`,
-              },
-              body: JSON.stringify({ status: newStatus, progress: newProgress }),
-            },
-            { maxRetries: 3 }
-          );
+          api.patch(`/tasks/${heroTask.id}/status`, { status: newStatus, progress: newProgress });
         };
 
         return (
@@ -1195,18 +1125,7 @@ export const BoardPage: React.FC = () => {
                             setTasks((prev) =>
                               prev.map((item) => (item.id === t.id ? { ...item, status: 'IN_PROGRESS' } : item))
                             );
-                            fetchWithRetry(
-                              `http://localhost:3000/api/tasks/${t.id}/status`,
-                              {
-                                method: 'PATCH',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  Authorization: `Bearer ${token || ''}`,
-                                },
-                                body: JSON.stringify({ status: 'IN_PROGRESS' }),
-                              },
-                              { maxRetries: 3 }
-                            );
+                            api.patch(`/tasks/${t.id}/status`, { status: 'IN_PROGRESS' });
                             showNotification(
                               `🟢 Task "${t.title}" đã được chuyển lên vị trí HERO FOCUS TASK #1 (Đang xử lý chính)!`,
                               'success',

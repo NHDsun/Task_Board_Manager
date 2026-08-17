@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, PlusCircle, Sparkles, UserCheck } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../services/api';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -26,7 +27,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const token = useAuthStore((state) => state.token);
   const currentUser = useAuthStore((state) => state.user);
 
   const [title, setTitle] = useState('');
@@ -46,23 +46,17 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     const fetchMetadata = async () => {
       try {
         const [projRes, userRes] = await Promise.all([
-          fetch('http://localhost:3000/api/projects', { headers: { Authorization: `Bearer ${token || ''}` } }),
-          fetch('http://localhost:3000/api/profile/users', { headers: { Authorization: `Bearer ${token || ''}` } }),
+          api.get('/projects'),
+          api.get('/profile/users'),
         ]);
 
-        if (projRes.ok) {
-          const projData = await projRes.json();
-          const projList = Array.isArray(projData) ? projData : projData?.data || [];
-          setDbProjects(projList);
-          if (projList.length > 0) setProjectId(projList[0].id);
-        }
+        const projList = Array.isArray(projRes.data) ? projRes.data : projRes.data?.data || [];
+        setDbProjects(projList);
+        if (projList.length > 0) setProjectId(projList[0].id);
 
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          const userList = Array.isArray(userData) ? userData : userData?.data || [];
-          setDbUsers(userList);
-          if (userList.length > 0) setAssigneeId(currentUser?.id || userList[0].id);
-        }
+        const userList = Array.isArray(userRes.data) ? userRes.data : userRes.data?.data || [];
+        setDbUsers(userList);
+        if (userList.length > 0) setAssigneeId(currentUser?.id || userList[0].id);
       } catch {
         // Fallback
       }
@@ -71,7 +65,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     if (isOpen) {
       fetchMetadata();
     }
-  }, [isOpen, token, currentUser?.id]);
+  }, [isOpen, currentUser?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,36 +78,24 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     setError('');
 
     try {
-      const res = await fetch('http://localhost:3000/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          priority,
-          projectId: projectId || undefined,
-          assigneeId: assigneeId || undefined,
-          dueDate,
-          status: 'TODO',
-          progress: 0,
-        }),
+      const res = await api.post('/tasks', {
+        title,
+        description,
+        priority,
+        projectId: projectId || undefined,
+        assigneeId: assigneeId || undefined,
+        dueDate,
+        status: 'TODO',
+        progress: 0,
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        onSuccess(data);
-        setTitle('');
-        setDescription('');
-        onClose();
-      } else {
-        const errData = await res.json();
-        setError(errData.message || 'Không thể tạo Task mới');
-      }
-    } catch {
-      setError('Lỗi kết nối Server NestJS');
+      onSuccess(res.data?.data || res.data);
+      setTitle('');
+      setDescription('');
+      onClose();
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Không thể tạo Task mới';
+      setError(errMsg);
     } finally {
       setIsSubmitting(false);
     }
