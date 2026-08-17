@@ -12,10 +12,12 @@ import {
   Upload,
   Plus,
   ExternalLink,
-  Trash2,
   CheckCircle2,
   Lock,
-  Download
+  Download,
+  Edit3,
+  Check,
+  Trash2
 } from 'lucide-react';
 import type { TaskItem } from './KanbanCard';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -27,6 +29,7 @@ interface TaskDetailModalProps {
   task: TaskItem | null;
   onStatusChange?: (taskId: string, newStatus: TaskItem['status']) => void;
   onDeleteTask?: (task: TaskItem) => void;
+  onUpdateTask?: (updatedTask: TaskItem) => void;
 }
 
 interface CommentItem {
@@ -51,16 +54,29 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onClose,
   task,
   onDeleteTask,
+  onUpdateTask,
 }) => {
   if (!isOpen || !task) return null;
 
   const currentUser = useAuthStore((state) => state.user);
 
-  // 🔒 PRECISE OWNERSHIP CHECK: Is this task assigned to me or created by me or am I Admin?
-  const isMyTask =
-    currentUser?.id === task.assigneeId ||
-    currentUser?.id === (task as any).createdById ||
-    currentUser?.globalRole === 'ADMIN';
+  // 🔒 PRECISE OWNERSHIP CHECK: Is this task assigned to me or created by me or am I Admin/Manager?
+  const isMyTask = Boolean(
+    currentUser &&
+      (currentUser.globalRole === 'ADMIN' ||
+        currentUser.globalRole === 'MANAGER' ||
+        currentUser.id === task.assigneeId ||
+        currentUser.id === task.assignee?.id ||
+        (task.assignee?.email && currentUser.email === task.assignee.email) ||
+        currentUser.id === (task as any).createdById ||
+        currentUser.id === task.createdBy?.id ||
+        ((task.createdBy as any)?.email && currentUser.email === (task.createdBy as any).email))
+  );
+
+  // 📝 Edit Description States
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [descriptionText, setDescriptionText] = useState(task.description || '');
+  const [isSavingDescription, setIsSavingDescription] = useState(false);
 
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -72,6 +88,70 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [urlInput, setUrlInput] = useState('');
   const [urlTitleInput, setUrlTitleInput] = useState('');
   const [showAddUrlForm, setShowAddUrlForm] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && task) {
+      setDescriptionText(task.description || '');
+      setIsEditingDescription(false);
+      fetchComments();
+      setAttachments(task.attachments || []);
+    }
+  }, [isOpen, task?.id, task?.description, task?.attachments]);
+
+  const handleSaveDescription = async () => {
+    if (isSavingDescription) return;
+    setIsSavingDescription(true);
+
+    // 🛡️ Safe fallback for mock/demo task IDs or offline tasks
+    const isMockTask = !task.id || task.id.startsWith('task_') || task.id.startsWith('demo_') || task.id.includes('temp');
+
+    if (isMockTask) {
+      if (onUpdateTask) {
+        onUpdateTask({ ...task, description: descriptionText.trim() });
+      }
+      setIsEditingDescription(false);
+      setIsSavingDescription(false);
+      return;
+    }
+
+    try {
+      let res;
+      try {
+        res = await api.patch(`/tasks/${task.id}/description`, {
+          description: descriptionText.trim(),
+        });
+      } catch (firstErr: any) {
+        if (firstErr.response?.status === 404) {
+          // Fallback to generic task update route
+          res = await api.patch(`/tasks/${task.id}`, {
+            description: descriptionText.trim(),
+          });
+        } else {
+          throw firstErr;
+        }
+      }
+
+      const updated = res.data?.data || res.data;
+      if (onUpdateTask) {
+        onUpdateTask({ ...task, ...updated, description: descriptionText.trim() });
+      }
+      setIsEditingDescription(false);
+    } catch (err: any) {
+      console.error('Lỗi khi cập nhật mô tả task:', err);
+      // If server returns 404 because task was created on client or test session, update local state
+      if (err.response?.status === 404) {
+        if (onUpdateTask) {
+          onUpdateTask({ ...task, description: descriptionText.trim() });
+        }
+        setIsEditingDescription(false);
+      } else {
+        const serverMsg = err.response?.data?.message || err.message || 'Không thể cập nhật mô tả Task';
+        alert(`⚠️ Lỗi: ${serverMsg}`);
+      }
+    } finally {
+      setIsSavingDescription(false);
+    }
+  };
 
   const fetchComments = async () => {
     try {
@@ -210,6 +290,72 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
       default:
         return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+    }
+  };
+
+  const getDeadlineInfo = (dueDateStr?: string) => {
+    if (!dueDateStr) {
+      return {
+        formattedDate: 'Chưa đặt deadline',
+        statusText: 'Không giới hạn thời gian',
+        statusColor: 'text-slate-400',
+      };
+    }
+
+    try {
+      const due = new Date(dueDateStr);
+      if (isNaN(due.getTime())) {
+        return {
+          formattedDate: dueDateStr,
+          statusText: 'Định dạng ngày',
+          statusColor: 'text-slate-400',
+        };
+      }
+
+      // Format Vietnamese date: DD/MM/YYYY
+      const formattedDate = `${String(due.getDate()).padStart(2, '0')}/${String(due.getMonth() + 1).padStart(2, '0')}/${due.getFullYear()}`;
+
+      // Calculate difference in days from today (normalized to midnight)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const targetDate = new Date(due);
+      targetDate.setHours(0, 0, 0, 0);
+
+      const diffTime = targetDate.getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        return {
+          formattedDate,
+          statusText: `🚨 Đã quá hạn ${Math.abs(diffDays)} ngày`,
+          statusColor: 'text-rose-400 font-bold',
+        };
+      } else if (diffDays === 0) {
+        return {
+          formattedDate,
+          statusText: '⚡ Hạn chót: Hôm nay',
+          statusColor: 'text-amber-400 font-bold',
+        };
+      } else if (diffDays === 1) {
+        return {
+          formattedDate,
+          statusText: '⏳ Còn lại 1 ngày (Ngày mai)',
+          statusColor: 'text-amber-300',
+        };
+      } else {
+        return {
+          formattedDate,
+          statusText: `Còn lại ${diffDays} ngày làm việc`,
+          statusColor: 'text-slate-400',
+        };
+      }
+    } catch {
+      return {
+        formattedDate: dueDateStr,
+        statusText: 'Ngày chỉ định',
+        statusColor: 'text-slate-400',
+      };
     }
   };
 
@@ -369,42 +515,95 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   {task.assignee?.avatar ? (
                     <img src={task.assignee.avatar} alt="Assignee" className="w-full h-full object-cover" />
                   ) : (
-                    <span>{task.assignee?.fullName ? task.assignee.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'HD'}</span>
+                    <span>{task.assignee?.fullName ? task.assignee.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'UA'}</span>
                   )}
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-white text-sm">{task.assignee?.fullName || 'Huy Dat (Admin)'}</h4>
+                  <h4 className="font-extrabold text-white text-sm">{task.assignee?.fullName || 'Chưa phân công (Unassigned)'}</h4>
                   <span className="text-[11px] text-blue-300 font-mono">
-                    {task.assignee?.profession || 'DEV'} • Backend Architect
+                    {task.assignee?.profession || 'MEMBER'} • Chuyên Môn
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Due Date & Deadline Card */}
-            <div className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">Hạn Deadline</span>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-                  <Clock className="w-5 h-5" />
+            {(() => {
+              const deadlineInfo = getDeadlineInfo(task.dueDate);
+              return (
+                <div className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                  <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">Hạn Deadline</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-amber-300 text-sm">{deadlineInfo.formattedDate}</h4>
+                      <span className={`text-[11px] font-mono ${deadlineInfo.statusColor}`}>
+                        {deadlineInfo.statusText}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-extrabold text-amber-300 text-sm">{task.dueDate || '2026-08-15'}</h4>
-                  <span className="text-[11px] text-slate-400">Còn lại 3 ngày làm việc</span>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
 
           {/* Description Section */}
-          <div className="solar-glass-card p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-            <h3 className="font-bold text-amber-300 text-sm flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              Mô Tả Chi Tiết Nhiệm Vụ (Task Description)
-            </h3>
-            <p className="text-slate-300 leading-relaxed font-normal">
-              {task.description || 'Xây dựng DTO, Guard JWT, và Service xử lý API Profile cá nhân. Đảm bảo bảo vệ bằng JwtAuthGuard và mã hóa bcrypt.'}
-            </p>
+          <div className="solar-glass-card p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-amber-300 text-sm flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                Mô Tả Chi Tiết Nhiệm Vụ (Task Description)
+              </h3>
+              {isMyTask && !isEditingDescription && (
+                <button
+                  onClick={() => setIsEditingDescription(true)}
+                  className="px-3 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Sửa Mô Tả</span>
+                </button>
+              )}
+            </div>
+
+            {isEditingDescription ? (
+              <div className="space-y-3 animate-fade-in">
+                <textarea
+                  value={descriptionText}
+                  onChange={(e) => setDescriptionText(e.target.value)}
+                  placeholder="Nhập nội dung mô tả chi tiết nhiệm vụ..."
+                  rows={4}
+                  className="w-full p-3.5 rounded-xl bg-slate-900 border border-amber-500/60 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 text-xs leading-relaxed resize-y font-normal"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDescriptionText(task.description || '');
+                      setIsEditingDescription(false);
+                    }}
+                    disabled={isSavingDescription}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white font-semibold text-xs cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveDescription}
+                    disabled={isSavingDescription}
+                    className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    {isSavingDescription ? 'Đang Lưu...' : 'Lưu Thay Đổi'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-300 leading-relaxed font-normal whitespace-pre-wrap">
+                {task.description || 'Chưa có mô tả chi tiết cho nhiệm vụ này.'}
+              </p>
+            )}
           </div>
 
           {/* 📎 ATTACHMENTS & LINK EMBED BENTO SECTION */}

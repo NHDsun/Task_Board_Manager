@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { TaskService } from './task.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
+import { UpdateTaskDescriptionDto } from './dto/update-task-description.dto';
 import { QueryTaskFilterDto } from './dto/query-task-filter.dto';
 import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -56,6 +57,27 @@ export class TaskController {
     @Body() updateTaskStatusDto: UpdateTaskStatusDto,
   ) {
     return this.taskService.updateStatus(id, updateTaskStatusDto, req.user);
+  }
+
+  @Patch(':id/description')
+  updateDescription(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: UpdateTaskDescriptionDto,
+  ) {
+    return this.taskService.updateDescription(id, body.description, req.user);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: any,
+  ) {
+    if (body.description !== undefined) {
+      return this.taskService.updateDescription(id, body.description, req.user);
+    }
+    return this.taskService.updateStatus(id, body, req.user);
   }
 
   @Get(':id/comments')
@@ -108,8 +130,8 @@ export class TaskController {
   }
 
   @Get('archived')
-  getArchivedTasks() {
-    return this.taskService.getArchivedTasks();
+  getArchivedTasks(@Request() req: any) {
+    return this.taskService.getArchivedTasks(req.user);
   }
 
   @Post(':id/restore')

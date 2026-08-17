@@ -34,7 +34,17 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [priority, setPriority] = useState<'LOW' | 'NORMAL' | 'IMPORTANT' | 'URGENT'>('NORMAL');
   const [projectId, setProjectId] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
-  const [dueDate, setDueDate] = useState('2026-08-20');
+  const [minDueDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().slice(0, 10);
+  });
+
+  const [dueDate, setDueDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toISOString().slice(0, 10);
+  });
   const [stageId, setStageId] = useState('stage_1');
 
   const [dbProjects, setDbProjects] = useState<DBProject[]>([]);
@@ -72,6 +82,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     e.preventDefault();
     if (!title.trim()) {
       setError('Vui lòng nhập tiêu đề Task!');
+      return;
+    }
+
+    if (dueDate && dueDate < minDueDate) {
+      setError('Hạn Deadline (due date) phải lớn hơn ngày tạo Task (từ ngày mai trở đi)!');
       return;
     }
 
@@ -235,14 +250,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               </select>
             </div>
 
-            {/* HẠN DEADLINE */}
+            {/* HẠN DEADLINE (PHẢI LỚN HƠN NGÀY TẠO TASK) */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-300 uppercase tracking-wider block">
-                Hạn Deadline
+                Hạn Deadline (Từ Ngày Mai)
               </label>
               <input
                 type="date"
                 value={dueDate}
+                min={minDueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
               />

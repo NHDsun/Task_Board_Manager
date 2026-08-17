@@ -143,11 +143,16 @@ export class ProfileService {
       },
     });
 
+    // Calculate real attendance logs count (Total check-in days)
+    const attendanceStreak = await this.prisma.attendanceLog.count({
+      where: { userId: effectiveUserId },
+    });
+
     return {
       completedTasks,
       overdueTasks,
       inProgressTasks,
-      attendanceStreak: 14,
+      attendanceStreak: Math.max(1, attendanceStreak),
     };
   }
 

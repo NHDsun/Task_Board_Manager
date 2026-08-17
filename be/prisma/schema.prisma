@@ -191,6 +191,7 @@ model Task {
   isArchived     Boolean      @default(false) @map("is_archived")
   isDeleted      Boolean      @default(false) @map("is_deleted")
   deletedAt      DateTime?    @map("deleted_at")
+  completedAt    DateTime?    @map("completed_at")
   projectId      String       @map("project_id")
   assigneeId     String?      @map("assignee_id")
   createdById    String       @map("created_by_id")

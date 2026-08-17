@@ -51,6 +51,8 @@ import {
   Folder,
   Lock,
   Unlock,
+  Archive,
+  History,
 } from 'lucide-react';
 
 import { TaskTransferInboxModal } from '../components/kanban/TaskTransferInboxModal';
@@ -59,7 +61,7 @@ import { DeleteTaskConfirmModal } from '../components/kanban/DeleteTaskConfirmMo
 export const BoardPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
-  const [activeView, setActiveView] = useState<'kanban' | 'pipeline' | 'focus'>('kanban');
+  const [activeView, setActiveView] = useState<'kanban' | 'pipeline' | 'focus' | 'audit'>('kanban');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isTransferInboxOpen, setIsTransferInboxOpen] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
@@ -96,6 +98,8 @@ export const BoardPage: React.FC = () => {
     durationMinutes: 0,
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [archivedTasks, setArchivedTasks] = useState<Array<any>>([]);
+  const [isLoadingArchived, setIsLoadingArchived] = useState(false);
 
   // Dynamic Metadata States (Read from PostgreSQL DB)
   const [dbProjects, setDbProjects] = useState<Array<any>>([]);
@@ -202,6 +206,25 @@ export const BoardPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const fetchArchivedTasks = async () => {
+    setIsLoadingArchived(true);
+    try {
+      const res = await api.get('/tasks/archived');
+      const data = Array.isArray(res.data) ? res.data : [];
+      setArchivedTasks(data);
+    } catch {
+      // Fallback
+    } finally {
+      setIsLoadingArchived(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'audit') {
+      fetchArchivedTasks();
+    }
+  }, [activeView]);
 
   useEffect(() => {
     fetchTasksFromBackend();
@@ -554,46 +577,50 @@ export const BoardPage: React.FC = () => {
 
       {/* 🔍 Advanced Filter Toolbar */}
       <div className="solar-glass-card p-4 rounded-2xl bg-[#0F172A]/70 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-        {/* View Switcher Tabs */}
-        <div className="flex items-center gap-2 p-1 bg-slate-900/80 rounded-xl border border-slate-800">
-          <button
-            onClick={() => setActiveView('kanban')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeView === 'kanban'
-                ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Kanban className="w-3.5 h-3.5" />
-            Kanban 6 Cột
-          </button>
+        {/* View Switcher Tabs with Animated Sliding Pill Indicator */}
+        {(() => {
+          const tabs = [
+            { id: 'kanban', label: 'Kanban 6 Cột', icon: Kanban, color: 'from-amber-500 to-amber-600', shadow: 'shadow-[0_0_20px_rgba(245,158,11,0.4)]', activeText: 'text-slate-950' },
+            ...((user?.globalRole === 'ADMIN' || user?.globalRole === 'MANAGER') ? [{ id: 'pipeline', label: `Pipeline Stage (${user?.globalRole === 'ADMIN' ? 'Admin' : 'Manager'})`, icon: GitMerge, color: 'from-purple-600 to-indigo-600', shadow: 'shadow-[0_0_20px_rgba(147,51,234,0.4)]', activeText: 'text-white' }] : []),
+            { id: 'focus', label: 'My Focus Queue', icon: Target, color: 'from-emerald-500 to-teal-600', shadow: 'shadow-[0_0_20px_rgba(16,185,129,0.4)]', activeText: 'text-slate-950' },
+            ...(user?.globalRole === 'ADMIN' ? [{ id: 'audit', label: 'Audit Log (Admin)', icon: Archive, color: 'from-cyan-500 to-blue-600', shadow: 'shadow-[0_0_20px_rgba(6,182,212,0.4)]', activeText: 'text-slate-950' }] : []),
+          ];
 
-          {(user?.globalRole === 'ADMIN' || user?.globalRole === 'MANAGER') && (
-            <button
-              onClick={() => setActiveView('pipeline')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                activeView === 'pipeline'
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <GitMerge className="w-3.5 h-3.5" />
-              Pipeline Stage ({user?.globalRole === 'ADMIN' ? 'Admin' : 'Manager'})
-            </button>
-          )}
+          const activeIndex = tabs.findIndex((t) => t.id === activeView);
+          const currentTab = tabs[activeIndex] || tabs[0];
+          const tabWidthPercent = 100 / tabs.length;
 
-          <button
-            onClick={() => setActiveView('focus')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeView === 'focus'
-                ? 'bg-emerald-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Target className="w-3.5 h-3.5" />
-            My Focus Queue
-          </button>
-        </div>
+          return (
+            <div className="relative p-1 bg-slate-900/90 rounded-2xl border border-slate-800 flex items-center shadow-inner overflow-hidden">
+              {/* 🌠 Animated Sliding Pill Indicator */}
+              <div
+                className={`absolute top-1 bottom-1 rounded-xl bg-gradient-to-r ${currentTab.color} ${currentTab.shadow} transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] z-0`}
+                style={{
+                  width: `calc(${tabWidthPercent}% - 4px)`,
+                  left: `calc(${activeIndex * tabWidthPercent}% + 2px)`,
+                }}
+              />
+
+              {tabs.map((tab) => {
+                const IconComponent = tab.icon;
+                const isActive = activeView === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveView(tab.id as any)}
+                    className={`relative z-10 px-4 py-2 text-xs font-black flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer select-none ${
+                      isActive ? `${tab.activeText} scale-[1.02]` : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    style={{ width: `${tabWidthPercent}%` }}
+                  >
+                    <IconComponent className={`w-3.5 h-3.5 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />
+                    <span className="whitespace-nowrap tracking-wide">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* Filters Row */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -727,6 +754,10 @@ export const BoardPage: React.FC = () => {
                                       task={t}
                                       onRequestTransfer={handleQuickRequest}
                                       onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                                      onDeleteTask={(taskItem) => {
+                                        setTaskToDelete(taskItem);
+                                        setIsDeleteModalOpen(true);
+                                      }}
                                     />
                                   </div>
                                 );
@@ -851,7 +882,7 @@ export const BoardPage: React.FC = () => {
                   <div className="flex items-center gap-6 pt-2 text-xs font-mono border-t border-slate-800 flex-wrap text-slate-400">
                     <div>
                       <span className="text-slate-500 block text-[10px]">PROJECT MANAGER</span>
-                      <span className="text-amber-400 font-bold">👤 {user?.fullName || 'Huy Dat (Admin)'}</span>
+                      <span className="text-amber-400 font-bold">👤 {user?.fullName || 'Project Lead'}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-[10px]">TỔNG THÀNH VIÊN</span>
@@ -1097,6 +1128,10 @@ export const BoardPage: React.FC = () => {
                               task={t}
                               onRequestTransfer={handleQuickRequest}
                               onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                              onDeleteTask={(taskItem) => {
+                                setTaskToDelete(taskItem);
+                                setIsDeleteModalOpen(true);
+                              }}
                             />
                           ))}
                           {stage.tasks.length === 0 && (
@@ -1386,11 +1421,106 @@ export const BoardPage: React.FC = () => {
         );
       })()}
 
+      {/* 📜 VIEW 4: AUDIT LOG & LƯU TRỮ HỆ THỐNG (TỰ ĐỘNG LƯU TASK HOÀN THÀNH > 2 NGÀY & TASK ĐÃ XÓA) */}
+      {activeView === 'audit' && (() => {
+        return (
+          <div className="space-y-6 animate-fade-in">
+            {/* Header Bento Box */}
+            <div className="solar-glass-card p-6 rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-950 to-cyan-950/40 border border-cyan-500/40 shadow-xl flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                    <History className="w-5 h-5" />
+                  </span>
+                  <h2 className="text-xl font-black text-white tracking-wide">
+                    AUDIT LOG & LƯU TRỮ VĨNH VIỄN (TASK ARCHIVES)
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-400 font-mono">
+                  Hệ thống tự động lưu trữ các Task hoàn thành sau 2 ngày và các Task đã di chuyển vào Thùng rác để phục vụ kiểm toán (Audit Trail).
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={fetchArchivedTasks}
+                  disabled={isLoadingArchived}
+                  className="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingArchived ? 'animate-spin' : ''}`} />
+                  Làm Mới Audit Log
+                </button>
+              </div>
+            </div>
+
+            {/* Content List */}
+            {isLoadingArchived ? (
+              <div className="h-64 flex items-center justify-center text-cyan-400 font-mono text-xs gap-3">
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                Đang tải dữ liệu Audit Log từ PostgreSQL Database...
+              </div>
+            ) : archivedTasks.length === 0 ? (
+              <div className="h-64 solar-glass-card rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col items-center justify-center gap-3 text-slate-500">
+                <Archive className="w-8 h-8 opacity-40 text-cyan-400" />
+                <span className="text-xs font-mono">Hiện chưa có Task nào được chuyển về Audit Log</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {archivedTasks.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => setSelectedTaskForDetail(t)}
+                    className="solar-glass-card p-5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer space-y-3 group"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2.5 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-400 truncate max-w-[150px]">
+                        📁 {t.projectName}
+                      </span>
+                      {t.isDeleted ? (
+                        <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold font-mono">
+                          🗑️ ĐÃ XÓA
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold font-mono">
+                          📜 LƯU TRỮ SAU 2 NGÀY
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="font-extrabold text-white text-sm group-hover:text-cyan-300 transition-colors line-clamp-2">
+                      {t.title}
+                    </h4>
+
+                    <p className="text-slate-400 text-xs line-clamp-2 font-normal">
+                      {t.description || 'Không có mô tả chi tiết'}
+                    </p>
+
+                    <div className="pt-2 border-t border-slate-900 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                      <div className="flex items-center gap-2">
+                        <span>👤 {t.assignee?.fullName || 'Chưa phân công'}</span>
+                      </div>
+                      <span className="text-slate-400">
+                        {t.dueDate ? `Hạn: ${t.dueDate}` : 'Hoàn tất'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* 🌌 TASK DETAIL MINISITE MODAL */}
       <TaskDetailModal
         isOpen={!!selectedTaskForDetail}
         onClose={() => setSelectedTaskForDetail(null)}
         task={selectedTaskForDetail}
+        onUpdateTask={(updatedTask) => {
+          setSelectedTaskForDetail(updatedTask);
+          setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? { ...t, ...updatedTask } : t)));
+          showNotification('🟢 Đã cập nhật mô tả Task thành công!', 'success', 'Cập Nhật Task');
+        }}
         onDeleteTask={(t) => {
           setTaskToDelete(t);
           setIsDeleteModalOpen(true);

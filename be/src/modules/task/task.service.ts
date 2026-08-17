@@ -14,12 +14,33 @@ export class TaskService {
   ) {}
 
   async findAll(query?: QueryTaskFilterDto) {
-    const where: any = { isArchived: false, isDeleted: false };
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    const where: any = {
+      isArchived: false,
+      isDeleted: false,
+      // 🛡️ BỘ LỌC HOÀN THÀNH 2 NGÀY: Task DONE quá 2 ngày sẽ tự động ẩn khỏi bảng Kanban chính và chuyển về Audit Log / Archived
+      OR: [
+        { status: { not: 'DONE' } },
+        {
+          status: 'DONE',
+          OR: [
+            { completedAt: { gte: twoDaysAgo } },
+            { completedAt: null, updatedAt: { gte: twoDaysAgo } },
+          ],
+        },
+      ],
+    };
 
     if (query?.search) {
-      where.OR = [
-        { title: { contains: query.search, mode: 'insensitive' } },
-        { description: { contains: query.search, mode: 'insensitive' } },
+      where.AND = [
+        {
+          OR: [
+            { title: { contains: query.search, mode: 'insensitive' } },
+            { description: { contains: query.search, mode: 'insensitive' } },
+          ],
+        },
       ];
     }
 
@@ -133,6 +154,20 @@ export class TaskService {
       if (realAdmin) effectiveUserId = realAdmin.id;
     }
 
+    let parsedDueDate: Date | null = null;
+    if (createTaskDto.dueDate) {
+      parsedDueDate = new Date(createTaskDto.dueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const targetDueDate = new Date(parsedDueDate);
+      targetDueDate.setHours(0, 0, 0, 0);
+
+      if (targetDueDate.getTime() <= today.getTime()) {
+        throw new BadRequestException('Hạn Deadline (due date) phải lớn hơn ngày tạo Task (từ ngày mai trở đi)!');
+      }
+    }
+
     const task = await this.prisma.task.create({
       data: {
         title: createTaskDto.title,
@@ -143,7 +178,7 @@ export class TaskService {
         projectId: createTaskDto.projectId,
         assigneeId: createTaskDto.assigneeId || effectiveUserId,
         createdById: effectiveUserId,
-        dueDate: createTaskDto.dueDate ? new Date(createTaskDto.dueDate) : null,
+        dueDate: parsedDueDate,
         stageId: createTaskDto.stageId || 'stage_1',
       },
       include: {
@@ -221,12 +256,17 @@ export class TaskService {
         where: { id },
         data: {
           status: updateTaskStatusDto.status,
+          description: (updateTaskStatusDto as any).description !== undefined ? (updateTaskStatusDto as any).description : undefined,
           progress:
             updateTaskStatusDto.progress !== undefined
               ? updateTaskStatusDto.progress
               : updateTaskStatusDto.status === 'DONE'
               ? 100
               : task.progress,
+          completedAt:
+            updateTaskStatusDto.status === 'DONE'
+              ? task.completedAt || new Date()
+              : null,
         },
         include: {
           project: { select: { id: true, name: true } },
@@ -279,6 +319,96 @@ export class TaskService {
     return result;
   }
 
+  async updateDescription(id: string, description: string, user?: any) {
+    const updatedTask = await this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.findUnique({
+        where: { id },
+        include: {
+          assignee: true,
+          createdBy: true,
+        },
+      });
+      if (!task) {
+        throw new NotFoundException('Task không tồn tại');
+      }
+
+      // Check ownership: ADMIN, MANAGER, or Assignee/Creator (matched by ID or Email)
+      let isAllowed = false;
+      if (!user || user.role === 'ADMIN' || user.role === 'MANAGER' || user.globalRole === 'ADMIN' || user.globalRole === 'MANAGER') {
+        isAllowed = true;
+      } else {
+        const userId = user.id;
+        const userEmail = user.email;
+
+        const isAssignee =
+          task.assigneeId === userId ||
+          (task.assignee && task.assignee.email === userEmail) ||
+          (task.assignee && task.assignee.id === userId);
+
+        const isCreator =
+          task.createdById === userId ||
+          (task.createdBy && task.createdBy.email === userEmail) ||
+          (task.createdBy && task.createdBy.id === userId);
+
+        if (isAssignee || isCreator) {
+          isAllowed = true;
+        }
+      }
+
+      if (!isAllowed) {
+        throw new ForbiddenException('Chỉ chủ sở hữu hoặc người được giao mới có quyền sửa mô tả Task');
+      }
+
+      return tx.task.update({
+        where: { id },
+        data: { description: description?.trim() || '' },
+        include: {
+          project: { select: { id: true, name: true } },
+          assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
+          tags: { include: { tag: true } },
+          attachments: true,
+        },
+      });
+    });
+
+    const result = {
+      id: updatedTask.id,
+      title: updatedTask.title,
+      description: updatedTask.description || undefined,
+      status: updatedTask.status,
+      priority: updatedTask.priority,
+      progress: updatedTask.progress,
+      dueDate: updatedTask.dueDate ? updatedTask.dueDate.toISOString().slice(0, 10) : undefined,
+      projectName: updatedTask.project?.name || 'Solaris Core',
+      assigneeId: updatedTask.assigneeId || undefined,
+      assignee: updatedTask.assignee
+        ? {
+            id: updatedTask.assignee.id,
+            fullName: updatedTask.assignee.fullName,
+            avatar: updatedTask.assignee.avatar || undefined,
+            profession: updatedTask.assignee.profession,
+          }
+        : undefined,
+      tags: updatedTask.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })),
+      commentsCount: 0,
+      stageId: updatedTask.stageId || undefined,
+      attachments: updatedTask.attachments ? updatedTask.attachments.map((att) => ({
+        id: att.id,
+        name: att.name,
+        url: att.url,
+        type: att.type,
+        size: att.size || undefined,
+        createdAt: att.createdAt ? att.createdAt.toISOString() : undefined,
+      })) : [],
+    };
+
+    if (updatedTask.projectId) {
+      this.socketGateway.broadcastToProject(updatedTask.projectId, 'task:updated', result);
+    }
+
+    return result;
+  }
+
   async getComments(taskId: string) {
     const comments = await this.prisma.comment.findMany({
       where: { taskId },
@@ -290,7 +420,7 @@ export class TaskService {
 
     return comments.map((c) => ({
       id: c.id,
-      author: c.user?.fullName || 'Huy Dat (Admin)',
+      author: c.user?.fullName || 'Thành viên',
       avatar: c.user?.avatar || '',
       text: c.content,
       createdAt: c.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -317,7 +447,7 @@ export class TaskService {
 
     const result = {
       id: comment.id,
-      author: comment.user?.fullName || 'Huy Dat (Admin)',
+      author: comment.user?.fullName || 'Thành viên',
       avatar: comment.user?.avatar || '',
       text: comment.content,
       createdAt: comment.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -610,17 +740,39 @@ export class TaskService {
     return { success: true, message: `Đã tự động di chuyển Task "${task.title}" vào CSDL Thùng Rác (Lưu vết CSDL thành công)` };
   }
 
-  // 📦 Lấy danh sách các Task đã xóa (Thùng Rác CSDL PostgreSQL)
-  async getArchivedTasks() {
-    return this.prisma.task.findMany({
-      where: { isDeleted: true },
+  // 📦 Lấy danh sách Task trong Lưu Trữ / Audit Log (CHỈ DÀNH CHO ADMIN)
+  async getArchivedTasks(user?: any) {
+    if (user && user.role !== 'ADMIN') {
+      throw new ForbiddenException('Chỉ Quản Trị Viên (Admin) mới có quyền truy cập Audit Log & Lưu Trữ!');
+    }
+
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        OR: [
+          { isDeleted: true },
+          { isArchived: true },
+          {
+            status: 'DONE',
+            completedAt: { lt: twoDaysAgo },
+          },
+        ],
+      },
       include: {
         project: { select: { id: true, name: true } },
         assignee: { select: { id: true, fullName: true, email: true, avatar: true } },
         createdBy: { select: { id: true, fullName: true, email: true, avatar: true } },
       },
-      orderBy: { deletedAt: 'desc' },
+      orderBy: { updatedAt: 'desc' },
     });
+
+    return tasks.map((t) => ({
+      ...this.mapTaskResponse(t),
+      isDeleted: t.isDeleted,
+      isAutoArchivedDone: t.status === 'DONE' && t.completedAt ? t.completedAt < twoDaysAgo : false,
+    }));
   }
 
   // 🔄 Khôi phục Task từ CSDL Thùng Rác
