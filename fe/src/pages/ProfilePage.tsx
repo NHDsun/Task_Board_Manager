@@ -108,7 +108,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       profession: user.globalRole === 'ADMIN' ? (formData.profession as any) : user.profession,
     };
 
-    setAuth(updatedUser, localStorage.getItem('solaris_token') || '');
+    setAuth(updatedUser, localStorage.getItem('solarisToken') || '');
     setIsEditModalOpen(false);
   };
 

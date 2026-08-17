@@ -10,7 +10,10 @@ import {
   UseGuards,
   Request,
   UnauthorizedException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { TaskService } from './task.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
@@ -116,5 +119,20 @@ export class TaskController {
     @Request() req: any,
   ) {
     return this.taskService.deleteTask(id, this.extractUserId(req));
+  }
+
+  @Post(':id/attachments')
+  @UseInterceptors(FileInterceptor('file'))
+  addAttachment(
+    @Param('id') id: string,
+    @UploadedFile() file: any,
+    @Body() body: { name?: string; url?: string; type?: string },
+  ) {
+    return this.taskService.addAttachment(id, file, body);
+  }
+
+  @Delete('attachments/:attachmentId')
+  deleteAttachment(@Param('attachmentId') attachmentId: string) {
+    return this.taskService.deleteAttachment(attachmentId);
   }
 }

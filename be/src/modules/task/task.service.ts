@@ -4,10 +4,14 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { QueryTaskFilterDto } from './dto/query-task-filter.dto';
 import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
+import { SocketGateway } from '../socket/socket.gateway';
 
 @Injectable()
 export class TaskService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private socketGateway: SocketGateway,
+  ) {}
 
   async findAll(query?: QueryTaskFilterDto) {
     const where: any = { isArchived: false, isDeleted: false };
@@ -54,6 +58,7 @@ export class TaskService {
         createdBy: { select: { id: true, fullName: true, email: true, avatar: true } },
         tags: { include: { tag: true } },
         subtasks: true,
+        attachments: true,
         taskRequests: {
           where: { status: 'PENDING' },
           include: {
@@ -109,6 +114,14 @@ export class TaskService {
           : undefined,
       tags: t.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })),
       commentsCount: t._count.comments,
+      attachments: t.attachments ? t.attachments.map((att) => ({
+        id: att.id,
+        name: att.name,
+        url: att.url,
+        type: att.type,
+        size: att.size || undefined,
+        createdAt: att.createdAt ? att.createdAt.toISOString() : undefined,
+      })) : [],
     }));
   }
 
@@ -136,6 +149,7 @@ export class TaskService {
         assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
         createdBy: { select: { id: true, fullName: true, email: true, avatar: true } },
         tags: { include: { tag: true } },
+        attachments: true,
       },
     });
 
@@ -143,7 +157,7 @@ export class TaskService {
       await this.triggerTaskDrivenCheckIn(task.assigneeId);
     }
 
-    return {
+    const createdTask = {
       id: task.id,
       title: task.title,
       description: task.description || undefined,
@@ -163,7 +177,21 @@ export class TaskService {
         : undefined,
       tags: task.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })),
       commentsCount: 0,
+      attachments: task.attachments ? task.attachments.map((att) => ({
+        id: att.id,
+        name: att.name,
+        url: att.url,
+        type: att.type,
+        size: att.size || undefined,
+        createdAt: att.createdAt ? att.createdAt.toISOString() : undefined,
+      })) : [],
     };
+
+    if (task.projectId) {
+      this.socketGateway.broadcastToProject(task.projectId, 'task:created', createdTask);
+    }
+
+    return createdTask;
   }
 
   async findByProject(projectId: string) {
@@ -191,6 +219,7 @@ export class TaskService {
         project: { select: { id: true, name: true } },
         assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
         tags: { include: { tag: true } },
+        attachments: true,
       },
     });
 
@@ -198,7 +227,7 @@ export class TaskService {
       await this.triggerTaskDrivenCheckIn(updatedTask.assigneeId);
     }
 
-    return {
+    const result = {
       id: updatedTask.id,
       title: updatedTask.title,
       description: updatedTask.description || undefined,
@@ -218,7 +247,21 @@ export class TaskService {
         : undefined,
       tags: updatedTask.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })),
       commentsCount: 0,
+      attachments: updatedTask.attachments ? updatedTask.attachments.map((att) => ({
+        id: att.id,
+        name: att.name,
+        url: att.url,
+        type: att.type,
+        size: att.size || undefined,
+        createdAt: att.createdAt ? att.createdAt.toISOString() : undefined,
+      })) : [],
     };
+
+    if (updatedTask.projectId) {
+      this.socketGateway.broadcastToProject(updatedTask.projectId, 'task:updated', result);
+    }
+
+    return result;
   }
 
   async getComments(taskId: string) {
@@ -257,13 +300,20 @@ export class TaskService {
       },
     });
 
-    return {
+    const result = {
       id: comment.id,
       author: comment.user?.fullName || 'Huy Dat (Admin)',
       avatar: comment.user?.avatar || '',
       text: comment.content,
       createdAt: comment.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
+
+    const targetTask = await this.prisma.task.findUnique({ where: { id: taskId } });
+    if (targetTask?.projectId) {
+      this.socketGateway.broadcastToProject(targetTask.projectId, 'comment:created', { taskId, comment: result });
+    }
+
+    return result;
   }
 
   // ✉️ Create a new Task Transfer/Assist Request in PostgreSQL CSDL
@@ -538,6 +588,10 @@ export class TaskService {
       },
     });
 
+    if (task.projectId) {
+      this.socketGateway.broadcastToProject(task.projectId, 'task:deleted', { id });
+    }
+
     return { success: true, message: `Đã tự động di chuyển Task "${task.title}" vào CSDL Thùng Rác (Lưu vết CSDL thành công)` };
   }
 
@@ -597,5 +651,153 @@ export class TaskService {
     } catch {
       // Ignore if error
     }
+  }
+
+  private mapTaskResponse(t: any) {
+    return {
+      id: t.id,
+      title: t.title,
+      description: t.description || undefined,
+      status: t.status,
+      priority: t.priority,
+      progress: t.progress,
+      dueDate: t.dueDate ? t.dueDate.toISOString().slice(0, 10) : undefined,
+      projectName: t.project?.name || 'Solaris Core',
+      assigneeId: t.assigneeId || undefined,
+      assignee: t.assignee
+        ? {
+            id: t.assignee.id,
+            fullName: t.assignee.fullName,
+            avatar: t.assignee.avatar || undefined,
+            profession: t.assignee.profession,
+          }
+        : undefined,
+      createdById: t.createdById,
+      createdBy: t.createdBy
+        ? {
+            id: t.createdBy.id,
+            fullName: t.createdBy.fullName,
+            avatar: t.createdBy.avatar || undefined,
+          }
+        : undefined,
+      transferInfo:
+        t.taskRequests && t.taskRequests.length > 0
+          ? {
+              senderName: t.taskRequests[0].sender.fullName,
+              senderAvatar: t.taskRequests[0].sender.avatar || '',
+              receiverName: t.taskRequests[0].receiver.fullName,
+              receiverAvatar: t.taskRequests[0].receiver.avatar || '',
+              note: t.taskRequests[0].note || '',
+            }
+          : undefined,
+      tags: t.tags ? t.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })) : [],
+      commentsCount: t._count?.comments || 0,
+      attachments: t.attachments ? t.attachments.map((att) => ({
+        id: att.id,
+        name: att.name,
+        url: att.url,
+        type: att.type,
+        size: att.size || undefined,
+        createdAt: att.createdAt ? att.createdAt.toISOString() : undefined,
+      })) : [],
+    };
+  }
+
+  async addAttachment(
+    taskId: string,
+    file: any,
+    body: { name?: string; url?: string; type?: string },
+  ) {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      throw new NotFoundException('Task không tồn tại');
+    }
+
+    let attachmentData: any = {};
+
+    if (file) {
+      const fs = require('fs');
+      const path = require('path');
+      const uniqueName = `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`;
+      const uploadPath = path.join(process.cwd(), 'uploads', uniqueName);
+      
+      fs.writeFileSync(uploadPath, file.buffer);
+
+      attachmentData = {
+        name: file.originalname,
+        url: `/uploads/${uniqueName}`,
+        type: 'file',
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        taskId,
+      };
+    } else if (body.url) {
+      attachmentData = {
+        name: body.name || body.url,
+        url: body.url,
+        type: 'link',
+        size: null,
+        taskId,
+      };
+    } else {
+      throw new BadRequestException('Vui lòng gửi file hoặc URL liên kết');
+    }
+
+    const attachment = await this.prisma.attachment.create({
+      data: attachmentData,
+    });
+
+    if (task.projectId) {
+      const updatedTaskObj = await this.prisma.task.findUnique({
+        where: { id: taskId },
+        include: {
+          project: { select: { id: true, name: true } },
+          assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
+          tags: { include: { tag: true } },
+          attachments: true,
+        }
+      });
+      this.socketGateway.broadcastToProject(task.projectId, 'task:updated', this.mapTaskResponse(updatedTaskObj));
+    }
+
+    return attachment;
+  }
+
+  async deleteAttachment(attachmentId: string) {
+    const attachment = await this.prisma.attachment.findUnique({ where: { id: attachmentId } });
+    if (!attachment) {
+      throw new NotFoundException('Đính kèm không tồn tại');
+    }
+
+    if (attachment.type === 'file') {
+      const fs = require('fs');
+      const path = require('path');
+      const filename = path.basename(attachment.url);
+      const filePath = path.join(process.cwd(), 'uploads', filename);
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    await this.prisma.attachment.delete({ where: { id: attachmentId } });
+
+    const task = await this.prisma.task.findUnique({ where: { id: attachment.taskId } });
+    if (task?.projectId) {
+      const updatedTaskObj = await this.prisma.task.findUnique({
+        where: { id: attachment.taskId },
+        include: {
+          project: { select: { id: true, name: true } },
+          assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
+          tags: { include: { tag: true } },
+          attachments: true,
+        }
+      });
+      this.socketGateway.broadcastToProject(task.projectId, 'task:updated', this.mapTaskResponse(updatedTaskObj));
+    }
+
+    return { success: true };
   }
 }

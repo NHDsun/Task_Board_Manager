@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ProjectModule } from './modules/project/project.module';
 import { TaskModule } from './modules/task/task.module';
 import { ProfileModule } from './modules/profile/profile.module';
+import { SocketModule } from './modules/socket/socket.module';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
@@ -19,6 +20,7 @@ import { IdempotencyInterceptor } from './common/interceptors/idempotency.interc
     ProjectModule,
     TaskModule,
     ProfileModule,
+    SocketModule,
   ],
   controllers: [AppController],
   providers: [

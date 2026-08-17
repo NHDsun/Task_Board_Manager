@@ -34,8 +34,15 @@ export interface TaskItem {
   };
   tags?: Array<{ id: string; name: string; color?: string }>;
   commentsCount?: number;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    url: string;
+    type: 'file' | 'link';
+    size?: string;
+    createdAt: string;
+  }>;
 }
-
 interface KanbanCardProps {
   task: TaskItem;
   onStatusChange?: (taskId: string, newStatus: TaskItem['status']) => void;

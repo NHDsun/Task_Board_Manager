@@ -18,12 +18,15 @@ function isTokenExpired(token: string | null): boolean {
     const parts = token.split('.');
     if (parts.length !== 3) return true;
     
-    // Decode base64 URL payload cleanly
+    // Decode base64 URL payload cleanly with proper padding
     const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = base64.length % 4;
+    const padded = pad ? base64 + '='.repeat(4 - pad) : base64;
+    
     const jsonPayload = decodeURIComponent(
       window
-        .atob(base64)
+        .atob(padded)
         .split('')
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
         .join('')
@@ -35,7 +38,8 @@ function isTokenExpired(token: string | null): boolean {
     // Buffer 15 seconds to prevent request failures during transmission
     const bufferSeconds = 15;
     return payload.exp * 1000 < Date.now() + bufferSeconds * 1000;
-  } catch {
+  } catch (e) {
+    console.error('JWT Decode error in isTokenExpired:', e);
     return true;
   }
 }
@@ -85,7 +89,7 @@ api.interceptors.request.use(
       }
 
       isRefreshing = true;
-      const refreshToken = useAuthStore.getState().refreshToken || localStorage.getItem('solaris_refresh_token');
+      const refreshToken = useAuthStore.getState().refreshToken || localStorage.getItem('solarisRefreshToken');
 
       if (!refreshToken) {
         useAuthStore.getState().logout();
@@ -152,7 +156,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = useAuthStore.getState().refreshToken || localStorage.getItem('solaris_refresh_token');
+      const refreshToken = useAuthStore.getState().refreshToken || localStorage.getItem('solarisRefreshToken');
 
       if (!refreshToken) {
         useAuthStore.getState().logout();

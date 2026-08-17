@@ -22,6 +22,7 @@ const getPortalRoot = () => {
 };
 import { KanbanCard, type TaskItem } from '../components/kanban/KanbanCard';
 import { api } from '../services/api';
+import { socketService } from '../services/socket';
 import { SolarNotificationModal } from '../components/common/SolarNotificationModal';
 import { TaskRequestModal } from '../components/kanban/TaskRequestModal';
 import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
@@ -47,7 +48,8 @@ import {
   Sliders,
   Sparkles,
   Zap,
-  Folder
+  Folder,
+  Lock
 } from 'lucide-react';
 
 import { TaskTransferInboxModal } from '../components/kanban/TaskTransferInboxModal';
@@ -81,7 +83,7 @@ export const BoardPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<string | null>(null);
 
-  const [isCheckedIn, setIsCheckedIn] = useState(true);
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Dynamic Metadata States (Read from PostgreSQL DB)
@@ -166,6 +168,53 @@ export const BoardPage: React.FC = () => {
   useEffect(() => {
     fetchTasksFromBackend();
   }, [token]);
+
+  // ⚡ Socket.IO Real-time Connection & Rooms Integration
+  useEffect(() => {
+    if (!token) return;
+
+    // Connect to WebSocket server
+    socketService.connect();
+
+    // Listen for updates
+    const handleSocketUpdate = () => {
+      console.log('⚡ Real-time update received via Socket.IO');
+      fetchTasksFromBackend();
+    };
+
+    socketService.on('task:created', handleSocketUpdate);
+    socketService.on('task:updated', handleSocketUpdate);
+    socketService.on('task:deleted', handleSocketUpdate);
+    socketService.on('comment:created', handleSocketUpdate);
+
+    return () => {
+      socketService.off('task:created', handleSocketUpdate);
+      socketService.off('task:updated', handleSocketUpdate);
+      socketService.off('task:deleted', handleSocketUpdate);
+      socketService.off('comment:created', handleSocketUpdate);
+    };
+  }, [token]);
+
+  // Join/leave project rooms dynamically when project filter changes
+  useEffect(() => {
+    if (!token) return;
+
+    if (filterProject && filterProject !== 'ALL') {
+      socketService.joinProject(filterProject);
+      return () => {
+        socketService.leaveProject(filterProject);
+      };
+    } else if (filterProject === 'ALL' && dbProjects.length > 0) {
+      dbProjects.forEach((proj) => {
+        socketService.joinProject(proj.id);
+      });
+      return () => {
+        dbProjects.forEach((proj) => {
+          socketService.leaveProject(proj.id);
+        });
+      };
+    }
+  }, [filterProject, token, dbProjects]);
 
   // Handle Drag and Drop via @hello-pangea/dnd Library (Tối ưu phản hồi tức thì 0s trễ + Mô hình Retry)
   const handleDragEnd = (result: DropResult) => {
@@ -839,52 +888,114 @@ export const BoardPage: React.FC = () => {
               })}
             </div>
 
-            {/* Pipeline Stage Columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {activePipelineStages.map((stage, stageIdx) => {
+            {/* Pipeline Stage Columns with Sequential Unlocking Logic */}
+            {(() => {
+              const computedStages = [];
+              let isLocked = false;
+
+              for (let i = 0; i < activePipelineStages.length; i++) {
+                const originalStage = activePipelineStages[i];
                 const stageTasks = pipelineTasks.filter(
-                  (_, idx) => idx % activePipelineStages.length === stageIdx
+                  (_, idx) => idx % activePipelineStages.length === i
                 );
 
-                return (
-                  <div
-                    key={stage.id}
-                    className={`solar-glass-card p-5 rounded-2xl bg-[#0F172A]/90 border ${stage.color} space-y-4 shadow-xl`}
-                  >
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                      <span className="font-extrabold text-sm text-white">{stage.name}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          stage.status === 'DONE'
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : stage.status === 'IN_PROGRESS'
-                            ? 'bg-amber-500/20 text-amber-300'
-                            : 'bg-slate-800 text-slate-400'
+                const hasTasks = stageTasks.length > 0;
+                const allTasksDone = hasTasks && stageTasks.every((t) => t.status === 'DONE');
+
+                let status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'LOCKED' = 'TODO';
+                let color = originalStage.color;
+
+                if (isLocked) {
+                  status = 'LOCKED';
+                  color = 'border-slate-800/50 text-slate-500';
+                } else {
+                  if (hasTasks) {
+                    if (allTasksDone) {
+                      status = 'DONE';
+                      color = 'border-emerald-500/30 text-emerald-300';
+                    } else {
+                      status = 'IN_PROGRESS';
+                      color = originalStage.color;
+                      // Since this stage is not fully done, all subsequent stages must be locked
+                      isLocked = true;
+                    }
+                  } else {
+                    // Empty stage behaves as unlocked/in progress
+                    status = 'IN_PROGRESS';
+                    color = 'border-slate-700/60 text-slate-400';
+                  }
+                }
+
+                computedStages.push({
+                  ...originalStage,
+                  status,
+                  color,
+                  tasks: stageTasks,
+                });
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {computedStages.map((stage) => {
+                    const isStageLocked = stage.status === 'LOCKED';
+
+                    return (
+                      <div
+                        key={stage.id}
+                        className={`solar-glass-card p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden shadow-xl ${
+                          isStageLocked 
+                            ? 'bg-slate-950/40 border-slate-900/60 opacity-50' 
+                            : `bg-[#0F172A]/90 ${stage.color}`
                         }`}
                       >
-                        {stage.status} ({stageTasks.length})
-                      </span>
-                    </div>
+                        {isStageLocked && (
+                          <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[0.5px] z-10 flex flex-col items-center justify-center pointer-events-none">
+                            <Lock className="w-8 h-8 text-rose-500/40 mb-1" />
+                            <span className="text-[10px] font-mono text-rose-400/50 font-bold uppercase tracking-wider">
+                              GIAI ĐOẠN ĐANG KHÓA
+                            </span>
+                          </div>
+                        )}
 
-                    <div className="space-y-3">
-                      {stageTasks.map((t) => (
-                        <KanbanCard
-                          key={t.id}
-                          task={t}
-                          onRequestTransfer={handleQuickRequest}
-                          onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
-                        />
-                      ))}
-                      {stageTasks.length === 0 && (
-                        <div className="h-24 border border-dashed border-slate-800/60 rounded-xl flex items-center justify-center text-[11px] font-mono text-slate-600">
-                          Chưa có Task giai đoạn này
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <span className={`font-extrabold text-sm ${isStageLocked ? 'text-slate-500' : 'text-white'}`}>
+                            {stage.name}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 border ${
+                              isStageLocked
+                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                : stage.status === 'DONE'
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                : 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                            }`}
+                          >
+                            {isStageLocked && <Lock className="w-2.5 h-2.5" />}
+                            {isStageLocked ? 'LOCKED' : stage.status} ({stage.tasks.length})
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+
+                        <div className={`space-y-3 ${isStageLocked ? 'select-none pointer-events-none' : ''}`}>
+                          {stage.tasks.map((t) => (
+                            <KanbanCard
+                              key={t.id}
+                              task={t}
+                              onRequestTransfer={handleQuickRequest}
+                              onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                            />
+                          ))}
+                          {stage.tasks.length === 0 && (
+                            <div className="h-24 border border-dashed border-slate-800/60 rounded-xl flex items-center justify-center text-[11px] font-mono text-slate-600">
+                              Chưa có Task giai đoạn này
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         );
       })()}

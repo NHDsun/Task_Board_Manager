@@ -204,6 +204,7 @@ model Task {
   tags         TaskTag[]
   comments     Comment[]
   taskRequests TaskRequest[]
+  attachments  Attachment[]
 
   @@index([projectId, status])
   @@index([assigneeId, status])
@@ -350,4 +351,18 @@ model TaskRequest {
   @@index([taskId, status])
 
   @@map("task_requests")
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  type      String   // 'file' or 'link'
+  size      String?
+  taskId    String   @map("task_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
 }

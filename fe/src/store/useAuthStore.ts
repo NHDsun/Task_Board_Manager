@@ -13,7 +13,7 @@ interface AuthState {
 
 const getInitialUser = (): User | null => {
   try {
-    const storedUser = localStorage.getItem('solaris_user');
+    const storedUser = localStorage.getItem('solarisUser');
     return storedUser ? JSON.parse(storedUser) : null;
   } catch {
     return null;
@@ -22,28 +22,28 @@ const getInitialUser = (): User | null => {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: getInitialUser(),
-  token: localStorage.getItem('solaris_token'),
-  refreshToken: localStorage.getItem('solaris_refresh_token'),
-  isAuthenticated: !!localStorage.getItem('solaris_token'),
+  token: localStorage.getItem('solarisToken'),
+  refreshToken: localStorage.getItem('solarisRefreshToken'),
+  isAuthenticated: !!localStorage.getItem('solarisToken'),
   setAuth: (user, token, refreshToken) => {
-    localStorage.setItem('solaris_token', token);
-    localStorage.setItem('solaris_user', JSON.stringify(user));
+    localStorage.setItem('solarisToken', token);
+    localStorage.setItem('solarisUser', JSON.stringify(user));
     if (refreshToken) {
-      localStorage.setItem('solaris_refresh_token', refreshToken);
+      localStorage.setItem('solarisRefreshToken', refreshToken);
     }
-    set({ user, token, refreshToken: refreshToken || localStorage.getItem('solaris_refresh_token'), isAuthenticated: true });
+    set({ user, token, refreshToken: refreshToken || localStorage.getItem('solarisRefreshToken'), isAuthenticated: true });
   },
   setTokens: (token, refreshToken) => {
-    localStorage.setItem('solaris_token', token);
+    localStorage.setItem('solarisToken', token);
     if (refreshToken) {
-      localStorage.setItem('solaris_refresh_token', refreshToken);
+      localStorage.setItem('solarisRefreshToken', refreshToken);
     }
-    set({ token, refreshToken: refreshToken || localStorage.getItem('solaris_refresh_token') });
+    set({ token, refreshToken: refreshToken || localStorage.getItem('solarisRefreshToken') });
   },
   logout: () => {
-    localStorage.removeItem('solaris_token');
-    localStorage.removeItem('solaris_refresh_token');
-    localStorage.removeItem('solaris_user');
+    localStorage.removeItem('solarisToken');
+    localStorage.removeItem('solarisRefreshToken');
+    localStorage.removeItem('solarisUser');
     set({ user: null, token: null, refreshToken: null, isAuthenticated: false });
   },
 }));

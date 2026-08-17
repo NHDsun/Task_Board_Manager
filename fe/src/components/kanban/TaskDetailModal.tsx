@@ -90,8 +90,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   useEffect(() => {
     if (isOpen && task) {
       fetchComments();
+      setAttachments(task.attachments || []);
     }
-  }, [isOpen, task?.id]);
+  }, [isOpen, task?.id, task?.attachments]);
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,48 +111,61 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   // 📎 Handle Local File Selection (Upload)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    const newAtt: AttachmentItem = {
-      id: `att_${Date.now()}`,
-      name: file.name,
-      url: URL.createObjectURL(file),
-      type: 'file',
-      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-      createdAt: 'Vừa xong',
-    };
+    const formData = new FormData();
+    formData.append('file', file);
 
-    setAttachments((prev) => [newAtt, ...prev]);
+    try {
+      const res = await api.post(`/tasks/${task.id}/attachments`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setAttachments((prev) => [res.data, ...prev]);
+    } catch (err) {
+      console.error('Lỗi khi tải file lên:', err);
+    }
     e.target.value = '';
   };
 
   // 🔗 Handle Add Custom URL Attachment
-  const handleAddUrlAttachment = (e: React.FormEvent) => {
+  const handleAddUrlAttachment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!urlInput.trim()) return;
 
     const formattedUrl = urlInput.startsWith('http') ? urlInput : `https://${urlInput}`;
-    const newAtt: AttachmentItem = {
-      id: `att_${Date.now()}`,
-      name: urlTitleInput.trim() || formattedUrl,
-      url: formattedUrl,
-      type: 'link',
-      createdAt: 'Vừa xong',
-    };
+    const name = urlTitleInput.trim() || formattedUrl;
 
-    setAttachments((prev) => [newAtt, ...prev]);
-    setUrlInput('');
-    setUrlTitleInput('');
-    setShowAddUrlForm(false);
+    try {
+      const res = await api.post(`/tasks/${task.id}/attachments`, {
+        name,
+        url: formattedUrl,
+        type: 'link',
+      });
+      setAttachments((prev) => [res.data, ...prev]);
+      setUrlInput('');
+      setUrlTitleInput('');
+      setShowAddUrlForm(false);
+    } catch (err) {
+      console.error('Lỗi khi liên kết URL:', err);
+    }
   };
 
   // 📥 Handle Download File / Attachment Data
   const handleDownloadAttachment = (att: AttachmentItem) => {
+    let downloadUrl = att.url;
+    if (att.url.startsWith('/uploads/')) {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      const backendUrl = apiBase.replace('/api', '');
+      downloadUrl = `${backendUrl}${att.url}`;
+    }
+
     const link = document.createElement('a');
-    link.href = att.url;
+    link.href = downloadUrl;
     link.download = att.name;
     link.target = '_blank';
     document.body.appendChild(link);
@@ -160,8 +174,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   // 🗑️ Remove Attachment
-  const handleRemoveAttachment = (id: string) => {
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  const handleRemoveAttachment = async (id: string) => {
+    try {
+      await api.delete(`/tasks/attachments/${id}`);
+      setAttachments((prev) => prev.filter((a) => a.id !== id));
+    } catch (err) {
+      console.error('Lỗi khi xóa đính kèm:', err);
+    }
   };
 
   const getStatusBadge = (status: TaskItem['status']) => {
@@ -478,7 +497,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     </div>
                     <div className="min-w-0">
                       <a
-                        href={att.url}
+                        href={att.url.startsWith('/uploads/') ? `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}${att.url}` : att.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-bold text-slate-200 hover:text-amber-400 truncate block transition-colors flex items-center gap-1"
