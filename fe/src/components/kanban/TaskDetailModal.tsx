@@ -14,7 +14,8 @@ import {
   ExternalLink,
   Trash2,
   CheckCircle2,
-  Lock
+  Lock,
+  Download
 } from 'lucide-react';
 import type { TaskItem } from './KanbanCard';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -165,6 +166,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     setUrlInput('');
     setUrlTitleInput('');
     setShowAddUrlForm(false);
+  };
+
+  // 📥 Handle Download File / Attachment Data
+  const handleDownloadAttachment = (att: AttachmentItem) => {
+    const link = document.createElement('a');
+    link.href = att.url;
+    link.download = att.name;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // 🗑️ Remove Attachment
@@ -500,15 +512,26 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {isMyTask && (
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
-                      onClick={() => handleRemoveAttachment(att.id)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
-                      title="Xóa tệp/URL này"
+                      onClick={() => handleDownloadAttachment(att)}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
+                      title="Tải tệp/dữ liệu này về máy"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Download className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Tải Về</span>
                     </button>
-                  )}
+
+                    {isMyTask && (
+                      <button
+                        onClick={() => handleRemoveAttachment(att.id)}
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                        title="Xóa tệp/URL này"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

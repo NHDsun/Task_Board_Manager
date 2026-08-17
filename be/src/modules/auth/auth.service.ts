@@ -12,6 +12,51 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  private async computeEffectiveRole(user: { id: string; role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE' }): Promise<'ADMIN' | 'MANAGER' | 'EMPLOYEE'> {
+    if (user.role === 'ADMIN') return 'ADMIN';
+    if (user.role === 'MANAGER') return 'MANAGER';
+
+    const activeManagedProject = await this.prisma.project.findFirst({
+      where: {
+        OR: [
+          { managerId: user.id },
+          { createdById: user.id },
+        ],
+        isCompleted: false,
+      },
+    });
+
+    return activeManagedProject ? 'MANAGER' : 'EMPLOYEE';
+  }
+
+  private async generateTokens(userId: string, email: string, role: string) {
+    const payload = { sub: userId, email, role };
+
+    const accessTokenSecret = process.env.JWT_SECRET || 'secretKeySuperSecret123';
+    const refreshTokenSecret = process.env.JWT_REFRESH_SECRET || 'refreshSecretKeySuperSecret456';
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(payload, {
+        secret: accessTokenSecret,
+        expiresIn: '15m',
+      }),
+      this.jwtService.signAsync(payload, {
+        secret: refreshTokenSecret,
+        expiresIn: '7d',
+      }),
+    ]);
+
+    return { accessToken, refreshToken };
+  }
+
+  private async updateRefreshTokenHash(userId: string, refreshToken: string) {
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: hashedRefreshToken },
+    });
+  }
+
   async login(loginDto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
@@ -21,23 +66,25 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
+    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password || '');
     if (!isPasswordValid) {
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const accessToken = this.jwtService.sign(payload);
+    const effectiveRole = await this.computeEffectiveRole(user);
+    const tokens = await this.generateTokens(user.id, user.email, effectiveRole);
+    await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
 
     return {
-      accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       user: {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
         avatarUrl: user.avatar || '',
         coverImage: user.coverImage || '',
-        globalRole: user.role,
+        globalRole: effectiveRole,
         profession: user.profession,
         jobTitle: user.jobTitle,
         phone: user.phone,
@@ -46,6 +93,62 @@ export class AuthService {
         customStatus: user.customStatus,
       },
     };
+  }
+
+  async refreshTokens(refreshToken: string) {
+    let payload: any;
+    try {
+      const refreshTokenSecret = process.env.JWT_REFRESH_SECRET || 'refreshSecretKeySuperSecret456';
+      payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: refreshTokenSecret,
+      });
+    } catch {
+      throw new UnauthorizedException('Refresh Token không hợp lệ hoặc đã hết hạn');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!user || !user.refreshToken) {
+      throw new UnauthorizedException('Truy cập bị từ chối. Token không khả thi.');
+    }
+
+    const refreshTokenMatches = await bcrypt.compare(refreshToken, user.refreshToken);
+    if (!refreshTokenMatches) {
+      throw new UnauthorizedException('Refresh Token đã bị vô hiệu hóa hoặc không chính xác');
+    }
+
+    const effectiveRole = await this.computeEffectiveRole(user);
+    const tokens = await this.generateTokens(user.id, user.email, effectiveRole);
+    await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        avatarUrl: user.avatar || '',
+        coverImage: user.coverImage || '',
+        globalRole: effectiveRole,
+        profession: user.profession,
+        jobTitle: user.jobTitle,
+        phone: user.phone,
+        bio: user.bio,
+        statusSignal: user.statusSignal,
+        customStatus: user.customStatus,
+      },
+    };
+  }
+
+  async logout(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: null },
+    });
+    return { message: 'Đăng xuất thành công' };
   }
 
   async getProfile(userId: string) {
@@ -57,13 +160,15 @@ export class AuthService {
       throw new UnauthorizedException('Người dùng không tồn tại trong CSDL');
     }
 
+    const effectiveRole = await this.computeEffectiveRole(user);
+
     return {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
       avatarUrl: user.avatar || '',
       coverImage: user.coverImage || '',
-      globalRole: user.role,
+      globalRole: effectiveRole,
       profession: user.profession,
       jobTitle: user.jobTitle,
       phone: user.phone,
@@ -95,23 +200,24 @@ export class AuthService {
       where: { email: googleUser.email },
     });
 
-    // 🔒 NẾU GMAIL CHƯA CÓ TRONG CSDL -> TỪ CHỐI ĐĂNG NHẬP THEO QUY ĐỊNH
     if (!user) {
       throw new UnauthorizedException('Gmail này không hợp lệ hoặc chưa được cấp quyền truy cập hệ thống');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const accessToken = this.jwtService.sign(payload);
+    const effectiveRole = await this.computeEffectiveRole(user);
+    const tokens = await this.generateTokens(user.id, user.email, effectiveRole);
+    await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
 
     return {
-      accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       user: {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
         avatarUrl: user.avatar || '',
         coverImage: user.coverImage || '',
-        globalRole: user.role,
+        globalRole: effectiveRole,
         profession: user.profession,
         jobTitle: user.jobTitle,
         phone: user.phone,

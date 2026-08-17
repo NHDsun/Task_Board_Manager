@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock, AlertCircle, PauseCircle, CheckCircle2, MoreVertical, MessageSquare, Send } from 'lucide-react';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export interface TaskItem {
   id: string;
@@ -43,6 +44,16 @@ interface KanbanCardProps {
 }
 
 export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({ task, onRequestTransfer, onCardClick }) => {
+  const currentUser = useAuthStore((state) => state.user);
+
+  const isMyTask = Boolean(
+    currentUser &&
+      (task.assigneeId === currentUser.id ||
+        task.assignee?.id === currentUser.id ||
+        task.assignee?.email === currentUser.email ||
+        (!task.assigneeId && task.createdById === currentUser.id))
+  );
+
   const getPriorityBadge = (priority: TaskItem['priority']) => {
     switch (priority) {
       case 'URGENT':
@@ -112,6 +123,26 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({ task, onReque
         {task.title}
       </h3>
 
+      {/* 📊 Task Progress Bar */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-[11px] font-mono">
+          <span className="text-slate-400 font-medium">Tiến độ</span>
+          <span className="font-bold text-amber-400">{task.progress}%</span>
+        </div>
+        <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${
+              task.progress === 100
+                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                : task.progress > 50
+                ? 'bg-gradient-to-r from-amber-500 to-purple-500'
+                : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+            }`}
+            style={{ width: `${task.progress}%` }}
+          />
+        </div>
+      </div>
+
 
       {/* Footer Info */}
       <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
@@ -145,17 +176,27 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({ task, onReque
         </div>
       </div>
 
-      {/* Quick Task Request Shortcut Button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onRequestTransfer?.(task);
-        }}
-        className="w-full py-1.5 rounded-xl bg-slate-900/80 hover:bg-amber-500/20 text-slate-400 hover:text-amber-300 border border-slate-800 hover:border-amber-500/40 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-      >
-        <Send className="w-3 h-3 text-amber-400" />
-        Yêu Cầu Chuyển Giao / Hỗ Trợ Task
-      </button>
+      {/* Quick Task Request Shortcut Button (CHỈ CHO PHÉP CHÍNH CHỦ TASK BẤM) */}
+      {isMyTask ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRequestTransfer?.(task);
+          }}
+          className="w-full py-1.5 rounded-xl bg-slate-900/80 hover:bg-amber-500/20 text-slate-400 hover:text-amber-300 border border-slate-800 hover:border-amber-500/40 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+        >
+          <Send className="w-3 h-3 text-amber-400" />
+          Yêu Cầu Chuyển Giao / Hỗ Trợ Task
+        </button>
+      ) : (
+        <div
+          title="Bạn chỉ có thể gửi Yêu Cầu Chuyển Giao đối với Task do chính bạn phụ trách"
+          className="w-full py-1.5 rounded-xl bg-slate-950/40 border border-slate-900 text-slate-600 text-[11px] font-medium flex items-center justify-center gap-1.5 opacity-50 cursor-not-allowed select-none"
+        >
+          <Send className="w-3 h-3 text-slate-600" />
+          Chỉ Chính Chủ Mới Được Chuyển Giao
+        </div>
+      )}
     </div>
   );
 });

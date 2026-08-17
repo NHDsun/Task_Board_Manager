@@ -27,5 +27,6 @@ export interface LoginPayload {
 
 export interface AuthResponse {
   accessToken: string;
+  refreshToken?: string;
   user: User;
 }

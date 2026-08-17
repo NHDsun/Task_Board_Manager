@@ -10,7 +10,7 @@ export class TaskService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(query?: QueryTaskFilterDto) {
-    const where: any = { isArchived: false };
+    const where: any = { isArchived: false, isDeleted: false };
 
     if (query?.search) {
       where.OR = [
@@ -530,9 +530,46 @@ export class TaskService {
       throw new ForbiddenException('Chỉ có Cấp Quản Lý (Manager) hoặc Quản Trị Viên (Admin) mới có quyền xóa Task!');
     }
 
-    await this.prisma.task.delete({ where: { id } });
+    await this.prisma.task.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
 
-    return { success: true, message: `Đã xóa thành công Task: "${task.title}"` };
+    return { success: true, message: `Đã tự động di chuyển Task "${task.title}" vào CSDL Thùng Rác (Lưu vết CSDL thành công)` };
+  }
+
+  // 📦 Lấy danh sách các Task đã xóa (Thùng Rác CSDL PostgreSQL)
+  async getArchivedTasks() {
+    return this.prisma.task.findMany({
+      where: { isDeleted: true },
+      include: {
+        project: { select: { id: true, name: true } },
+        assignee: { select: { id: true, fullName: true, email: true, avatar: true } },
+        createdBy: { select: { id: true, fullName: true, email: true, avatar: true } },
+      },
+      orderBy: { deletedAt: 'desc' },
+    });
+  }
+
+  // 🔄 Khôi phục Task từ CSDL Thùng Rác
+  async restoreTask(id: string) {
+    const task = await this.prisma.task.findUnique({ where: { id } });
+    if (!task) {
+      throw new NotFoundException('Task không tồn tại trong CSDL');
+    }
+
+    await this.prisma.task.update({
+      where: { id },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+      },
+    });
+
+    return { success: true, message: `Đã khôi phục thành công Task "${task.title}" về Bảng công việc!` };
   }
 
   private async triggerTaskDrivenCheckIn(userId: string) {

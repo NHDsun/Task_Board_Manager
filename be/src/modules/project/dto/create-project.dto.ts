@@ -12,4 +12,12 @@ export class CreateProjectDto {
   @IsOptional()
   @IsArray({ message: 'Danh sách thành viên phải là mảng' })
   memberIds?: string[];
+
+  @IsOptional()
+  @IsString({ message: 'ID Manager phải là chuỗi' })
+  managerId?: string;
+
+  @IsOptional()
+  @IsString({ message: 'Cấu hình giai đoạn Pipeline phải là chuỗi JSON' })
+  stagesJson?: string;
 }

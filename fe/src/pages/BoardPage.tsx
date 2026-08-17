@@ -42,7 +42,12 @@ import {
   Pause,
   RefreshCw,
   PlusCircle,
-  FolderPlus
+  FolderPlus,
+  Play,
+  Sliders,
+  Sparkles,
+  Zap,
+  Folder
 } from 'lucide-react';
 
 import { TaskTransferInboxModal } from '../components/kanban/TaskTransferInboxModal';
@@ -56,6 +61,18 @@ export const BoardPage: React.FC = () => {
   const [isTransferInboxOpen, setIsTransferInboxOpen] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+  const [selectedPipelineProject, setSelectedPipelineProject] = useState<string>('ALL');
+  const [focusFilterMode, setFocusFilterMode] = useState<'ALL' | 'URGENT' | 'IN_PROGRESS'>('ALL');
+  const [isEditingPipelineStages, setIsEditingPipelineStages] = useState(false);
+  const [activePipelineStages, setActivePipelineStages] = useState([
+    { id: 'stage_1', name: '1. Yêu Cầu & Phân Tích', status: 'IN_PROGRESS', color: 'border-blue-500/40 text-blue-300' },
+    { id: 'stage_2', name: '2. Thiết Kế UI/UX', status: 'IN_PROGRESS', color: 'border-purple-500/40 text-purple-300' },
+    { id: 'stage_3', name: '3. Lập Trình Backend/Frontend', status: 'IN_PROGRESS', color: 'border-amber-500/40 text-amber-300' },
+    { id: 'stage_4', name: '4. Kiểm Thử QA/QC', status: 'TODO', color: 'border-rose-500/40 text-rose-300' },
+    { id: 'stage_5', name: '5. Chạy Thử Staging', status: 'TODO', color: 'border-cyan-500/40 text-cyan-300' },
+    { id: 'stage_6', name: '6. Bàn Giao & Nghiệm Thu', status: 'DONE', color: 'border-emerald-500/40 text-emerald-300' },
+  ]);
+  const [newStageNameInput, setNewStageNameInput] = useState('');
 
   const [selectedTaskForRequest, setSelectedTaskForRequest] = useState<TaskItem | null>(null);
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<TaskItem | null>(null);
@@ -68,7 +85,7 @@ export const BoardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Dynamic Metadata States (Read from PostgreSQL DB)
-  const [dbProjects, setDbProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [dbProjects, setDbProjects] = useState<Array<any>>([]);
   const [dbUsers, setDbUsers] = useState<Array<{ id: string; fullName: string }>>([]);
 
   // Multi-Criteria Filter States
@@ -343,16 +360,6 @@ export const BoardPage: React.FC = () => {
     { id: 'DONE', label: 'HOÀN THÀNH (DONE)', color: 'text-emerald-400', border: 'border-emerald-500/30' },
   ];
 
-  // Pipeline Stages Dataset
-  const pipelineStages = [
-    { id: 'stage_1', name: 'Giai Đoạn 1: Phân Tích & Yêu Cầu', color: 'border-blue-500/40', status: 'DONE' },
-    { id: 'stage_2', name: 'Giai Đoạn 2: Thiết Kế UI/UX & DB Schema', color: 'border-purple-500/40', status: 'IN_PROGRESS' },
-    { id: 'stage_3', name: 'Giai Đoạn 3: Lập Trình Backend Core & API', color: 'border-amber-500/40', status: 'IN_PROGRESS' },
-    { id: 'stage_4', name: 'Giai Đoạn 4: Tích Hợp Frontend & Realtime', color: 'border-rose-500/40', status: 'TODO' },
-    { id: 'stage_5', name: 'Giai Đoạn 5: Kiểm Thử QA & Duyệt Bài', color: 'border-indigo-500/40', status: 'TODO' },
-    { id: 'stage_6', name: 'Giai Đoạn 6: Triển Khai Production & Docker', color: 'border-emerald-500/40', status: 'TODO' },
-  ];
-
   // Apply Multi-Criteria Filters
   const filteredTasks = tasks.filter((task) => {
     // 1. Search Query Filter
@@ -492,17 +499,19 @@ export const BoardPage: React.FC = () => {
             Kanban 6 Cột
           </button>
 
-          <button
-            onClick={() => setActiveView('pipeline')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeView === 'pipeline'
-                ? 'bg-purple-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <GitMerge className="w-3.5 h-3.5" />
-            Pipeline Stage
-          </button>
+          {(user?.globalRole === 'ADMIN' || user?.globalRole === 'MANAGER') && (
+            <button
+              onClick={() => setActiveView('pipeline')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeView === 'pipeline'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <GitMerge className="w-3.5 h-3.5" />
+              Pipeline Stage ({user?.globalRole === 'ADMIN' ? 'Admin' : 'Manager'})
+            </button>
+          )}
 
           <button
             onClick={() => setActiveView('focus')}
@@ -681,82 +690,463 @@ export const BoardPage: React.FC = () => {
         </DragDropContext>
       )}
 
-      {/* 📈 VIEW 2: PIPELINE STAGE VIEW */}
-      {activeView === 'pipeline' && (
-        <div className="space-y-6 pb-12">
-          <div className="solar-glass-card p-6 rounded-3xl bg-[#0F172A]/80 border border-purple-500/30">
-            <h2 className="text-xl font-extrabold text-purple-300 flex items-center gap-2 mb-2">
-              <GitMerge className="w-6 h-6 text-purple-400" />
-              Tiến Trình Pipeline Stage Vòng Đời Dự Án (Project Life-Cycle)
-            </h2>
-            <p className="text-xs text-slate-300">
-              Quản lý tổng quan tiến độ theo 6 Giai đoạn phát triển từ Yêu Cầu đến Bàn Giao Sản Phẩm.
-            </p>
-          </div>
+      {/* 📈 VIEW 2: PIPELINE STAGE VIEW (TÍCH HỢP BỘ LỌC DỰ ÁN DYNAMIC & SUMMARY) */}
+      {activeView === 'pipeline' && (() => {
+        // Dynamic list of unique projects filtered by Role: Admin sees all, Manager sees managed projects
+        const isManager = user?.globalRole === 'MANAGER';
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pipelineStages.map((stage) => {
-              const stageTasks = filteredTasks.filter((_, idx) => (idx % 6) === (parseInt(stage.id.split('_')[1]) - 1));
+        let rawProjectList = tasks.map((t) => t.projectName).filter(Boolean) as string[];
 
-              return (
-                <div key={stage.id} className={`solar-glass-card p-5 rounded-2xl bg-[#0F172A]/90 border ${stage.color} space-y-4 shadow-xl`}>
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <span className="font-extrabold text-sm text-white">{stage.name}</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      stage.status === 'DONE' ? 'bg-emerald-500/20 text-emerald-300' : (stage.status === 'IN_PROGRESS' ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400')
-                    }`}>
-                      {stage.status}
-                    </span>
-                  </div>
+        if (isManager) {
+          const myManagedProjects = tasks
+            .filter(
+              (t) =>
+                t.assigneeId === user?.id ||
+                t.assignee?.id === user?.id ||
+                (t as any).createdById === user?.id
+            )
+            .map((t) => t.projectName)
+            .filter(Boolean) as string[];
 
-                  <div className="space-y-3">
-                    {stageTasks.map((t) => (
-                      <KanbanCard
-                        key={t.id}
-                        task={t}
-                        onRequestTransfer={handleQuickRequest}
-                        onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+          rawProjectList = rawProjectList.filter((pName) => myManagedProjects.includes(pName));
+        }
 
-      {/* 🎯 VIEW 3: MY FOCUS QUEUE VIEW (CHỈ HIỂN THỊ TASK CÁ NHÂN CHÍNH CHỦ) */}
-      {activeView === 'focus' && (() => {
-        const myFocusTasks = filteredTasks.filter((t) => {
-          if (!user) return true;
-          return t.assigneeId === user.id || t.assignee?.id === user.id || t.assignee?.email === user.email;
-        });
+        const availableProjects = Array.from(new Set(rawProjectList));
 
-        const heroTask = myFocusTasks[0];
+        const activeProjectName = selectedPipelineProject;
+
+        // Filter tasks for pipeline by project selection
+        const pipelineTasks =
+          activeProjectName === 'ALL'
+            ? filteredTasks
+            : filteredTasks.filter((t) => t.projectName === activeProjectName);
+
+        const totalProjectTasks = pipelineTasks.length;
+        const doneProjectTasks = pipelineTasks.filter((t) => t.status === 'DONE').length;
+        const projectCompletionPercent =
+          totalProjectTasks > 0 ? Math.round((doneProjectTasks / totalProjectTasks) * 100) : 0;
 
         return (
           <div className="space-y-6 pb-12">
-            {/* Hero Focus Card #1 */}
-            {heroTask ? (
-              <div className="solar-glass-card p-6 md:p-8 rounded-3xl bg-gradient-to-br from-amber-500/10 via-[#0F172A] to-purple-600/10 border border-amber-500/50 shadow-2xl relative space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500 text-slate-950 animate-pulse">
-                    🎯 HERO FOCUS TASK #1 (ĐANG LÀM NGAY)
-                  </span>
-                  <span className="text-xs text-amber-300 font-mono">Dự Án: {heroTask.projectName || 'Solaris Core'}</span>
+            {/* Header Banner */}
+            <div className="solar-glass-card p-6 rounded-3xl bg-[#0F172A]/80 border border-purple-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-extrabold text-purple-300 flex items-center gap-2 mb-1">
+                  <GitMerge className="w-6 h-6 text-purple-400" />
+                  Tiến Trình Pipeline Stage Vòng Đời Dự Án (Project Life-Cycle)
+                </h2>
+                <p className="text-xs text-slate-300">
+                  Theo dõi tiến độ phát triển theo các Giai đoạn từ Yêu Cầu đến Bàn Giao Sản Phẩm.
+                </p>
+              </div>
+
+              {/* Project Stats Summary & Edit Toggle */}
+              <div className="flex items-center gap-3 flex-wrap shrink-0">
+                <button
+                  onClick={() => setIsEditingPipelineStages(!isEditingPipelineStages)}
+                  className="px-4 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Sliders className="w-4 h-4 text-purple-400" />
+                  {isEditingPipelineStages ? '✓ Đóng Quản Lý Giai Đoạn' : '⚙️ Quản Lý Giai Đoạn Pipeline'}
+                </button>
+
+                <div className="flex items-center gap-3 bg-purple-950/40 p-3 rounded-2xl border border-purple-500/30 shrink-0">
+                  <div className="text-right">
+                    <span className="text-[10px] text-purple-300 font-mono block">TIẾN ĐỘ DỰ ÁN</span>
+                    <span className="text-lg font-black text-amber-400 font-mono">{projectCompletionPercent}%</span>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center font-mono font-bold text-xs text-purple-300">
+                    {doneProjectTasks}/{totalProjectTasks}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ℹ️ THÔNG TIN CƠ BẢN DỰ ÁN (BASIC PROJECT INFO CARD) */}
+            {selectedPipelineProject !== 'ALL' && (() => {
+              const currentProj = dbProjects.find((p) => p.name === selectedPipelineProject);
+              return (
+                <div className="solar-glass-card p-5 rounded-2xl bg-gradient-to-r from-purple-950/30 via-[#0F172A] to-slate-900 border border-purple-500/40 space-y-3 animate-fade-in">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                      <Folder className="w-5 h-5 text-purple-400" />
+                      Dự Án: {selectedPipelineProject}
+                    </h3>
+                    <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                      🔒 Dự Án Đang Hoạt Động (Active Lifecycle)
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {currentProj?.description || 'Dự án trọng điểm phát triển hệ thống quản trị công việc và quy trình tác nghiệp.'}
+                  </p>
+                  <div className="flex items-center gap-6 pt-2 text-xs font-mono border-t border-slate-800 flex-wrap text-slate-400">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">PROJECT MANAGER</span>
+                      <span className="text-amber-400 font-bold">👤 {user?.fullName || 'Huy Dat (Admin)'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">TỔNG THÀNH VIÊN</span>
+                      <span className="text-slate-200 font-bold">👥 {(currentProj as any)?._count?.members || 8} Nhân sự</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">TỔNG SỐ TASK</span>
+                      <span className="text-slate-200 font-bold">📋 {totalProjectTasks} Nhiệm vụ</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">HOÀN THÀNH</span>
+                      <span className="text-emerald-400 font-bold">✅ {doneProjectTasks} Task ({projectCompletionPercent}%)</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 🎛️ BỘ CHỈNH SỬA GIAI ĐOẠN PIPELINE (IN-PLACE PIPELINE STAGE EDITOR) */}
+            {isEditingPipelineStages && (
+              <div className="solar-glass-card p-5 rounded-2xl bg-purple-950/20 border border-purple-500/40 space-y-4 animate-fade-in">
+                <h3 className="text-sm font-extrabold text-purple-300 flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-purple-400" />
+                  Chỉnh Sửa & Thêm Giai Đoạn Pipeline Trực Tiếp ({activePipelineStages.length} giai đoạn)
+                </h3>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <input
+                    type="text"
+                    value={newStageNameInput}
+                    onChange={(e) => setNewStageNameInput(e.target.value)}
+                    placeholder="Tên giai đoạn mới (VD: 7. Triển Khai Cloud AWS)"
+                    className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 min-w-[280px]"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!newStageNameInput.trim()) return;
+                      const newStageObj = {
+                        id: `stage_${Date.now()}`,
+                        name: newStageNameInput.trim(),
+                        status: 'IN_PROGRESS',
+                        color: 'border-purple-500/40 text-purple-300',
+                      };
+                      setActivePipelineStages((prev) => [...prev, newStageObj]);
+                      setNewStageNameInput('');
+                      showNotification('🟢 Đã thêm Giai đoạn Pipeline mới thành công!', 'success', 'Pipeline Editor');
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs cursor-pointer shadow-lg"
+                  >
+                    + Thêm Giai Đoạn
+                  </button>
                 </div>
 
-                <h2 className="text-2xl font-extrabold text-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                  {activePipelineStages.map((st) => (
+                    <div key={st.id} className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2">
+                      <input
+                        type="text"
+                        value={st.name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActivePipelineStages((prev) =>
+                            prev.map((item) => (item.id === st.id ? { ...item, name: val } : item))
+                          );
+                        }}
+                        className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none border-b border-transparent focus:border-purple-400"
+                      />
+                      <button
+                        onClick={() => {
+                          setActivePipelineStages((prev) => prev.filter((item) => item.id !== st.id));
+                          showNotification('Đã xóa Giai đoạn Pipeline!', 'info', 'Pipeline Editor');
+                        }}
+                        className="text-slate-500 hover:text-rose-400 text-xs font-bold px-2 py-1 rounded hover:bg-slate-800 cursor-pointer"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 📁 PROJECT PICKER TABS (CHỌN DỰ ÁN XEM PIPELINE) */}
+            <div className="solar-glass-card p-3 rounded-2xl bg-[#0F172A]/90 border border-slate-800 flex items-center gap-2 overflow-x-auto">
+              <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1.5 px-2">
+                <Folder className="w-4 h-4 text-purple-400" /> Chọn Dự Án:
+              </span>
+              <button
+                onClick={() => setSelectedPipelineProject('ALL')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono transition-all shrink-0 cursor-pointer ${
+                  selectedPipelineProject === 'ALL'
+                    ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]'
+                    : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                🌐 Tất Cả Dự Án ({tasks.length})
+              </button>
+              {availableProjects.map((pName) => {
+                const count = tasks.filter((t) => t.projectName === pName).length;
+                const isSelected = selectedPipelineProject === pName;
+                return (
+                  <button
+                    key={pName}
+                    onClick={() => setSelectedPipelineProject(pName)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono transition-all shrink-0 cursor-pointer ${
+                      isSelected
+                        ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]'
+                        : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
+                    }`}
+                  >
+                    📁 {pName} ({count})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Pipeline Stage Columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {activePipelineStages.map((stage, stageIdx) => {
+                const stageTasks = pipelineTasks.filter(
+                  (_, idx) => idx % activePipelineStages.length === stageIdx
+                );
+
+                return (
+                  <div
+                    key={stage.id}
+                    className={`solar-glass-card p-5 rounded-2xl bg-[#0F172A]/90 border ${stage.color} space-y-4 shadow-xl`}
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <span className="font-extrabold text-sm text-white">{stage.name}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          stage.status === 'DONE'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : stage.status === 'IN_PROGRESS'
+                            ? 'bg-amber-500/20 text-amber-300'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {stage.status} ({stageTasks.length})
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {stageTasks.map((t) => (
+                        <KanbanCard
+                          key={t.id}
+                          task={t}
+                          onRequestTransfer={handleQuickRequest}
+                          onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                        />
+                      ))}
+                      {stageTasks.length === 0 && (
+                        <div className="h-24 border border-dashed border-slate-800/60 rounded-xl flex items-center justify-center text-[11px] font-mono text-slate-600">
+                          Chưa có Task giai đoạn này
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 🎯 VIEW 3: MY FOCUS QUEUE VIEW (TÍCH HỢP ƯU TIÊN SẮP XẾP & CẬP NHẬT TIẾN ĐỘ THỜI GIAN THỰC) */}
+      {activeView === 'focus' && (() => {
+        // Priority weight dictionary
+        const priorityWeight = { URGENT: 1, IMPORTANT: 2, NORMAL: 3, LOW: 4 };
+
+        // Filter tasks assigned to current user
+        let myFocusTasks = filteredTasks.filter((t) => {
+          if (!user) return true;
+          return (
+            t.assigneeId === user.id ||
+            t.assignee?.id === user.id ||
+            t.assignee?.email === user.email
+          );
+        });
+
+        // Apply Priority Filter Mode
+        if (focusFilterMode === 'URGENT') {
+          myFocusTasks = myFocusTasks.filter(
+            (t) => t.priority === 'URGENT' || t.priority === 'IMPORTANT'
+          );
+        } else if (focusFilterMode === 'IN_PROGRESS') {
+          myFocusTasks = myFocusTasks.filter((t) => t.status === 'IN_PROGRESS');
+        }
+
+        // Auto-sort Focus Queue by Priority (URGENT first)
+        myFocusTasks.sort((a, b) => priorityWeight[a.priority] - priorityWeight[b.priority]);
+
+        // 🎯 CHỈ LẤY TASK CÓ TRẠNG THÁI IN_PROGRESS ĐƯA VÀO HERO FOCUS TASK #1
+        const heroTask = myFocusTasks.find((t) => t.status === 'IN_PROGRESS');
+        const queueTasks = myFocusTasks.filter((t) => t.id !== heroTask?.id);
+
+        // Quick Progress update handler for Hero Task
+        const updateHeroProgress = (newProgress: number) => {
+          if (!heroTask) return;
+          const newStatus = newProgress === 100 ? 'DONE' : newProgress === 0 ? 'TODO' : 'IN_PROGRESS';
+          setTasks((prev) =>
+            prev.map((t) => (t.id === heroTask.id ? { ...t, progress: newProgress, status: newStatus } : t))
+          );
+          fetchWithRetry(
+            `http://localhost:3000/api/tasks/${heroTask.id}/status`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token || ''}`,
+              },
+              body: JSON.stringify({ status: newStatus, progress: newProgress }),
+            },
+            { maxRetries: 3 }
+          );
+        };
+
+        return (
+          <div className="space-y-6 pb-12">
+            {/* Header & Mode Filters */}
+            <div className="solar-glass-card p-6 rounded-3xl bg-[#0F172A]/80 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-extrabold text-amber-300 flex items-center gap-2 mb-1">
+                  <Target className="w-6 h-6 text-amber-400 animate-pulse" />
+                  Hàng Chờ Tập Trung Cá Nhân (My Focus Queue)
+                </h2>
+                <p className="text-xs text-slate-300">
+                  Tự động sắp xếp các công việc cấp bách nhất cần bạn xử lý theo thứ tự ưu tiên.
+                </p>
+              </div>
+
+              {/* Focus Filters */}
+              <div className="flex items-center gap-2 overflow-x-auto shrink-0">
+                <button
+                  onClick={() => setFocusFilterMode('ALL')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                    focusFilterMode === 'ALL'
+                      ? 'bg-amber-500 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800'
+                  }`}
+                >
+                  🎯 Tất Cả Focus
+                </button>
+                <button
+                  onClick={() => setFocusFilterMode('URGENT')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                    focusFilterMode === 'URGENT'
+                      ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800'
+                  }`}
+                >
+                  🚨 Cần Làm Gấp (Urgent)
+                </button>
+                <button
+                  onClick={() => setFocusFilterMode('IN_PROGRESS')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                    focusFilterMode === 'IN_PROGRESS'
+                      ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800'
+                  }`}
+                >
+                  ⚡ Đang Thực Hiện
+                </button>
+              </div>
+            </div>
+
+            {/* Hero Focus Card #1 */}
+            {heroTask ? (
+              <div className="solar-glass-card p-6 md:p-8 rounded-3xl bg-gradient-to-br from-amber-500/15 via-[#0F172A] to-purple-600/15 border-2 border-amber-400/80 shadow-2xl relative space-y-5 animate-fade-in">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500 text-slate-950 flex items-center gap-1.5 shadow-lg">
+                    <Zap className="w-4 h-4 fill-current" /> HERO FOCUS TASK #1 (ĐANG XỬ LÝ CHÍNH)
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-amber-300 font-mono font-bold">
+                      📁 {heroTask.projectName || 'Solaris Core'}
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-md text-[10px] font-mono font-extrabold ${
+                        heroTask.priority === 'URGENT'
+                          ? 'bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse'
+                          : heroTask.priority === 'IMPORTANT'
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      MỨC ƯU TIÊN: {heroTask.priority}
+                    </span>
+                  </div>
+                </div>
+
+                <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
                   {heroTask.title}
                 </h2>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  {heroTask.description || 'Tập trung xử lý hoàn tất các nhiệm vụ được phân công cá nhân.'}
+                  {heroTask.description ||
+                    'Tập trung xử lý hoàn tất các nhiệm vụ được phân công cá nhân.'}
                 </p>
 
+                {/* 🎚️ DYNAMIC PROGRESS CONTROL BAR */}
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-slate-400 font-bold flex items-center gap-1.5">
+                      <Sliders className="w-4 h-4 text-amber-400" /> Cập Nhật Tiến Độ Nhiệm Vụ:
+                    </span>
+                    <span className="text-amber-400 font-extrabold text-sm">{heroTask.progress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden p-0.5 border border-slate-800">
+                    <div
+                      className="bg-gradient-to-r from-amber-500 to-purple-500 h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                      style={{ width: `${heroTask.progress}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() => updateHeroProgress(0)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 text-[11px] font-mono border border-slate-800 cursor-pointer"
+                    >
+                      0% (Chưa làm)
+                    </button>
+                    <button
+                      onClick={() => updateHeroProgress(25)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 text-[11px] font-mono border border-slate-800 cursor-pointer"
+                    >
+                      25%
+                    </button>
+                    <button
+                      onClick={() => updateHeroProgress(50)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 text-[11px] font-mono border border-slate-800 cursor-pointer"
+                    >
+                      50% (Một Nửa)
+                    </button>
+                    <button
+                      onClick={() => updateHeroProgress(75)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-purple-300 text-[11px] font-mono border border-slate-800 cursor-pointer"
+                    >
+                      75%
+                    </button>
+                    <button
+                      onClick={() => updateHeroProgress(100)}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-mono border border-emerald-500/40 cursor-pointer font-bold"
+                    >
+                      100% (Hoàn Thành)
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-4 pt-2 flex-wrap">
+                  {heroTask.status !== 'IN_PROGRESS' && (
+                    <button
+                      onClick={() => updateHeroProgress(Math.max(heroTask.progress, 10))}
+                      className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_15px_rgba(147,51,234,0.4)]"
+                    >
+                      <Play className="w-4 h-4 fill-current" /> Bắt Đầu Làm Task
+                    </button>
+                  )}
                   <button
-                    onClick={() => showNotification(`Đã ghi nhận tạm dừng Task "${heroTask.title}"!`, 'info', 'Focus Mode')}
+                    onClick={() =>
+                      showNotification(
+                        `Đã ghi nhận tạm dừng Task "${heroTask.title}"!`,
+                        'info',
+                        'Focus Mode'
+                      )
+                    }
                     className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all"
                   >
                     <Pause className="w-4 h-4" /> Tạm Dừng Ca
@@ -772,29 +1162,63 @@ export const BoardPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-slate-800 text-center space-y-3">
-                <Target className="w-12 h-12 text-amber-400 mx-auto opacity-80" />
-                <h3 className="text-lg font-bold text-white">Hàng Chờ Focus Cá Nhân Trống</h3>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Bạn ({user?.fullName || 'Hiện tại'}) không có Task nào được phân công trực tiếp cần tập trung xử lý.
+              <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-amber-500/30 text-center space-y-3">
+                <Target className="w-12 h-12 text-amber-400 mx-auto opacity-80 animate-pulse" />
+                <h3 className="text-lg font-bold text-white">Chưa Có Task Nào Đang Thực Hiện (IN_PROGRESS)</h3>
+                <p className="text-xs text-slate-300 max-w-md mx-auto">
+                  Hero Focus Task #1 chỉ hiển thị các nhiệm vụ bạn đang trực tiếp thực hiện (`IN_PROGRESS`). Hãy bấm chọn một Task bên dưới và click <strong className="text-purple-300 font-mono">"▶️ Bắt Đầu Làm Task"</strong> để đưa vào vị trí Hero Focus!
                 </p>
               </div>
             )}
 
             {/* Queue List */}
-            {myFocusTasks.length > 1 && (
+            {queueTasks.length > 0 && (
               <div className="space-y-3">
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
-                  Hàng Chờ Ưu Tiên Tiếp Theo Của Bạn ({myFocusTasks.length - 1})
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" /> Hàng Chờ Ưu Tiên Tiếp Theo Của Bạn ({queueTasks.length})
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {myFocusTasks.slice(1).map((t) => (
-                    <KanbanCard
-                      key={t.id}
-                      task={t}
-                      onRequestTransfer={handleQuickRequest}
-                      onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
-                    />
+                  {queueTasks.map((t) => (
+                    <div key={t.id} className="space-y-2">
+                      <KanbanCard
+                        task={t}
+                        onRequestTransfer={handleQuickRequest}
+                        onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                      />
+                      <div className="flex items-center justify-between bg-slate-950/80 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-[11px] font-mono text-slate-400">
+                          Trạng thái: <strong className="text-amber-400 uppercase font-bold">{t.status}</strong>
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTasks((prev) =>
+                              prev.map((item) => (item.id === t.id ? { ...item, status: 'IN_PROGRESS' } : item))
+                            );
+                            fetchWithRetry(
+                              `http://localhost:3000/api/tasks/${t.id}/status`,
+                              {
+                                method: 'PATCH',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  Authorization: `Bearer ${token || ''}`,
+                                },
+                                body: JSON.stringify({ status: 'IN_PROGRESS' }),
+                              },
+                              { maxRetries: 3 }
+                            );
+                            showNotification(
+                              `🟢 Task "${t.title}" đã được chuyển lên vị trí HERO FOCUS TASK #1 (Đang xử lý chính)!`,
+                              'success',
+                              'Focus Queue'
+                            );
+                          }}
+                          className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" /> ▶️ Tiếp Tục Làm Task
+                        </button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

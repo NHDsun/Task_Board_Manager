@@ -14,19 +14,30 @@ export class ProjectService {
       if (realAdmin) effectiveUserId = realAdmin.id;
     }
 
-    const memberIds = Array.from(new Set([effectiveUserId, ...(createProjectDto.memberIds || [])]));
+    const memberIds = Array.from(
+      new Set([
+        effectiveUserId,
+        ...(createProjectDto.managerId ? [createProjectDto.managerId] : []),
+        ...(createProjectDto.memberIds || []),
+      ])
+    );
 
     return this.prisma.project.create({
       data: {
         name: createProjectDto.name,
         description: createProjectDto.description,
         createdById: effectiveUserId,
+        managerId: createProjectDto.managerId || effectiveUserId,
+        stagesJson: createProjectDto.stagesJson || null,
         members: {
           create: memberIds.map((mId) => ({ userId: mId })),
         },
       },
       include: {
         createdBy: {
+          select: { id: true, fullName: true, email: true, avatar: true },
+        },
+        manager: {
           select: { id: true, fullName: true, email: true, avatar: true },
         },
         members: {
@@ -49,11 +60,15 @@ export class ProjectService {
       where: {
         OR: [
           { createdById: effectiveUserId },
+          { managerId: effectiveUserId },
           { members: { some: { userId: effectiveUserId } } },
         ],
       },
       include: {
         createdBy: {
+          select: { id: true, fullName: true, email: true, avatar: true },
+        },
+        manager: {
           select: { id: true, fullName: true, email: true, avatar: true },
         },
         _count: {
@@ -69,6 +84,9 @@ export class ProjectService {
       where: { id },
       include: {
         createdBy: {
+          select: { id: true, fullName: true, email: true, avatar: true },
+        },
+        manager: {
           select: { id: true, fullName: true, email: true, avatar: true },
         },
         members: {

@@ -12,7 +12,7 @@ export const LoginPage = () => {
   const [isEmailFormOpen, setIsEmailFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [warpData, setWarpData] = useState<{ user: User; accessToken: string } | null>(null);
+  const [warpData, setWarpData] = useState<{ user: User; accessToken: string; refreshToken?: string } | null>(null);
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const handleLoginSubmit = async (payload: LoginPayload) => {
@@ -24,7 +24,7 @@ export const LoginPage = () => {
       const resPayload = 'data' in response.data && response.data.data ? response.data.data : (response.data as AuthResponse);
       if (resPayload && resPayload.user && resPayload.accessToken) {
         // Trigger 0.75s Sci-fi Warp Animation directly before setting auth state!
-        setWarpData({ user: resPayload.user, accessToken: resPayload.accessToken });
+        setWarpData({ user: resPayload.user, accessToken: resPayload.accessToken, refreshToken: resPayload.refreshToken });
       } else {
         setErrorMessage('Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
       }
@@ -56,7 +56,7 @@ export const LoginPage = () => {
 
   const handleWarpComplete = () => {
     if (warpData) {
-      setAuth(warpData.user, warpData.accessToken);
+      setAuth(warpData.user, warpData.accessToken, warpData.refreshToken);
     }
   };
 

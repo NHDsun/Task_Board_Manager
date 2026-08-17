@@ -100,6 +100,16 @@ export class TaskController {
     return this.taskService.respondToRequest(id, this.extractUserId(req), body.action);
   }
 
+  @Get('archived')
+  getArchivedTasks() {
+    return this.taskService.getArchivedTasks();
+  }
+
+  @Post(':id/restore')
+  restoreTask(@Param('id') id: string) {
+    return this.taskService.restoreTask(id);
+  }
+
   @Delete(':id')
   delete(
     @Param('id') id: string,

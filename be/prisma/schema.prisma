@@ -111,12 +111,14 @@ model User {
   bio          String?
   statusSignal UserStatusSignal @default(ONLINE) @map("status_signal")
   customStatus String?          @map("custom_status")
+  refreshToken String?          @map("refresh_token")
   departmentId String?          @map("department_id")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
   department             Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   ownedProjects          Project[]       @relation("ProjectOwner")
+  managedProjects        Project[]       @relation("ProjectManager")
   memberships            ProjectMember[]
   assignedTasks          Task[]          @relation("TaskAssignee")
   createdTasks           Task[]          @relation("TaskCreator")
@@ -137,11 +139,15 @@ model Project {
   id          String   @id @default(uuid())
   name        String
   description String?
+  isCompleted Boolean  @default(false) @map("is_completed")
+  managerId   String?  @map("manager_id")
   createdById String   @map("created_by_id")
+  stagesJson  String?  @map("stages_json")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   createdBy   User                @relation("ProjectOwner", fields: [createdById], references: [id], onDelete: Cascade)
+  manager     User?               @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
   departments ProjectDepartment[]
   members     ProjectMember[]
   tasks       Task[]
@@ -183,6 +189,8 @@ model Task {
   dueDate        DateTime?    @map("due_date")
   recurrenceRule String?      @map("recurrence_rule")
   isArchived     Boolean      @default(false) @map("is_archived")
+  isDeleted      Boolean      @default(false) @map("is_deleted")
+  deletedAt      DateTime?    @map("deleted_at")
   projectId      String       @map("project_id")
   assigneeId     String?      @map("assignee_id")
   createdById    String       @map("created_by_id")

@@ -26,8 +26,17 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const token = useAuthStore((state) => state.token);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
   const [availableUsers, setAvailableUsers] = useState<MemberUser[]>([]);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [customStages, setCustomStages] = useState<string[]>([
+    '1. Yêu Cầu & Phân Tích',
+    '2. Thiết Kế UI/UX',
+    '3. Lập Trình Backend/Frontend',
+    '4. Kiểm Thử QA/QC',
+    '5. Bàn Giao & Nghiệm Thu',
+  ]);
+  const [newStageInput, setNewStageInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -86,7 +95,16 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         body: JSON.stringify({
           name,
           description,
+          managerId: selectedManagerId,
           memberIds: selectedMemberIds,
+          stagesJson: JSON.stringify(
+            customStages.map((stName, idx) => ({
+              id: `stage_${idx + 1}`,
+              name: stName,
+              status: idx === customStages.length - 1 ? 'DONE' : 'IN_PROGRESS',
+              color: 'border-purple-500/40 text-purple-300',
+            }))
+          ),
         }),
       });
 
@@ -95,6 +113,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         onSuccess(data);
         setName('');
         setDescription('');
+        setSelectedManagerId('');
         setSelectedMemberIds([]);
         onClose();
       } else {
@@ -108,9 +127,19 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     }
   };
 
+  const handleAddCustomStage = () => {
+    if (!newStageInput.trim()) return;
+    setCustomStages((prev) => [...prev, newStageInput.trim()]);
+    setNewStageInput('');
+  };
+
+  const handleRemoveCustomStage = (index: number) => {
+    setCustomStages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-lg solar-glass-card p-6 md:p-8 rounded-3xl bg-[#0F172A]/95 border border-purple-500/40 shadow-[0_0_50px_rgba(168,85,247,0.25)] relative overflow-hidden space-y-6 animate-solar-warp-in">
+      <div className="w-full max-w-lg solar-glass-card p-6 md:p-8 rounded-3xl bg-[#0F172A]/95 border border-purple-500/40 shadow-[0_0_50px_rgba(168,85,247,0.25)] relative overflow-hidden space-y-6 animate-solar-warp-in max-h-[90vh] overflow-y-auto">
         
         {/* Background Glow */}
         <div className="absolute top-0 right-0 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -156,7 +185,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               Mô Tả Dự Án (Description)
             </label>
             <textarea
-              rows={3}
+              rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Nhập mô tả mục tiêu, lộ trình và phạm vi của dự án..."
@@ -164,14 +193,55 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             />
           </div>
 
+          {/* 🎛️ THIẾT LẬP CÁC GIAI ĐOẠN PIPELINE (CUSTOM PIPELINE STAGES) */}
+          <div className="space-y-2 pt-1 border-t border-slate-800/80">
+            <label className="font-bold text-purple-300 uppercase tracking-wider block flex items-center justify-between">
+              <span>🎛️ Thiết Lập Các Giai Đoạn Pipeline ({customStages.length})</span>
+              <span className="text-[10px] text-slate-500 lowercase font-normal">(tùy chỉnh thủ công)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newStageInput}
+                onChange={(e) => setNewStageInput(e.target.value)}
+                placeholder="Tên giai đoạn mới (VD: 6. Kiểm Thử Security)"
+                className="flex-1 p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomStage}
+                className="px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shrink-0 cursor-pointer"
+              >
+                + Thêm
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {customStages.map((st, idx) => (
+                <span
+                  key={idx}
+                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-purple-500/30 text-purple-300 font-mono text-[11px] flex items-center gap-1.5"
+                >
+                  {st}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCustomStage(idx)}
+                    className="text-slate-500 hover:text-rose-400 font-bold ml-1 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+
           {/* 👥 THÊM THÀNH VIÊN VÀO DỰ ÁN (ADD MEMBERS) */}
-          <div className="space-y-2 pt-1">
+          <div className="space-y-2 pt-1 border-t border-slate-800/80">
             <label className="font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
               <UserPlus className="w-4 h-4 text-amber-400" />
               Thêm Thành Viên Dự Án ({selectedMemberIds.length} đã chọn)
             </label>
 
-            <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
               {availableUsers.map((user) => {
                 const isSelected = selectedMemberIds.includes(user.id);
                 return (
