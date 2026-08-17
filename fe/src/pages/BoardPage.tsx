@@ -49,7 +49,8 @@ import {
   Sparkles,
   Zap,
   Folder,
-  Lock
+  Lock,
+  Unlock,
 } from 'lucide-react';
 
 import { TaskTransferInboxModal } from '../components/kanban/TaskTransferInboxModal';
@@ -66,6 +67,7 @@ export const BoardPage: React.FC = () => {
   const [selectedPipelineProject, setSelectedPipelineProject] = useState<string>('ALL');
   const [focusFilterMode, setFocusFilterMode] = useState<'ALL' | 'URGENT' | 'IN_PROGRESS'>('ALL');
   const [isEditingPipelineStages, setIsEditingPipelineStages] = useState(false);
+  const [isStageLockingEnabled, setIsStageLockingEnabled] = useState(true);
   const [activePipelineStages, setActivePipelineStages] = useState([
     { id: 'stage_1', name: '1. Yêu Cầu & Phân Tích', status: 'IN_PROGRESS', color: 'border-blue-500/40 text-blue-300' },
     { id: 'stage_2', name: '2. Thiết Kế UI/UX', status: 'IN_PROGRESS', color: 'border-purple-500/40 text-purple-300' },
@@ -84,6 +86,15 @@ export const BoardPage: React.FC = () => {
   const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<string | null>(null);
 
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [attendanceData, setAttendanceData] = useState<{
+    formattedTime: string;
+    workMode: string;
+    durationMinutes: number;
+  }>({
+    formattedTime: '00h:00m',
+    workMode: 'OFFICE',
+    durationMinutes: 0,
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   // Dynamic Metadata States (Read from PostgreSQL DB)
@@ -96,6 +107,23 @@ export const BoardPage: React.FC = () => {
   const [filterAssignee, setFilterAssignee] = useState<string>('ALL');
   const [filterPriority, setFilterPriority] = useState<string>('ALL');
   const [filterProfession, setFilterProfession] = useState<string>('ALL');
+
+  // Fetch real attendance status from Backend
+  const fetchAttendanceStatus = async () => {
+    try {
+      const res = await api.get('/profile/attendance/today');
+      if (res.data) {
+        setIsCheckedIn(!!res.data.isCheckedIn);
+        setAttendanceData({
+          formattedTime: res.data.formattedTime || '00h:00m',
+          workMode: res.data.workMode || 'OFFICE',
+          durationMinutes: res.data.durationMinutes || 0,
+        });
+      }
+    } catch {
+      // Fallback
+    }
+  };
 
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -113,7 +141,17 @@ export const BoardPage: React.FC = () => {
     };
 
     fetchMetadata();
+    fetchAttendanceStatus();
   }, [token]);
+
+  // Realtime attendance timer updater if checked-in
+  useEffect(() => {
+    if (!isCheckedIn) return;
+    const timer = setInterval(() => {
+      fetchAttendanceStatus();
+    }, 60000); // Poll/update every minute
+    return () => clearInterval(timer);
+  }, [isCheckedIn]);
 
   // State xác nhận khi kéo Task vào cột DONE
   const [confirmDoneTask, setConfirmDoneTask] = useState<{
@@ -396,13 +434,45 @@ export const BoardPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-wrap">
           <button
-            onClick={() => {
-              setIsCheckedIn(!isCheckedIn);
-              showNotification(
-                isCheckedIn ? 'Đã Checkout ca làm việc thành công!' : '🟢 Solaris: Đã ghi nhận Chấm công Voice thành công!',
-                'success',
-                'Chấm Công Voice'
-              );
+            onClick={async () => {
+              try {
+                if (isCheckedIn) {
+                  const res = await api.patch('/profile/attendance/check-out');
+                  setIsCheckedIn(false);
+                  if (res.data) {
+                    setAttendanceData({
+                      formattedTime: res.data.formattedTime || '00h:00m',
+                      workMode: res.data.workMode || 'OFFICE',
+                      durationMinutes: res.data.durationMinutes || 0,
+                    });
+                  }
+                  showNotification(
+                    'Đã Checkout ca làm việc hôm nay thành công!',
+                    'info',
+                    'Chấm Công Hệ Thống'
+                  );
+                } else {
+                  const res = await api.patch('/profile/attendance/check-in', {
+                    type: 'VOICE',
+                    workMode: 'OFFICE',
+                  });
+                  setIsCheckedIn(true);
+                  if (res.data) {
+                    setAttendanceData({
+                      formattedTime: res.data.formattedTime || '00h:00m',
+                      workMode: res.data.workMode || 'OFFICE',
+                      durationMinutes: res.data.durationMinutes || 0,
+                    });
+                  }
+                  showNotification(
+                    '🟢 Solaris: Đã ghi nhận Check-in ca làm việc hôm nay thành công!',
+                    'success',
+                    'Chấm Công Hệ Thống'
+                  );
+                }
+              } catch (err: any) {
+                showNotification('Có lỗi khi cập nhật trạng thái chấm công', 'warning', 'Lỗi Chấm Công');
+              }
             }}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all duration-300 shadow-md cursor-pointer ${
               isCheckedIn
@@ -414,9 +484,11 @@ export const BoardPage: React.FC = () => {
             {isCheckedIn ? 'Voice Check-In Active' : 'Bắt Đầu Chấm Công Voice'}
           </button>
 
-          <div className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-amber-300 flex items-center gap-1.5">
+          <div className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-amber-300 flex items-center gap-1.5 shadow-inner">
             <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>🟢 04h:25m (OFFICE)</span>
+            <span>
+              {isCheckedIn ? '🟢' : '⚪'} {attendanceData.formattedTime} ({attendanceData.workMode})
+            </span>
           </div>
 
           <button
@@ -794,10 +866,44 @@ export const BoardPage: React.FC = () => {
             {/* 🎛️ BỘ CHỈNH SỬA GIAI ĐOẠN PIPELINE (IN-PLACE PIPELINE STAGE EDITOR) */}
             {isEditingPipelineStages && (
               <div className="solar-glass-card p-5 rounded-2xl bg-purple-950/20 border border-purple-500/40 space-y-4 animate-fade-in">
-                <h3 className="text-sm font-extrabold text-purple-300 flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-purple-400" />
-                  Chỉnh Sửa & Thêm Giai Đoạn Pipeline Trực Tiếp ({activePipelineStages.length} giai đoạn)
-                </h3>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <h3 className="text-sm font-extrabold text-purple-300 flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-purple-400" />
+                    Chỉnh Sửa & Thêm Giai Đoạn Pipeline Trực Tiếp ({activePipelineStages.length} giai đoạn)
+                  </h3>
+
+                  {/* 🔘 Nút Bật/Tắt Khóa Giai Đoạn Tuần Tự */}
+                  <button
+                    onClick={() => {
+                      const nextState = !isStageLockingEnabled;
+                      setIsStageLockingEnabled(nextState);
+                      showNotification(
+                        nextState
+                          ? '🔒 Đã BẬT tính năng Khóa Giai Đoạn tuần tự! Các giai đoạn sau sẽ bị khóa nếu giai đoạn trước chưa xong 100%.'
+                          : '🔓 Đã MỞ KHÓA toàn bộ Giai Đoạn! Tất cả các giai đoạn hiện có thể truy cập tự do.',
+                        nextState ? 'info' : 'success',
+                        'Cấu Hình Khóa Giai Đoạn'
+                      );
+                    }}
+                    className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer shadow-md ${
+                      isStageLockingEnabled
+                        ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border-rose-500/40'
+                        : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40'
+                    }`}
+                  >
+                    {isStageLockingEnabled ? (
+                      <>
+                        <Lock className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Khóa Giai Đoạn: <b>ĐANG BẬT</b> (Click để Tắt)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Unlock className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Khóa Giai Đoạn: <b>ĐANG TẮT</b> (Click để Bật)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <input
                     type="text"
@@ -905,7 +1011,7 @@ export const BoardPage: React.FC = () => {
                 let status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'LOCKED' = 'TODO';
                 let color = originalStage.color;
 
-                if (isLocked) {
+                if (isStageLockingEnabled && isLocked) {
                   status = 'LOCKED';
                   color = 'border-slate-800/50 text-slate-500';
                 } else {
@@ -916,8 +1022,10 @@ export const BoardPage: React.FC = () => {
                     } else {
                       status = 'IN_PROGRESS';
                       color = originalStage.color;
-                      // Since this stage is not fully done, all subsequent stages must be locked
-                      isLocked = true;
+                      // Since this stage is not fully done, all subsequent stages must be locked if locking feature is enabled
+                      if (isStageLockingEnabled) {
+                        isLocked = true;
+                      }
                     }
                   } else {
                     // Empty stage behaves as unlocked/in progress
@@ -1005,8 +1113,9 @@ export const BoardPage: React.FC = () => {
         // Priority weight dictionary
         const priorityWeight = { URGENT: 1, IMPORTANT: 2, NORMAL: 3, LOW: 4 };
 
-        // Filter tasks assigned to current user
+        // Filter tasks assigned to current user & exclude completed tasks (progress = 100% or status = DONE)
         let myFocusTasks = filteredTasks.filter((t) => {
+          if (t.progress >= 100 || t.status === 'DONE') return false;
           if (!user) return true;
           return (
             t.assigneeId === user.id ||
@@ -1181,16 +1290,21 @@ export const BoardPage: React.FC = () => {
                     </button>
                   )}
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      // Đổi trạng thái Hero Task về TODO để tự động chuyển xuống Hàng Chờ
+                      setTasks((prev) =>
+                        prev.map((t) => (t.id === heroTask.id ? { ...t, status: 'TODO' } : t))
+                      );
+                      api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' });
                       showNotification(
-                        `Đã ghi nhận tạm dừng Task "${heroTask.title}"!`,
+                        `⏸️ Đã tạm dừng Task "${heroTask.title}" và chuyển về Hàng Chờ!`,
                         'info',
-                        'Focus Mode'
-                      )
-                    }
-                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all"
+                        'Focus Queue'
+                      );
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-md"
                   >
-                    <Pause className="w-4 h-4" /> Tạm Dừng Ca
+                    <Pause className="w-4 h-4" /> Tạm Dừng Task
                   </button>
                   <button
                     onClick={() => {
@@ -1207,7 +1321,7 @@ export const BoardPage: React.FC = () => {
                 <Target className="w-12 h-12 text-amber-400 mx-auto opacity-80 animate-pulse" />
                 <h3 className="text-lg font-bold text-white">Chưa Có Task Nào Đang Thực Hiện (IN_PROGRESS)</h3>
                 <p className="text-xs text-slate-300 max-w-md mx-auto">
-                  Hero Focus Task #1 chỉ hiển thị các nhiệm vụ bạn đang trực tiếp thực hiện (`IN_PROGRESS`). Hãy bấm chọn một Task bên dưới và click <strong className="text-purple-300 font-mono">"▶️ Bắt Đầu Làm Task"</strong> để đưa vào vị trí Hero Focus!
+                  Hero Focus Task #1 chỉ hiển thị các nhiệm vụ bạn đang trực tiếp thực hiện (`IN_PROGRESS`). Hãy bấm chọn một Task trong Hàng chờ bên dưới và click <strong className="text-amber-300 font-mono">"▶️ Tiếp Tục Làm Task"</strong> để đưa lên làm việc!
                 </p>
               </div>
             )}
@@ -1233,9 +1347,17 @@ export const BoardPage: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            // Nếu đang có heroTask, đưa heroTask về TODO hoặc để task mới này chiếm vị trí HERO
                             setTasks((prev) =>
-                              prev.map((item) => (item.id === t.id ? { ...item, status: 'IN_PROGRESS' } : item))
+                              prev.map((item) => {
+                                if (item.id === t.id) return { ...item, status: 'IN_PROGRESS' };
+                                if (heroTask && item.id === heroTask.id) return { ...item, status: 'TODO' };
+                                return item;
+                              })
                             );
+                            if (heroTask) {
+                              api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' });
+                            }
                             api.patch(`/tasks/${t.id}/status`, { status: 'IN_PROGRESS' });
                             showNotification(
                               `🟢 Task "${t.title}" đã được chuyển lên vị trí HERO FOCUS TASK #1 (Đang xử lý chính)!`,

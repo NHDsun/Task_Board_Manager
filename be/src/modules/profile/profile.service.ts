@@ -150,4 +150,97 @@ export class ProfileService {
       attendanceStreak: 14,
     };
   }
+
+  async getTodayAttendance(userId: string) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const log = await this.prisma.attendanceLog.findFirst({
+      where: {
+        userId,
+        checkInAt: { gte: startOfDay },
+      },
+      orderBy: { checkInAt: 'desc' },
+    });
+
+    if (!log) {
+      return {
+        isCheckedIn: false,
+        checkInAt: null,
+        checkOutAt: null,
+        durationMinutes: 0,
+        workMode: 'OFFICE',
+        formattedTime: '00h:00m',
+      };
+    }
+
+    const checkInTime = new Date(log.checkInAt).getTime();
+    const endTime = log.checkOutAt ? new Date(log.checkOutAt).getTime() : Date.now();
+    const durationMinutes = Math.max(0, Math.floor((endTime - checkInTime) / (1000 * 60)));
+
+    const hours = Math.floor(durationMinutes / 60);
+    const mins = durationMinutes % 60;
+    const formattedTime = `${String(hours).padStart(2, '0')}h:${String(mins).padStart(2, '0')}m`;
+
+    return {
+      isCheckedIn: !log.checkOutAt,
+      checkInAt: log.checkInAt,
+      checkOutAt: log.checkOutAt,
+      durationMinutes,
+      workMode: log.workMode || 'OFFICE',
+      formattedTime,
+    };
+  }
+
+  async checkIn(userId: string, type: 'VOICE' | 'TASK_DRIVEN' | 'MANUAL' = 'VOICE', workMode: 'OFFICE' | 'REMOTE' = 'OFFICE') {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // If there is an active check-in today without checkOutAt, reuse it
+    let log = await this.prisma.attendanceLog.findFirst({
+      where: {
+        userId,
+        checkInAt: { gte: startOfDay },
+        checkOutAt: null,
+      },
+    });
+
+    if (!log) {
+      log = await this.prisma.attendanceLog.create({
+        data: {
+          userId,
+          type: (type as any) || 'VOICE',
+          workMode: (workMode as any) || 'OFFICE',
+          note: `Điểm danh ca làm việc qua ${type}`,
+        },
+      });
+    }
+
+    return this.getTodayAttendance(userId);
+  }
+
+  async checkOut(userId: string) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const log = await this.prisma.attendanceLog.findFirst({
+      where: {
+        userId,
+        checkInAt: { gte: startOfDay },
+        checkOutAt: null,
+      },
+      orderBy: { checkInAt: 'desc' },
+    });
+
+    if (log) {
+      await this.prisma.attendanceLog.update({
+        where: { id: log.id },
+        data: {
+          checkOutAt: new Date(),
+        },
+      });
+    }
+
+    return this.getTodayAttendance(userId);
+  }
 }
