@@ -50,8 +50,12 @@ export class TaskController {
   }
 
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() updateTaskStatusDto: UpdateTaskStatusDto) {
-    return this.taskService.updateStatus(id, updateTaskStatusDto);
+  updateStatus(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() updateTaskStatusDto: UpdateTaskStatusDto,
+  ) {
+    return this.taskService.updateStatus(id, updateTaskStatusDto, req.user);
   }
 
   @Get(':id/comments')

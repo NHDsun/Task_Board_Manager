@@ -295,4 +295,87 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
   - **Hành động:** `[TÍCH HỢP PHÂN TRANG FETCH TASKS]`.
   - **Chi tiết:** Thêm `limit=300` vào `GET /api/tasks?limit=300` bảo vệ bộ nhớ RAM trình duyệt.
 
+---
+
+## 74. Bổ Sung Nút Bật/Tắt Khóa Giai Đoạn Tuần Tự & Hoàn Thiện Pipeline View
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[THÊM STATE & NÚT TOGGLE KHÓA GIAI ĐOẠN]`.
+  - **Chi tiết:**
+    - Khởi tạo state `isStageLockingEnabled` (mặc định `true`).
+    - Bổ sung nút Toggle Lock/Unlock trong mục **`⚙️ Quản Lý Giai Đoạn Pipeline`** (`isEditingPipelineStages`):
+      - 🔒 **`Khóa Giai Đoạn: ĐANG BẬT (Click để Tắt)`** (Màu Rose): Các giai đoạn sau bị khóa nếu giai đoạn trước chưa đạt 100% Task hoàn thành.
+      - 🔓 **`Khóa Giai Đoạn: ĐANG TẮT (Click để Bật)`** (Màu Emerald): Mở khóa toàn bộ các cột giai đoạn, cho phép nhân sự thao tác tự do.
+    - Cập nhật logic vòng lặp `computedStages` tôn trọng cờ `isStageLockingEnabled`.
+
+---
+
+## 75. Nâng Cấp Hàng Chờ Tập Trung Cá Nhân (My Focus Queue) & Cơ Chế Tạm Dừng Task
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[LỌC TASK 100% & THAY ĐỔI LOGIC TẠM DỪNG]`.
+  - **Chi tiết:**
+    - Bổ sung điều kiện `if (t.progress >= 100 || t.status === 'DONE') return false;` vào `myFocusTasks`: Các Task hoàn thành 100% tự động rời khỏi Hàng Chờ và Hero Focus Card #1.
+    - Thay thế nút **[Tạm Dừng Ca]** ➡️ **[⏸️ Tạm Dừng Task]**: Khi bấm trên Hero Task, trạng thái tự chuyển về `TODO` (gọi API `PATCH /tasks/:id/status`) và tự động lùi xuống danh sách Hàng Chờ bên dưới.
+    - Cập nhật nút **[▶️ Tiếp Tục Làm Task]** trong Hàng Chờ: Hỗ trợ tráo đổi mượt mà (đưa Task cũ về `TODO` và đưa Task mới được chọn lên vị trí Hero Focus `#1` `IN_PROGRESS`).
+
+---
+
+## 76. Chuyển Đổi Cơ Chế Chấm Công & Giờ Làm Việc Từ Mock Sang Hoạt Động Thật (Live PostgreSQL)
+- **File 1:** `be/src/modules/profile/profile.controller.ts` & `profile.service.ts`
+  - **Hành động:** `[THÊM 3 API ENDPOINTS CHẤM CÔNG]`.
+  - **Chi tiết:**
+    - `GET /profile/attendance/today`: Lấy trạng thái check-in hôm nay, tính chính xác thời gian đã làm việc (`durationMinutes` ➡️ format `00h:00m`), phân loại `OFFICE` / `REMOTE`.
+    - `PATCH /profile/attendance/check-in`: Ghi nhận ca làm việc mới vào bảng `attendance_logs` trong CSDL PostgreSQL.
+    - `PATCH /profile/attendance/check-out`: Chốt ca làm việc hôm nay.
+- **File 2:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[NỐI API HEADER CHẤM CÔNG & TIMER TỰ ĐỘNG]`.
+  - **Chi tiết:**
+    - Huy hiệu đồng hồ `🟢 00h:00m (OFFICE)` đọc dữ liệu trực tiếp từ API thay vì hardcode.
+    - Nút **[Bắt Đầu Chấm Công Voice]** / **[Voice Check-In Active]** gọi trực tiếp API check-in/checkout và kích hoạt timer cập nhật mỗi phút.
+
+---
+
+## 77. Khởi Động GIAI ĐOẠN 3 (ĐỢT 3.1): Xây Dựng Hook Nhận Diện Giọng Nói Tiếng Việt & Widget Solaris Voice Command
+- **File 1:** `fe/src/hooks/useVoiceRecognition.ts`
+  - **Hành động:** `[THÊM MỚI CUSTOM HOOK THU ÂM TIẾNG VIỆT & AUDIO ANALYZER]`.
+  - **Chi tiết:**
+    - Tích hợp **Web Speech API** với `lang: 'vi-VN'`, `continuous: true`, `interimResults: true`.
+    - Tích hợp **Web Audio API (`AudioContext` + `AnalyserNode` `fftSize: 64`)** phân tích dải tần số âm thanh từ microphone để đo cường độ decibel giọng nói theo thời gian thực (`audioVolume: 0 - 100`).
+    - Bắt lỗi không cấp quyền microphone, lỗi trình duyệt không hỗ trợ, tự động bỏ qua lỗi `no-speech`.
+- **File 2:** `fe/src/components/voice/AudioWaveVisualizer.tsx`
+  - **Hành động:** `[THÊM MỚI COMPONENT SÓNG ÂM THANH FUTURISTIC]`.
+  - **Chi tiết:** Xây dựng Quả cầu năng lượng Solar Orb co giãn theo âm lượng và 16 Cột sóng âm Neon Equalizer Bars nhảy múa theo tần số giọng nói với gradient Hổ Phách ➡️ Tím Neon.
+- **File 3:** `fe/src/components/voice/SolarisVoiceAssistantWidget.tsx`
+  - **Hành động:** `[THÊM MỚI MODAL TRỢ LÝ GIỌNG NÓI TOÀN NĂNG]`.
+  - **Chi tiết:**
+    - Live Transcript Subtitle: Hiển thị chữ tiếng Việt chạy trực tiếp thời gian thực khi người dùng phát âm.
+    - Quick Command Pills: Các mẫu câu lệnh gợi ý (Tạo task khẩn cấp, Chấm công ca làm, Chuyển task sang DONE).
+    - Bộ điều khiển: Nút Tạm dừng nghe, Tiếp tục nói, Xóa lời nói, và nút **[Thực Thi Khẩu Lệnh]**.
+- **File 4:** `fe/src/components/navigation/MeteorEdgeMenu.tsx`
+  - **Hành động:** `[CẬP NHẬT NÚT VOICE COMMAND TRÊN MENU SAO BĂNG]`.
+  - **Chi tiết:** Đổi nút `Voice Check-In` ➡️ `Voice Command (Trợ Lý Giọng Nói AI)` với hiệu ứng ánh sáng gradient vàng-tím, kích hoạt mở Modal Voice từ bất kỳ view nào.
+- **File 5:** `fe/src/layouts/MainLayout.tsx`
+  - **Hành động:** `[NHÚNG WIDGET VÀO MAIN LAYOUT]`.
+  - **Chi tiết:** Nhúng `SolarisVoiceAssistantWidget` duy trì trên toàn hệ thống kết nối với sự kiện bấm trên Menu Sao Băng.
+- **Kết quả kiểm tra:** Chạy `npm --prefix fe run build` và `npm --prefix be run build` thành công 100% (0 lỗi, 0 cảnh báo).
+
+---
+
+## 78. Triển Khai Phương Án Phòng Ngừa & Giải Quyết Rủi Ro Đồng Bộ Real-time & CSDL (Concurrency & State Sync Mitigation)
+- **File 1:** `fe/src/services/socket.ts`
+  - **Hành động:** `[NÂNG CẤP RESILIENT AUTO-RECONNECT & RECONNECT CALLBACK REGISTRY]`.
+  - **Chi tiết:**
+    - Cấu hình cơ chế tự động kết nối lại kiên cường (`reconnection: true`, `reconnectionAttempts: 20`, `reconnectionDelay: 1000 - 5000ms`, `randomizationFactor: 0.5`).
+    - Bổ sung bộ lắng nghe `onReconnect(callback)` cho phép các component đăng ký luồng đồng bộ lại dữ liệu CSDL ngay khi kết nối mạng phục hồi.
+- **File 2:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[TỰ ĐỘNG LÀM MỚI STATE KHI RECONNECT]`.
+  - **Chi tiết:** Đăng ký `socketService.onReconnect(() => fetchTasksFromBackend())` đảm bảo không bao giờ bị lệch dữ liệu giữa các phiên làm việc khi người dùng bị gián đoạn mạng hoặc switch Wi-Fi.
+- **File 3:** `be/src/modules/task/task.service.ts` & `task.controller.ts`
+  - **Hành động:** `[BỌC PRISMA TRANSACTION & SERVER-SIDE OWNERSHIP CHECK]`.
+  - **Chi tiết:**
+    - Bọc toàn bộ logic kiểm tra và cập nhật `updateStatus` vào `this.prisma.$transaction(async (tx) => { ... })` triệt tiêu 100% rủi ro tranh chấp ghi đồng thời (Race condition) khi 2 người cùng thao tác 1 task hoặc gửi song song Voice command & chuột.
+    - Bổ sung xác thực quyền hạn phía Server: Chỉ `ADMIN`, `MANAGER`, hoặc chính chủ Task (`assigneeId` / `createdById`) mới được phép cập nhật trạng thái Task.
+- **Kết quả kiểm tra:** Biên dịch TypeScript toàn dự án (`npm --prefix be run build` và `npm --prefix fe run build`) thành công 100% (0 lỗi, 0 cảnh báo).
+
+
+
 

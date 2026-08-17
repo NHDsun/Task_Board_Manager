@@ -4,6 +4,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 
 class SocketService {
   public socket: Socket | null = null;
+  private reconnectCallbacks: Array<() => void> = [];
 
   connect() {
     if (this.socket?.connected) return;
@@ -15,14 +16,37 @@ class SocketService {
         token: token || '',
       },
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.5,
+      timeout: 10000,
     });
 
     this.socket.on('connect', () => {
-      console.log('⚡ Connected to Socket.IO Server');
+      console.log('⚡ Connected to Socket.IO Server [ID:', this.socket?.id, ']');
+      // Trigger all registered reconnect callbacks to sync fresh state
+      this.reconnectCallbacks.forEach((cb) => {
+        try {
+          cb();
+        } catch (e) {
+          console.error('Error executing reconnect callback:', e);
+        }
+      });
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('❌ Disconnected from Socket.IO Server');
+    this.socket.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from Socket.IO Server. Reason:', reason);
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.warn('⚠️ Socket connection error, attempting auto-reconnect...', error.message);
+    });
+
+    this.socket.io.on('reconnect', (attempt) => {
+      console.log('🔄 Reconnected successfully to Socket.IO Server on attempt:', attempt);
+      this.reconnectCallbacks.forEach((cb) => cb());
     });
   }
 
@@ -33,14 +57,21 @@ class SocketService {
     }
   }
 
+  onReconnect(callback: () => void) {
+    this.reconnectCallbacks.push(callback);
+    return () => {
+      this.reconnectCallbacks = this.reconnectCallbacks.filter((cb) => cb !== callback);
+    };
+  }
+
   joinProject(projectId: string) {
-    if (this.socket) {
+    if (this.socket?.connected) {
       this.socket.emit('joinProject', { projectId });
     }
   }
 
   leaveProject(projectId: string) {
-    if (this.socket) {
+    if (this.socket?.connected) {
       this.socket.emit('leaveProject', { projectId });
     }
   }
@@ -59,3 +90,4 @@ class SocketService {
 }
 
 export const socketService = new SocketService();
+

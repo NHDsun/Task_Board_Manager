@@ -256,3 +256,16 @@ Ví dụ một dự án phối hợp giữa phòng **Product** và phòng **Clie
 
 ### 3. Đề Xuất Thực Hiện
 Khuyên dùng **Phương án 1** vì kết hợp hoàn hảo với Bảng `ProjectDepartment` (Dự án thuộc nhiều phòng ban) và Bảng `Department` mà chúng ta đã xây dựng trong CSDL Prisma!
+
+---
+
+## 🛡️ PHẦN 4: MA TRẬN ĐÁNH GIÁ NGUY CƠ TIỀM ẨN & PHƯƠNG ÁN PHÒNG NGỪA (RISK ASSESSMENT & MITIGATION)
+
+| Nhóm Nguy Cơ | Rủi Ro Tiềm Ẩn | Mức Độ | Phương Án Phòng Ngừa & Giải Quyết (Mitigation) |
+|---|---|:---:|---|
+| **1. Voice & Speech** | • Môi trường ồn ào nhận diện sai từ.<br>• Giọng khàn/ốm làm lệch Voiceprint.<br>• Trình duyệt Firefox/Safari không hỗ trợ Speech API. | **TRUNG BÌNH** | • Cài đặt ngưỡng lọc ồn (`noise gate`).<br>• Luôn có nút **Hoàn tác (Undo 5s)** hoặc Popup xác nhận.<br>• Hỗ trợ ghi lại mẫu giọng tại `/profile` và cho phép fallback chấm công mã PIN.<br>• Cảnh báo đề xuất Chrome/Edge. |
+| **2. AI LLM / Ollama** | • Ollama chưa bật hoặc máy yếu gây trễ (Lag).<br>• Người dùng nói lộn xộn sinh JSON lỗi. | **CAO** | • **Cơ chế Hybrid Fallback:** Nếu Ollama timeout $> 1.5s$ ➡️ Tự động lùi về Regex Parser siêu tốc.<br>• Dùng model nhẹ tối ưu `qwen2.5:3b` / `llama3.2:1b`.<br>• System Prompt `format: "json"` kèm kiểm tra trường thiếu tự gán `currentUser`. |
+| **3. Realtime & CSDL** | • Tranh chấp ghi đồng thời (Race condition).<br>• Mất kết nối Socket.IO. | **TRUNG BÌNH** | • Bọc toàn bộ cập nhật đa bảng trong `prisma.$transaction`.<br>• Cấu hình Auto-reconnect Socket.IO kèm refresh tự động khi có mạng. |
+| **4. Trải Nghiệm (UX)** | • Người dùng không biết nói câu lệnh gì.<br>• Thu âm nhầm chuyện riêng tư ngoài đời. | **THẤP** | • Đặt sẵn các thẻ Quick Command Pills và bảng hướng dẫn mẫu câu.<br>• Thu âm có chủ đích (Chỉ bật khi mở Modal hoặc Push-to-Talk). |
+| **5. Nguyên Tắc Cốt Lõi** | *"Voice là công cụ tăng tốc, nhưng Chuột & Phím luôn là điểm tựa vững chắc."* | **QUY TẮC** | • **Graceful Degradation:** Hệ thống luôn hoạt động bình thường 100% bằng tay kể cả khi mất Micro hoặc tắt AI. |
+

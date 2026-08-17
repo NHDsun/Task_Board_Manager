@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MeteorEdgeMenu } from '../components/navigation/MeteorEdgeMenu';
+import { SolarisVoiceAssistantWidget } from '../components/voice/SolarisVoiceAssistantWidget';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -8,6 +9,8 @@ interface MainLayoutProps {
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children, currentRoute, onNavigate }) => {
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-[#030712] text-slate-100 font-['Plus_Jakarta_Sans',sans-serif] relative overflow-x-hidden">
       {/* 🌌 Ambient Floating Orbs Background */}
@@ -16,7 +19,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children, currentRoute, 
       <div className="fixed top-[40%] right-[30%] w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
 
       {/* 🌠 Persistent Universal Meteor Edge Menu (Always Available Across All Views) */}
-      <MeteorEdgeMenu currentRoute={currentRoute} onNavigate={onNavigate} />
+      <MeteorEdgeMenu
+        currentRoute={currentRoute}
+        onNavigate={onNavigate}
+        onOpenVoiceCommand={() => setIsVoiceModalOpen(true)}
+      />
+
+      {/* 🎙️ Universal Solaris Voice Assistant Modal Widget */}
+      <SolarisVoiceAssistantWidget
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        onExecuteCommand={(text) => {
+          console.log('🎙️ Executing Voice Command:', text);
+          // Sẽ kết nối Dispatcher ở Đợt 3.2 & 3.3
+        }}
+      />
 
       {/* Main Content Area with 16px Left Margin Padding */}
       <main className="pl-16 min-h-screen relative z-10 transition-all duration-300">
@@ -25,3 +42,4 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children, currentRoute, 
     </div>
   );
 };
+

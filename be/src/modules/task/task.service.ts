@@ -201,29 +201,40 @@ export class TaskService {
     return this.findAll({ projectId });
   }
 
-  async updateStatus(id: string, updateTaskStatusDto: UpdateTaskStatusDto) {
-    const task = await this.prisma.task.findUnique({ where: { id } });
-    if (!task) {
-      throw new NotFoundException('Task không tồn tại');
-    }
+  async updateStatus(id: string, updateTaskStatusDto: UpdateTaskStatusDto, user?: any) {
+    // Atomic Transaction to guarantee race condition prevention
+    const updatedTask = await this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.findUnique({ where: { id } });
+      if (!task) {
+        throw new NotFoundException('Task không tồn tại');
+      }
 
-    const updatedTask = await this.prisma.task.update({
-      where: { id },
-      data: {
-        status: updateTaskStatusDto.status,
-        progress:
-          updateTaskStatusDto.progress !== undefined
-            ? updateTaskStatusDto.progress
-            : updateTaskStatusDto.status === 'DONE'
-            ? 100
-            : task.progress,
-      },
-      include: {
-        project: { select: { id: true, name: true } },
-        assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
-        tags: { include: { tag: true } },
-        attachments: true,
-      },
+      // Check ownership & role permission: Only ADMIN, MANAGER, or Task Assignee/Creator can update status
+      if (user && user.role !== 'ADMIN' && user.role !== 'MANAGER') {
+        const isOwner = task.assigneeId === user.id || task.createdById === user.id;
+        if (!isOwner) {
+          throw new ForbiddenException('Bạn không có quyền chỉnh sửa trạng thái Task của người khác');
+        }
+      }
+
+      return tx.task.update({
+        where: { id },
+        data: {
+          status: updateTaskStatusDto.status,
+          progress:
+            updateTaskStatusDto.progress !== undefined
+              ? updateTaskStatusDto.progress
+              : updateTaskStatusDto.status === 'DONE'
+              ? 100
+              : task.progress,
+        },
+        include: {
+          project: { select: { id: true, name: true } },
+          assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
+          tags: { include: { tag: true } },
+          attachments: true,
+        },
+      });
     });
 
     if (updateTaskStatusDto.status === 'IN_PROGRESS' && updatedTask.assigneeId) {

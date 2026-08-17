@@ -17,9 +17,10 @@ import {
 interface MeteorEdgeMenuProps {
   currentRoute: string;
   onNavigate: (route: string) => void;
+  onOpenVoiceCommand?: () => void;
 }
 
-export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, onNavigate }) => {
+export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, onNavigate, onOpenVoiceCommand }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const logout = useAuthStore((state) => state.logout);
 
@@ -168,21 +169,28 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
 
         {/* Bottom Actions Cluster */}
         <div className="pt-3 border-t border-slate-800/80 space-y-2 flex flex-col items-center">
-          {/* Voice Check-In Trigger */}
+          {/* 🎙️ Voice Command Trigger */}
           <button
-            onClick={() => onNavigate('/tasks')}
-            className={`w-full flex items-center gap-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 text-emerald-300 hover:border-emerald-400 transition-all duration-300 shadow-md group ${
+            onClick={() => {
+              if (onOpenVoiceCommand) {
+                onOpenVoiceCommand();
+              }
+            }}
+            className={`w-full flex items-center gap-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-purple-600/20 to-amber-500/10 border border-amber-500/40 text-amber-300 hover:border-amber-400 transition-all duration-300 shadow-md group cursor-pointer ${
               isExpanded ? 'px-3 justify-start' : 'px-0 justify-center'
             }`}
+            title="Trợ Lý Giọng Nói Solaris (Voice Command)"
           >
-            <div className="w-9 h-9 rounded-lg bg-emerald-500/30 border border-emerald-400/50 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-110 transition-transform">
-              <Mic className="w-5 h-5 text-emerald-400" />
+            <div className="w-9 h-9 rounded-lg bg-amber-500/30 border border-amber-400/50 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.4)] group-hover:scale-110 transition-transform">
+              <Mic className="w-5 h-5 text-amber-400" />
             </div>
 
             {isExpanded && (
               <div className="flex flex-col text-left overflow-hidden whitespace-nowrap">
-                <span className="text-xs font-bold text-emerald-300">Voice Check-In</span>
-                <span className="text-[10px] text-slate-400">Solaris Voice Attendance</span>
+                <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-400" /> Voice Command
+                </span>
+                <span className="text-[10px] text-slate-400">Trợ Lý Giọng Nói AI</span>
               </div>
             )}
           </button>

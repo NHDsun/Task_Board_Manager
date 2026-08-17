@@ -225,11 +225,18 @@ export const BoardPage: React.FC = () => {
     socketService.on('task:deleted', handleSocketUpdate);
     socketService.on('comment:created', handleSocketUpdate);
 
+    // Auto-fetch latest task dataset on connection restored
+    const unsubscribeReconnect = socketService.onReconnect(() => {
+      console.log('🔄 Syncing full task state after connection restored');
+      fetchTasksFromBackend();
+    });
+
     return () => {
       socketService.off('task:created', handleSocketUpdate);
       socketService.off('task:updated', handleSocketUpdate);
       socketService.off('task:deleted', handleSocketUpdate);
       socketService.off('comment:created', handleSocketUpdate);
+      unsubscribeReconnect();
     };
   }, [token]);
 
