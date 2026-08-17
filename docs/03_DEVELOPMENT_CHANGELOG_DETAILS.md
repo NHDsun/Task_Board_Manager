@@ -573,6 +573,30 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
     - Trong trường hợp Backend trả về 404 (do Task vừa tạo ở client hoặc chưa ghi nhận vào PostgreSQL), hệ thống tự động lưu mô tả vào State của Board/Minisite mà không văng popup cảnh báo khó chịu.
 - **Kết quả kiểm tra:** Biên dịch TypeScript toàn dự án (`npm --prefix be run build` và `npm --prefix fe run build`) thành công 100% (0 lỗi, 0 cảnh báo).
 
+---
+
+## 92. Khắc Phục Lỗi Tràn Văn Bản (Text Overflow) Trên Minisite Task Detail Modal
+- **File 1:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[THIẾT LẬP BREAK-WORDS, MIN-W-0 & TRUNCATE CHỐNG TRÀN TOÀN DIỆN]`.
+  - **Chi tiết:** 
+    - Thêm `break-words max-w-full leading-snug` vào Tiêu đề Task `<h1>` và phần hiển thị Mô tả `<p>`.
+    - Thiết lập `min-w-0 max-w-full` cho container nội dung và các danh sách thẻ con (Bento metadata, Đính kèm, Bình luận).
+    - Thêm `truncate` cho tên dự án và tác giả bình luận, đảm bảo không bao giờ bị tràn khung sang ngang bất kể độ dài văn bản hoặc kích thước màn hình.
+- **Kết quả kiểm tra:** Biên dịch TypeScript toàn dự án (`npm --prefix be run build` và `npm --prefix fe run build`) thành công 100% (0 lỗi, 0 cảnh báo).
+
+---
+
+## 93. Tối Ưu Bố Cục Chân Thẻ Kanban (Footer Micro-Layout Optimization) Chống Dính Chữ
+- **File 1:** `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[LỌC CHUỖI TÊN GỌN GÀNG & CỐ ĐỊNH PHẦN TỬ THỜI GIAN/BÌNH LUẬN]`.
+  - **Chi tiết:** 
+    - Tự động loại bỏ hậu tố chức vụ trong ngoặc như `(Manager)`, `(Admin)` ở thẻ card thu nhỏ (`replace(/\s*\([^)]*\)/g, '')`), giúp hiển thị trọn vẹn tên người thực hiện (VD: `Minh Anh`) mà không bị cắt cụt thành `Minh Anh (Mana...`.
+    - Gán `shrink-0` vào avatar, ngày deadline và số lượng bình luận để không bị co ép khi tên người dùng dài.
+    - Căn chỉnh khoảng cách `gap-2` và font `text-[10px]` cho cụm thông số thời gian, tạo độ thông thoáng, sắc nét và chuyên nghiệp.
+- **Kết quả kiểm tra:** Biên dịch TypeScript toàn dự án (`npm --prefix be run build` và `npm --prefix fe run build`) thành công 100% (0 lỗi, 0 cảnh báo).
+
+
+
 
 
 

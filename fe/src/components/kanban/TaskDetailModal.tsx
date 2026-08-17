@@ -372,8 +372,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
         {/* 🌠 Minisite Header */}
         <div className="p-6 md:p-8 border-b border-slate-800/80 flex items-start justify-between gap-4 relative z-10">
-          <div className="space-y-3 flex-1">
-            <div className="flex items-center gap-3 flex-wrap">
+          <div className="space-y-3 flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`px-3 py-1 rounded-xl text-xs font-extrabold border ${statusStyle.color}`}>
                 {statusStyle.text}
               </span>
@@ -382,23 +382,23 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 ƯU TIÊN: {task.priority}
               </span>
 
-              <span className="px-3 py-1 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-mono text-xs flex items-center gap-1.5">
-                <FolderKanban className="w-3.5 h-3.5 text-amber-400" />
-                {task.projectName || 'Solaris Task Board Core'}
+              <span className="px-3 py-1 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-mono text-xs flex items-center gap-1.5 truncate max-w-full">
+                <FolderKanban className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">{task.projectName || 'Solaris Task Board Core'}</span>
               </span>
 
               {isMyTask ? (
-                <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-1">
+                <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-1 shrink-0">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> TASK CHÍNH CHỦ
                 </span>
               ) : (
-                <span className="px-3 py-1 rounded-xl bg-slate-800 text-slate-400 font-bold text-xs flex items-center gap-1">
+                <span className="px-3 py-1 rounded-xl bg-slate-800 text-slate-400 font-bold text-xs flex items-center gap-1 shrink-0">
                   <Lock className="w-3.5 h-3.5 text-slate-500" /> QUYỀN XEM VÂN TAY
                 </span>
               )}
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-snug">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-snug break-words max-w-full">
               {task.title}
             </h1>
           </div>
@@ -412,7 +412,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         </div>
 
         {/* 🚀 Minisite Body Content */}
-        <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1 relative z-10 text-xs">
+        <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1 relative z-10 text-xs min-w-0 max-w-full">
 
           {/* 🔄 IN_REVIEW & TRANSFER ROUTE BENTO CARD */}
           {(task.status === 'IN_REVIEW' || task.transferInfo) && (
@@ -600,7 +600,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </div>
               </div>
             ) : (
-              <p className="text-slate-300 leading-relaxed font-normal whitespace-pre-wrap">
+              <p className="text-slate-300 leading-relaxed font-normal whitespace-pre-wrap break-words max-w-full overflow-hidden">
                 {task.description || 'Chưa có mô tả chi tiết cho nhiệm vụ này.'}
               </p>
             )}
@@ -745,12 +745,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             {/* Comments List */}
             <div className="space-y-3">
               {comments.map((c) => (
-                <div key={c.id} className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-amber-300">{c.author}</span>
-                    <span className="text-[10px] text-slate-500 font-mono">{c.createdAt}</span>
+                <div key={c.id} className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-amber-300 truncate">{c.author}</span>
+                    <span className="text-[10px] text-slate-500 font-mono shrink-0">{c.createdAt}</span>
                   </div>
-                  <p className="text-slate-200">{c.text}</p>
+                  <p className="text-slate-200 break-words whitespace-pre-wrap">{c.text}</p>
                 </div>
               ))}
 

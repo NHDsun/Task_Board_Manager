@@ -272,22 +272,25 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
       </div>
 
       {/* Footer Info */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           {/* Assignee Avatar */}
-          <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[9px] text-amber-300 overflow-hidden">
+          <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[9px] text-amber-300 overflow-hidden shrink-0">
             {task.assignee?.avatar ? (
               <img src={task.assignee.avatar} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
               <span>{task.assignee?.fullName ? task.assignee.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'UA'}</span>
             )}
           </div>
-          <span className="truncate max-w-[90px] font-medium text-slate-300">
-            {task.assignee?.fullName || 'Chưa phân công'}
+          <span
+            className="truncate font-medium text-slate-300 max-w-[105px]"
+            title={task.assignee?.fullName || 'Chưa phân công'}
+          >
+            {task.assignee?.fullName?.replace(/\s*\([^)]*\)/g, '') || 'Chưa phân công'}
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           {task.dueDate && (() => {
             try {
               const due = new Date(task.dueDate);
@@ -303,27 +306,27 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
 
               return (
                 <div
-                  className={`flex items-center gap-1 font-mono ${
+                  className={`flex items-center gap-1 font-mono text-[10px] ${
                     isOverdue ? 'text-rose-400 font-bold' : 'text-slate-400'
                   }`}
                   title={isOverdue ? 'Đã quá hạn deadline!' : `Hạn chót: ${task.dueDate}`}
                 >
-                  <Clock className={`w-3 h-3 ${isOverdue ? 'text-rose-400 animate-pulse' : 'text-amber-400'}`} />
+                  <Clock className={`w-3 h-3 shrink-0 ${isOverdue ? 'text-rose-400 animate-pulse' : 'text-amber-400'}`} />
                   <span>{formatted}</span>
                 </div>
               );
             } catch {
               return (
-                <div className="flex items-center gap-1 font-mono text-slate-400">
-                  <Clock className="w-3 h-3 text-amber-400" />
+                <div className="flex items-center gap-1 font-mono text-[10px] text-slate-400">
+                  <Clock className="w-3 h-3 shrink-0 text-amber-400" />
                   <span>{task.dueDate.slice(5)}</span>
                 </div>
               );
             }
           })()}
           {task.commentsCount !== undefined && (
-            <div className="flex items-center gap-1 font-mono text-slate-400">
-              <MessageSquare className="w-3 h-3 text-purple-400" />
+            <div className="flex items-center gap-1 font-mono text-[10px] text-slate-400">
+              <MessageSquare className="w-3 h-3 shrink-0 text-purple-400" />
               <span>{task.commentsCount}</span>
             </div>
           )}
