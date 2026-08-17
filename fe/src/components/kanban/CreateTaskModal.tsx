@@ -35,6 +35,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [projectId, setProjectId] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [dueDate, setDueDate] = useState('2026-08-20');
+  const [stageId, setStageId] = useState('stage_1');
 
   const [dbProjects, setDbProjects] = useState<DBProject[]>([]);
   const [dbUsers, setDbUsers] = useState<DBUser[]>([]);
@@ -87,6 +88,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         dueDate,
         status: 'TODO',
         progress: 0,
+        stageId,
       });
 
       onSuccess(res.data?.data || res.data);
@@ -213,16 +215,38 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="font-bold text-slate-300 uppercase tracking-wider block">
-              Hạn Deadline
-            </label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            {/* GIAI ĐOẠN DỰ ÁN */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-300 uppercase tracking-wider block">
+                Giai Đoạn Dự Án
+              </label>
+              <select
+                value={stageId}
+                onChange={(e) => setStageId(e.target.value)}
+                className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
+              >
+                <option value="stage_1" className="bg-[#0F172A] text-slate-200 py-1">1. Yêu Cầu & Phân Tích</option>
+                <option value="stage_2" className="bg-[#0F172A] text-slate-200 py-1">2. Thiết Kế UI/UX</option>
+                <option value="stage_3" className="bg-[#0F172A] text-slate-200 py-1">3. Lập Trình Backend/Frontend</option>
+                <option value="stage_4" className="bg-[#0F172A] text-slate-200 py-1">4. Kiểm Thử QA/QC</option>
+                <option value="stage_5" className="bg-[#0F172A] text-slate-200 py-1">5. Chạy Thử Staging</option>
+                <option value="stage_6" className="bg-[#0F172A] text-slate-200 py-1">6. Bàn Giao & Nghiệm Thu</option>
+              </select>
+            </div>
+
+            {/* HẠN DEADLINE */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-300 uppercase tracking-wider block">
+                Hạn Deadline
+              </label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
+              />
+            </div>
           </div>
 
           <div className="pt-2 flex justify-end gap-3 border-t border-slate-800">

@@ -114,6 +114,7 @@ export class TaskService {
           : undefined,
       tags: t.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })),
       commentsCount: t._count.comments,
+      stageId: t.stageId || undefined,
       attachments: t.attachments ? t.attachments.map((att) => ({
         id: att.id,
         name: att.name,
@@ -143,6 +144,7 @@ export class TaskService {
         assigneeId: createTaskDto.assigneeId || effectiveUserId,
         createdById: effectiveUserId,
         dueDate: createTaskDto.dueDate ? new Date(createTaskDto.dueDate) : null,
+        stageId: createTaskDto.stageId || 'stage_1',
       },
       include: {
         project: { select: { id: true, name: true } },
@@ -167,6 +169,7 @@ export class TaskService {
       dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : undefined,
       projectName: task.project?.name || 'Solaris Core',
       assigneeId: task.assigneeId || undefined,
+      stageId: task.stageId || undefined,
       assignee: task.assignee
         ? {
             id: task.assignee.id,
@@ -247,6 +250,7 @@ export class TaskService {
         : undefined,
       tags: updatedTask.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })),
       commentsCount: 0,
+      stageId: updatedTask.stageId || undefined,
       attachments: updatedTask.attachments ? updatedTask.attachments.map((att) => ({
         id: att.id,
         name: att.name,
@@ -692,6 +696,7 @@ export class TaskService {
           : undefined,
       tags: t.tags ? t.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })) : [],
       commentsCount: t._count?.comments || 0,
+      stageId: t.stageId || undefined,
       attachments: t.attachments ? t.attachments.map((att) => ({
         id: att.id,
         name: att.name,

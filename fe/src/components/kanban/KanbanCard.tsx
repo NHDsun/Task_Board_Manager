@@ -34,6 +34,7 @@ export interface TaskItem {
   };
   tags?: Array<{ id: string; name: string; color?: string }>;
   commentsCount?: number;
+  stageId?: string;
   attachments?: Array<{
     id: string;
     name: string;

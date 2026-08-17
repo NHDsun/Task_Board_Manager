@@ -896,7 +896,7 @@ export const BoardPage: React.FC = () => {
               for (let i = 0; i < activePipelineStages.length; i++) {
                 const originalStage = activePipelineStages[i];
                 const stageTasks = pipelineTasks.filter(
-                  (_, idx) => idx % activePipelineStages.length === i
+                  (t) => t.stageId === originalStage.id || (!t.stageId && originalStage.id === 'stage_1')
                 );
 
                 const hasTasks = stageTasks.length > 0;

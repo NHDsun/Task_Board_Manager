@@ -45,4 +45,8 @@ export class CreateTaskDto {
   @IsArray()
   @IsString({ each: true })
   subtaskTitles?: string[];
+
+  @IsOptional()
+  @IsString()
+  stageId?: string;
 }
