@@ -9,13 +9,36 @@ export const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+/**
+ * 🔍 Helper to check if a JWT token is expired or expiring soon (within a buffer of 15 seconds)
+ */
+function isTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    
+    // Decode base64 URL payload cleanly
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      window
+        .atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    
+    const payload = JSON.parse(jsonPayload);
+    if (!payload.exp) return true;
+    
+    // Buffer 15 seconds to prevent request failures during transmission
+    const bufferSeconds = 15;
+    return payload.exp * 1000 < Date.now() + bufferSeconds * 1000;
+  } catch {
+    return true;
   }
-  return config;
-});
+}
 
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -38,6 +61,68 @@ interface CustomAxiosConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
+// 🛡️ 1. Request Interceptor: Checks token expiration BEFORE sending request (Pre-emptive)
+api.interceptors.request.use(
+  async (config) => {
+    let token = useAuthStore.getState().token;
+
+    const isAuthEndpoint =
+      config.url?.includes('/auth/login') ||
+      config.url?.includes('/auth/refresh') ||
+      config.url?.includes('/auth/google');
+
+    if (token && isTokenExpired(token) && !isAuthEndpoint) {
+      if (isRefreshing) {
+        try {
+          const newToken = await new Promise<string>((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          });
+          config.headers.Authorization = `Bearer ${newToken}`;
+          return config;
+        } catch (err) {
+          return Promise.reject(err);
+        }
+      }
+
+      isRefreshing = true;
+      const refreshToken = useAuthStore.getState().refreshToken || localStorage.getItem('solaris_refresh_token');
+
+      if (!refreshToken) {
+        useAuthStore.getState().logout();
+        isRefreshing = false;
+        return Promise.reject(new Error('No refresh token available'));
+      }
+
+      try {
+        const refreshUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/refresh`;
+        const { data } = await axios.post(refreshUrl, { refreshToken });
+
+        const resPayload = data?.data ? data.data : data;
+        const newAccessToken = resPayload.accessToken;
+        const newRefreshToken = resPayload.refreshToken;
+
+        useAuthStore.getState().setTokens(newAccessToken, newRefreshToken);
+        processQueue(null, newAccessToken);
+
+        token = newAccessToken;
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        useAuthStore.getState().logout();
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// 🛡️ 2. Response Interceptor: Safety fallback in case of server clock skew / unexpected 401s
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -84,7 +169,6 @@ api.interceptors.response.use(
         const newRefreshToken = resPayload.refreshToken;
 
         useAuthStore.getState().setTokens(newAccessToken, newRefreshToken);
-
         processQueue(null, newAccessToken);
 
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
