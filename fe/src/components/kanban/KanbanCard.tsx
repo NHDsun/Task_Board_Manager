@@ -19,12 +19,16 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../services/api';
 
 export interface SubtaskItem {
   id: string;
   title: string;
   isDone: boolean;
   isUrgent?: boolean;
+  estimatedDays?: number;
+  approvalStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string;
   order?: number;
   assigneeId?: string;
   assignee?: {
@@ -43,6 +47,7 @@ export interface TaskItem {
   status: 'TODO' | 'IN_PROGRESS' | 'PAUSED' | 'BLOCKED' | 'IN_REVIEW' | 'DONE';
   priority: 'LOW' | 'NORMAL' | 'IMPORTANT' | 'URGENT';
   progress: number;
+  startDate?: string;
   dueDate?: string;
   createdAt?: string;
   projectName?: string;
@@ -138,6 +143,23 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
     }, 1500);
   };
 
+  const handleReviewSubtask = async (e: React.MouseEvent, subtaskId: string, action: 'APPROVE' | 'REJECT') => {
+    e.stopPropagation();
+    let reason: string | undefined = undefined;
+    if (action === 'REJECT') {
+      const inputReason = window.prompt('Nhập lý do từ chối xác thực Task con này:');
+      if (inputReason === null) return;
+      reason = inputReason.trim() || 'Chưa đạt yêu cầu, vui lòng hoàn thiện lại';
+    }
+
+    try {
+      await api.patch(`/tasks/subtasks/${subtaskId}/review`, { action, reason });
+      onToggleSubtask?.(task.id, subtaskId, action === 'APPROVE');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Không thể thực hiện đánh giá Task con');
+    }
+  };
+
   const getPriorityBadge = (priority: TaskItem['priority']) => {
     switch (priority) {
       case 'URGENT':
@@ -186,7 +208,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
             if (urgentSubtasksCount > 0) {
               return (
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border bg-red-500/25 text-red-300 border-red-500/60 flex items-center gap-1 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.4)]">
-                  🚨 {urgentSubtasksCount} VIỆC CON GẤP
+                  🚨 {urgentSubtasksCount} TASK CON GẤP
                 </span>
               );
             }
@@ -245,7 +267,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                   className="w-full px-3 py-2 rounded-xl text-left font-semibold text-amber-300 hover:text-amber-200 hover:bg-amber-500/20 flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Bàn Giao Nhiệm Vụ</span>
+                  <span>Chuyển Giao Task</span>
                 </button>
               )}
 
@@ -306,7 +328,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
             <div className="flex items-center gap-1.5 min-w-0">
               <ListTodo className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span className="font-semibold text-slate-300 truncate">
-                Việc con: <strong className="text-white">{task.subtasks.filter((st) => st.isDone).length}/{task.subtasks.length}</strong>
+                Task con: <strong className="text-white">{task.subtasks.filter((st) => st.isDone).length}/{task.subtasks.length}</strong>
               </span>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -343,36 +365,59 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
             >
               {task.subtasks.map((st, idx) => {
                 const isFirstPending = !st.isDone && task.subtasks?.findIndex((s) => !s.isDone) === idx;
-                const hasAssignee = Boolean(task.assigneeId || task.assignee?.id || task.assignee?.email);
-                const isAssignee = Boolean(
+                // 🔒 Ưu tiên phân quyền: Nếu subtask có assignee riêng thì CHỈ người đó, nếu không thì Task Assignee
+                const effectiveAssigneeId = st.assigneeId || task.assigneeId || task.assignee?.id;
+                const isWorkerDoingTask = Boolean(
                   currentUser &&
-                    (task.assigneeId === currentUser.id ||
-                      task.assignee?.id === currentUser.id ||
-                      (task.assignee?.email && currentUser.email === task.assignee.email))
+                    (effectiveAssigneeId === currentUser.id ||
+                      (task.assignee?.email && !st.assigneeId && currentUser.email === task.assignee.email))
                 );
-                const isCreatorWhenUnassigned = Boolean(
-                  !hasAssignee &&
-                    currentUser &&
-                    (task.createdById === currentUser.id ||
-                      task.createdBy?.id === currentUser.id ||
-                      ((task.createdBy as any)?.email && currentUser.email === (task.createdBy as any).email))
-                );
-                const canToggleSubtask = isAssignee || isCreatorWhenUnassigned || isAdminOrManager;
+                const isTaskPausedOrBlocked = task.status === 'PAUSED' || task.status === 'BLOCKED';
+                const canToggleSubtask = isWorkerDoingTask && !st.isDone && st.approvalStatus !== 'PENDING' && !isTaskPausedOrBlocked;
+
+                const sched = (() => {
+                  const base = task.startDate ? new Date(task.startDate) : new Date(task.createdAt || Date.now());
+                  base.setHours(0, 0, 0, 0);
+                  let startOffset = 0;
+                  const list = task.subtasks || [];
+                  for (let i = 0; i < idx; i++) {
+                    startOffset += Number(list[i]?.estimatedDays || 1);
+                  }
+                  const currentDays = Number(st.estimatedDays || 1);
+                  const endOffset = startOffset + currentDays;
+                  const sDate = new Date(base);
+                  sDate.setDate(sDate.getDate() + startOffset);
+                  const eDate = new Date(base);
+                  eDate.setDate(eDate.getDate() + endOffset);
+                  const fmt = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+                  return currentDays === 1 ? fmt(sDate) : `${fmt(sDate)}-${fmt(eDate)}`;
+                })();
+
                 return (
                   <div
                     key={st.id || idx}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (canToggleSubtask) {
-                        onToggleSubtask?.(task.id, st.id, !st.isDone);
+                        onToggleSubtask?.(task.id, st.id, true);
                       }
                     }}
-                    title={canToggleSubtask ? 'Nhấn để đánh dấu hoàn thành' : '🔒 Chỉ người được giao Task mới có quyền đánh dấu hoàn thành'}
+                    title={
+                      st.isDone
+                        ? '🔒 Task con này đã hoàn thành và được xác nhận'
+                        : canToggleSubtask
+                        ? 'Nhấn để gửi yêu cầu xác thực hoàn thành'
+                        : '🔒 Chỉ người trực tiếp làm task mới có quyền tick hoàn thành (Người tạo và Quản trị viên không được tick thay)'
+                    }
                     className={`flex items-start gap-2 p-1.5 rounded-lg transition-all group/st ${
-                      canToggleSubtask ? 'cursor-pointer' : 'cursor-default opacity-85'
+                      st.isDone
+                        ? 'opacity-40 grayscale select-none pointer-events-none cursor-not-allowed bg-slate-950/20 text-slate-500'
+                        : canToggleSubtask
+                        ? 'cursor-pointer hover:bg-slate-900/90'
+                        : 'cursor-not-allowed opacity-75'
                     } ${
                       st.isDone
-                        ? 'bg-slate-900/30 text-slate-500'
+                        ? ''
                         : st.isUrgent
                         ? 'bg-red-500/15 text-slate-100 border border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
                         : isFirstPending
@@ -395,8 +440,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[9px] font-mono text-slate-400 bg-slate-950 px-1 rounded">
-                          Ngày {idx + 1}
+                        <span className="text-[9px] font-mono text-amber-300/80 bg-slate-950 px-1 rounded border border-slate-800">
+                          📅 {sched}
                         </span>
                         <span
                           className={`text-[11px] leading-tight ${
@@ -407,21 +452,74 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                         </span>
                       </div>
                     </div>
-                    {st.isUrgent && !st.isDone ? (
+                    {/* ⏳ Trạng thái Chờ Quản Lý Duyệt (Pending) */}
+                    {st.approvalStatus === 'PENDING' ? (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold animate-pulse">
+                          ⏳ Chờ Duyệt
+                        </span>
+                        {isAdminOrManager && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => handleReviewSubtask(e, st.id, 'APPROVE')}
+                              className="px-1.5 py-0.5 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[9px] font-mono font-bold transition-all cursor-pointer shadow-sm"
+                              title="Duyệt hoàn thành Task con này"
+                            >
+                              ✓ Duyệt
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleReviewSubtask(e, st.id, 'REJECT')}
+                              className="px-1.5 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/40 text-[9px] font-mono font-bold transition-all cursor-pointer"
+                              title="Từ chối và gửi lý do"
+                            >
+                              ❌ Từ chối
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ) : st.approvalStatus === 'REJECTED' ? (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span
+                          className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30 font-mono font-bold max-w-[120px] truncate"
+                          title={`Lý do từ chối: ${st.rejectionReason || 'Cần kiểm tra lại'}`}
+                        >
+                          ❌ Chưa đạt: {st.rejectionReason || 'Cần sửa'}
+                        </span>
+                        {isWorkerDoingTask && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleSubtask?.(task.id, st.id, false);
+                            }}
+                            className="px-1.5 py-0.5 rounded bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-[9px] font-mono font-black transition-all cursor-pointer shadow-sm"
+                            title="Gửi lại yêu cầu duyệt sau khi đã sửa xong"
+                          >
+                            🔄 Gửi Lại
+                          </button>
+                        )}
+                      </div>
+                    ) : st.isUrgent && !st.isDone ? (
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500 text-white font-mono font-black shrink-0 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]">
                         🚨 GẤP
                       </span>
-                    ) : isFirstPending ? (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-mono font-black shrink-0 animate-pulse">
-                        🔥 HÔM NAY
-                      </span>
                     ) : st.isDone ? (
-                      <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono shrink-0">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono shrink-0">
                         ✓ Xong
+                      </span>
+                    ) : isFirstPending ? (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-black shrink-0 ${
+                        idx === 0
+                          ? 'bg-amber-500 text-slate-950 animate-pulse'
+                          : 'bg-slate-800 text-amber-300 border border-amber-500/30'
+                      }`}>
+                        {idx === 0 ? `🔥 HÔM NAY (${sched})` : `📅 LỊCH: ${sched}`}
                       </span>
                     ) : (
                       <span className="text-[9px] px-1 py-0.2 rounded bg-slate-900 text-slate-500 font-mono shrink-0">
-                        ⏳ Ngày {idx + 1}
+                        📅 {sched}
                       </span>
                     )}
                   </div>
@@ -430,7 +528,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
               {task.progress === 100 && (
                 <div className="pt-1 text-center">
                   <span className="text-[10px] font-bold text-emerald-300 flex items-center justify-center gap-1">
-                    <Sparkles className="w-3 h-3 text-emerald-400" /> Đã hoàn thành tất cả việc con!
+                    <Sparkles className="w-3 h-3 text-emerald-400" /> Đã hoàn thành tất cả Task con!
                   </span>
                 </div>
               )}

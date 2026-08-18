@@ -114,9 +114,36 @@ export class ProfileService {
     };
   }
 
-  async changePassword(_userId: string, _dto: ChangePasswordDto) {
-    // Skeleton implementation for Step 1
-    return { message: 'Đổi mật khẩu thành công (Step 1 Skeleton)' };
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    let effectiveUserId = userId;
+    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
+      const realAdmin = await this.prisma.user.findUnique({ where: { email: 'huydatne@gmail.com' } });
+      if (realAdmin) effectiveUserId = realAdmin.id;
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: effectiveUserId } });
+    if (!user) {
+      throw new NotFoundException('Người dùng không tồn tại');
+    }
+
+    const bcrypt = await import('bcrypt');
+    if (user.password) {
+      const isMatch = await bcrypt.compare(dto.oldPassword, user.password);
+      if (!isMatch) {
+        throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+      }
+    }
+
+    const hashedNewPassword = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: effectiveUserId },
+      data: {
+        password: hashedNewPassword,
+        refreshToken: null, // Thu hồi phiên đăng nhập cũ để bảo mật
+      },
+    });
+
+    return { message: 'Đổi mật khẩu thành công! Vui lòng sử dụng mật khẩu mới cho các lần đăng nhập sau.' };
   }
 
   async getPersonalStats(userId: string) {
@@ -126,19 +153,19 @@ export class ProfileService {
       if (realAdmin) effectiveUserId = realAdmin.id;
     }
 
-    // Skeleton calculation for Step 1
     const completedTasks = await this.prisma.task.count({
-      where: { assigneeId: effectiveUserId, status: 'DONE' },
+      where: { assigneeId: effectiveUserId, status: 'DONE', isDeleted: false },
     });
 
     const inProgressTasks = await this.prisma.task.count({
-      where: { assigneeId: effectiveUserId, status: 'IN_PROGRESS' },
+      where: { assigneeId: effectiveUserId, status: 'IN_PROGRESS', isDeleted: false },
     });
 
     const overdueTasks = await this.prisma.task.count({
       where: {
         assigneeId: effectiveUserId,
         status: { not: 'DONE' },
+        isDeleted: false,
         dueDate: { lt: new Date() },
       },
     });

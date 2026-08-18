@@ -915,6 +915,288 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
   - **Chi tiết:** Ghi nhận quy chuẩn tiến độ tự động vào bảng theo dõi tiến độ tổng thể.
 - **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
 
+---
+
+## 113. Bổ Sung Ngày Bắt Đầu Task (Flexible Start Date) & Tính Hạn Chót Linh Hoạt
+- **File 1:** `be/prisma/schema.prisma`
+  - **Hành động:** `[BỔ SUNG TRƯỜNG startDate TRONG MODEL TASK]`.
+  - **Chi tiết:** Thêm `startDate DateTime? @map("start_date")` vào model `Task`. Đã đồng bộ qua `npx prisma db push` và `npx prisma generate`.
+- **File 2:** `be/src/modules/task/dto/create-task.dto.ts` & `task.service.ts`
+  - **Hành động:** `[HỖ TRỢ startDate TRONG API TẠO VÀ CẬP NHẬT TASK]`.
+  - **Chi tiết:** Nhận `startDate`, kiểm tra hạn deadline `dueDate >= startDate`, và trả về `startDate` trong `mapTaskResponse`.
+- **File 3:** `fe/src/components/kanban/CreateTaskModal.tsx`
+  - **Hành động:** `[THÊM Ô CHỌN NGÀY BẮT ĐẦU VÀ TỰ ĐỘNG TÍNH DEADLINE THEO NGÀY BẮT ĐẦU]`.
+  - **Chi tiết:** Cho phép người giao việc lên lịch bắt đầu vào ngày hôm nay hoặc một ngày trong tương lai (không ép nhân sự phải làm ngay). Hạn chót được tự động tính: `Hạn chót = Ngày bắt đầu + Tổng số ngày việc con`.
+- **File 4:** `fe/src/components/kanban/TaskDetailModal.tsx` & `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[HIỂN THỊ LỘ TRÌNH NGÀY BẮT ĐẦU VÀ HẠN CHÓT]`.
+  - **Chi tiết:** Hiển thị rõ ràng lộ trình `📅 Bắt đầu: {startDate} ➔ Hạn chót: {dueDate}` trên cả Modal Chi Tiết và Hero Focus Task.
+- **File 5:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 13 VÀO KẾ HOẠCH DỰ ÁN]`.
+  - **Chi tiết:** Ghi nhận tính năng Ngày Bắt Đầu Task vào hồ sơ quản trị.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 114. Sửa Lỗi Hiển Thị Ngày Hôm Nay Sau Khi Hoàn Thành Việc Con & Phân Định Rõ Ràng Nghỉ Ngơi vs Làm Sớm
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[BỔ SUNG TRẠNG THÁI NGHỈ NGƠI VS LÀM TRƯỚC CHO HERO FOCUS TASK]`.
+  - **Chi tiết:** 
+    - Khi người dùng bấm `[✓ Xong Việc Hôm Nay]` và chọn Nghỉ Ngơi, Hero Focus Task hiển thị banner chúc mừng `🎉 ĐÃ HOÀN THÀNH MỤC TIÊU HÔM NAY!` và phân loại việc tiếp theo là `Kế hoạch Ngày Mai (Ngày 2)`, không còn bị hiển thị sai thành `Mục tiêu hôm nay (Ngày 2) - Hạn hoàn thành: Hôm nay 23:59`.
+    - Bổ sung nút `✨ Tiến Hành Sớm Việc Ngày Mai` để người dùng có thể kích hoạt chế độ làm vượt tiến độ bất kỳ lúc nào.
+- **File 2:** `fe/src/components/kanban/KanbanCard.tsx` & `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[ĐIỀU CHỈNH HUY HIỆU SUBTASK]`.
+  - **Chi tiết:** Đổi huy hiệu việc con tiếp theo từ `🔥 HÔM NAY` thành `📅 KẾ TIẾP (Ngày X)` khi đã hoàn thành việc con đầu tiên.
+- **File 3:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 14 VÀO KẾ HOẠCH DỰ ÁN]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 115. Bổ Sung Nút [▶️ Tiếp Tục] & Tự Động Tính Hạn Chót (Làm Tròn Lên: Sớm + Mặc Định)
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[NÂNG CẤP HERO FOCUS TASK VỚI NÚT TIẾP TỤC & CƠ CHẾ DEADLINE TINH GỌN]`.
+  - **Chi tiết:** 
+    - Khi ở trạng thái Nghỉ Ngơi, cung cấp nút nổi bật `[▶️ Tiếp Tục]`.
+    - Tự động tính hạn chót ngầm: `Math.ceil(Thời gian hoàn thành sớm + Thời gian mặc định task chuẩn bị nhận)`.
+    - Giao diện được tinh gọn tối đa, chỉ hiển thị đúng thông tin cần thiết: `⏳ Hạn chót: YYYY-MM-DD`, không in công thức rườm rà.
+- **File 2:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 15 VÀO KẾ HOẠCH DỰ ÁN]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 116. Ghi Trực Tiếp Lịch Trình Thực Tế & Bảo Lưu 100% Hạn Chót Gốc Khi Làm Sớm
+- **File 1:** `fe/src/pages/BoardPage.tsx`, `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[CHUYỂN ĐỔI NGÀY THỨ SANG NGÀY LỊCH THỰC TẾ & BẢO LƯU HẠN CHÓT GỐC]`.
+  - **Chi tiết:** 
+    - Thay thế các nhãn trừu tượng ("Ngày 1, Ngày 2") thành mốc ngày lịch cụ thể `📅 DD/MM/YYYY` tính theo `startDate` và thời lượng ước lượng của từng việc con.
+    - Khi nhân sự làm việc sớm hoặc bấm `[▶️ Tiếp Tục]`, hệ thống luôn giữ nguyên hạn chót gốc đã lên lịch từ đầu (`⏳ Hạn chót gốc giữ nguyên: DD/MM/YYYY`), không rút ngắn hay gây áp lực thời gian.
+- **File 2:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 16 VÀO KẾ HOẠCH DỰ ÁN]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 117. Cơ Chế Xác Thực Hoàn Thành Việc Con & Quản Lý Phê Duyệt (Manager Approval)
+- **File 1:** `be/prisma/schema.prisma`
+  - **Hành động:** `[BỔ SUNG FIELD APPROVAL_STATUS, REJECTION_REASON VÀO MODEL SUBTASK VÀ ENUM SUBTASK_APPROVAL]`.
+- **File 2:** `be/src/modules/task/task.service.ts`, `be/src/modules/task/task.controller.ts`
+  - **Hành động:** `[TRIỂN KHAI LOGIC YÊU CẦU XÁC THỰC, API REVIEW SUBTASK & BROADCAST REALTIME SOCKET]`.
+  - **Chi tiết:**
+    - Khi Nhân viên (`EMPLOYEE`) tick việc con: Trạng thái chuyển sang `PENDING` (chưa tick chính thức), tạo `TaskRequest` loại `SUBTASK_APPROVAL` gửi đến Manager/Admin.
+    - Quản lý / Admin duyệt: API `PATCH /api/tasks/subtasks/:subtaskId/review` xử lý `APPROVE` (cập nhật `isDone: true`, `approvalStatus: APPROVED`, tính lại % tiến độ) hoặc `REJECT` (giữ `isDone: false`, lưu `rejectionReason`, gửi cảnh báo tới nhân viên).
+- **File 3:** `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/components/kanban/TaskDetailModal.tsx`, `fe/src/components/kanban/TaskTransferInboxModal.tsx`, `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[TÍCH HỢP UI DUYỆT NHANH, BADGE TRẠNG THÁI VÀ NÚT HIỂN THỊ THÔNG BÁO 🔔]`.
+  - **Chi tiết:**
+    - Nhân viên thấy badge `⏳ Chờ Duyệt`, quản lý thấy 2 nút `[✓ Duyệt]` và `[❌ Từ Chối]`.
+    - Thanh điều hướng trên cùng có Nút Thông Báo `🔔 Thông Báo & Duyệt` với badge đếm số lượng yêu cầu theo thời gian thực.
+- **File 4:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 17 VÀO KẾ HOẠCH DỰ ÁN]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 118. Khóa/Làm Mờ Task Con Hoàn Thành & Phân Quyền Tick Tuyệt Đối Cho Người Làm Task
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[THIẾT LẬP RÀNG BUỘC PHÂN QUYỀN CHẶT CHẼ & KHÓA SUBTASK ĐÃ HOÀN THÀNH]`.
+  - **Chi tiết:**
+    - Nếu subtask đã hoàn thành (`isDone === true`): Ném ngoại lệ `BadRequestException` từ chối sửa đổi trạng thái.
+    - Quyền đánh dấu/gửi xác thực hoàn thành: Kiểm tra nghiêm ngặt `isWorkerDoingTask` (Chỉ người được giao việc `assigneeId` mới có quyền; Người tạo Task và Admin không được tick thay).
+- **File 2:** `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/components/kanban/TaskDetailModal.tsx`, `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[LÀM MỜ VÀ VÔ HIỆU HÓA TƯƠNG TÁC TASK CON HOÀN THÀNH & KHÓA NÚT TICK VỚI NGƯỜI NGOÀI]`.
+  - **Chi tiết:**
+    - Khi `st.isDone === true`: Áp dụng style làm mờ `opacity-40 grayscale select-none pointer-events-none cursor-not-allowed`, hoàn toàn không thể nhấn hay tick lại.
+    - Nút tick / Checkbox chỉ kích hoạt khi người đăng nhập là người trực tiếp nhận làm Task (`isWorkerDoingTask`), nếu là Quản trị viên/Người tạo thì hiển thị thông báo/badge phân quyền rõ ràng.
+- **File 3:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 18 VÀO KẾ HOẠCH DỰ ÁN]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 119. Giải Quyết Triệt Để 7 Luồng Conflict Logic & Hoàn Thiện Vòng Đời Subtask
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[XỬ LÝ 7 LUỒNG CONFLICT LOGIC PHÍA SERVER]`.
+  - **Chi tiết:**
+    - `Self-Approval`: Quản lý / Admin tự làm task của mình được Auto-Approve ngay khi tick mà không bị gửi thông báo duyệt cho chính mình.
+    - `Reopen Subtask`: API `reviewSubtask` hỗ trợ `action: 'REOPEN'` cho phép Quản lý mở lại việc con đã duyệt nhầm để nhân viên chỉnh sửa.
+    - `Sync DueDate`: `recalculateTaskProgress` tự động tính và đồng bộ lại `dueDate` tổng của Task = `startDate + tổng số ngày subtasks`.
+    - `Task Transfer Cleanup`: Khi chuyển giao Task được duyệt, tự động hủy các yêu cầu duyệt subtask cũ đang treo để tránh tính nhầm người.
+    - `Unassigned Validation`: Chặn không cho tick subtask nếu Task chưa được phân công cho ai.
+- **File 2:** `fe/src/components/kanban/TaskDetailModal.tsx`, `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[BỔ SUNG UI TƯƠNG TÁC GỬI LẠI, MỞ LẠI VÀ SỬA OPTIMISTIC UPDATE]`.
+  - **Chi tiết:**
+    - Cung cấp nút `[🔄 Gửi Duyệt Lại]` khi việc con bị từ chối (`REJECTED`).
+    - Cung cấp nút `[↩️ Mở Lại]` cho Quản lý khi việc con đã hoàn thành.
+    - Tinh chỉnh Optimistic Update để không bị giật lùi thanh tiến độ % khi nhân viên nộp duyệt.
+- **File 3:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 19 VÀO KẾ HOẠCH DỰ ÁN]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 120. Xử Lý 5 Lỗ Hổng Logic Nâng Cao & Tự Động Đồng Bộ Trạng Thái Kanban
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[CHẶN BYPASS KANBAN, TỰ ĐỘNG SYNC STATUS, KHÓA ESTIMATEDDAYS, LỌC THÔNG BÁO MA]`.
+  - **Chi tiết:**
+    - `Kanban DONE Drag Block`: Trong `updateStatus`, nếu Task còn việc con chưa được duyệt hoàn tất (`isDone: false`), ném ngoại lệ `400 BadRequestException` chặn không cho đổi status sang `DONE`.
+    - `Auto Status Sync`: Trong `recalculateTaskProgress`, khi tiến độ đạt 100% tự động chuyển `status = 'DONE'`, và khi Quản lý mở lại việc con (tiến độ < 100%) tự động chuyển về `status = 'IN_PROGRESS'`.
+    - `Paused / Blocked Freeze`: Chặn tick việc con khi Task đang ở trạng thái `PAUSED` hoặc `BLOCKED`.
+    - `Subtask Assignee Priority`: Ưu tiên `subtask.assigneeId` trước `task.assigneeId`.
+    - `EstimatedDays Lock`: Chặn nhân viên tự ý sửa `estimatedDays` của việc con để kéo giãn deadline.
+    - `Ghost Notification Filter`: Trong `getIncomingRequests`, thêm bộ lọc `task: { isDeleted: false }`.
+- **File 2:** `fe/src/pages/BoardPage.tsx`, `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[RÀNG BUỘC KÉO THẢ VÀ PHÂN QUYỀN TRÊN GIAO DIỆN]`.
+  - **Chi tiết:**
+    - `handleDragEnd`: Hiển thị thông báo cảnh báo và hủy thao tác nếu kéo thẻ có việc con chưa xong vào cột `DONE`.
+    - Vô hiệu hóa nút tick / gửi duyệt khi Task đang `PAUSED` hoặc `BLOCKED`.
+    - Ràng buộc quyền tick chính xác theo người được giao riêng cho việc con.
+- **File 3:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 20 VÀO KẾ HOẠCH DỰ ÁN]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 121. Xử Lý Xóa Thành Viên Chuyển Về Manager & Manager Phân Công Trực Tiếp (LC-13 ➔ LC-22)
+- **File 1:** `be/src/modules/project/project.service.ts` & `be/src/modules/project/project.controller.ts`
+  - **Hành động:** `[BỔ SUNG API QUẢN LÝ THÀNH VIÊN VÀ REMOVEMEMBER TỰ ĐỘNG CHUYỂN TASK VỀ MANAGER]`.
+  - **Chi tiết:**
+    - `GET /projects/:id/members`: Trả về danh sách thành viên dự án và số task đang phụ trách.
+    - `POST /projects/:id/members`: Thêm nhân sự vào dự án.
+    - `DELETE /projects/:id/members/:userId`: Khi xóa 1 thành viên khỏi dự án, hệ thống quét và chuyển giao toàn bộ Task (`assigneeId`) và Subtask đang gán cho người đó về cho Manager của Dự án (`project.managerId || project.createdById`).
+- **File 2:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[MANAGER PHÂN CÔNG TRỰC TIẾP, BẢO VỆ ATTACHMENT, HỦY SUBTASK DUYỆT TREO]`.
+  - **Chi tiết:**
+    - `Manager Direct Assignment`: Khi Manager/Admin chuyển giao Task, hệ thống tự động gán trực tiếp (`task.assigneeId = receiverId, status = 'IN_PROGRESS'`), không tạo yêu cầu PENDING bắt Accept/Deny, tạo bản ghi tự động và gửi thông báo Realtime.
+    - `Self-Transfer Block`: Chặn gửi yêu cầu chuyển giao cho chính bản thân mình.
+    - `Duplicate Transfer Lock`: Chặn gửi nhiều yêu cầu chuyển giao trùng lặp khi đang có 1 request PENDING.
+    - `Orphaned Subtask Request Cleanup`: Khi xóa subtask, tự động hủy các yêu cầu duyệt PENDING liên quan.
+    - `Attachment Tampering Lock`: Chặn xóa file đính kèm của Task đã hoàn thành (`status === 'DONE'`).
+    - `Finished Subtask Urgent Lock`: Chặn bật cờ `isUrgent` trên việc con đã xong.
+    - `Project Membership Validation`: Kiểm tra người được phân công phải thuộc dự án.
+- **File 3:** `fe/src/components/kanban/ProjectMembersModal.tsx` & `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[TẠO BẢNG ĐIỀU KHIỂN QUẢN LÝ NHÂN SỰ PROJECT VÀ NÚT XÓA THÀNH VIÊN]`.
+  - **Chi tiết:**
+    - Xây dựng Modal quản lý thành viên dự án: hiển thị danh sách nhân sự, chức danh, email, số task đang làm, nút thêm thành viên mới và nút `[❌ Xóa Khỏi Dự Án]`.
+    - Tích hợp trực tiếp vào Header dự án tại vị trí `👥 X Nhân sự (⚙️ Quản lý)`.
+- **File 4:** `docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md`
+  - **Hành động:** `[CẬP NHẬT NHẬT KÝ XUNG ĐỘT LOGIC LC-13 ĐẾN LC-22]`.
+- **File 5:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 21 VÀO KẾ HOẠCH DỰ ÁN]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 122. Đồng Nhất Thuật Ngữ Toàn Bộ Giao Diện & Hệ Thống (Terminology Unification)
+- **File 1:** `fe/src/components/kanban/CreateTaskModal.tsx`, `fe/src/components/kanban/DeleteTaskConfirmModal.tsx`, `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/components/kanban/ProjectMembersModal.tsx`, `fe/src/components/kanban/TaskDetailModal.tsx`, `fe/src/components/kanban/TaskTransferInboxModal.tsx`, `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[CHUẨN HÓA TOÀN DIỆN THUẬT NGỮ GIAO DIỆN PHÍA FRONTEND]`.
+  - **Chi tiết:**
+    - Thay thế toàn bộ cụm từ *"Nhiệm vụ"* ➔ **"Task"** (ví dụ: *"Tổng số Task: X Task"*, *"X Task đang phụ trách"*, *"Xác nhận xóa Task"*, *"Chuyển Giao Task"*, *"Mô tả chi tiết Task"*).
+    - Thay thế toàn bộ cụm từ *"Việc con"*, *"Công việc con"* ➔ **"Task con"** (hoặc *"Danh Sách Task Con (Subtasks)"*, *"Lộ Trình Task Con"*, *"X Task Con ({totalEstimatedDays} Ngày)"*, *"X Task Con Gấp"*, *"Đã hoàn thành tất cả Task con!"*, *"Duyệt Task con"*).
+    - Đồng bộ thống nhất trên toàn bộ các Modal, Hero Focus Cockpit, Kanban Card, Accordion Checklist và Hộp thư phê duyệt.
+- **File 2:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[CHUẨN HÓA THUẬT NGỮ THÔNG BÁO LỖI VÀ COMMENT HỆ THỐNG PHÍA BACKEND]`.
+  - **Chi tiết:**
+    - Đồng bộ lại các thông điệp ngoại lệ (Exception Messages), chú thích lịch sử chuyển giao và bình luận hệ thống sang chuẩn **"Task"** và **"Task con"**.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 123. Xử Lý Triệt Để Toàn Diện 10 Luồng Xung Đột Logic & Ràng Buộc Nghiệp Vụ (LC-23 đến LC-32)
+- **File 1:** `be/src/modules/task/task.service.ts`, `be/src/modules/task/task.controller.ts`
+  - **Hành động:** `[XỬ LÝ 10 LOGIC CONFLICTS MỚI]`.
+  - **Chi tiết:**
+    - **LC-23 (Chặn Thêm Task Con Vào Task DONE)**: Khóa không cho gọi `addSubtask` khi `task.status === 'DONE'`.
+    - **LC-24 (Hủy TaskRequest Treo Khi Xóa Task)**: Tự động cập nhật `status: 'CANCELLED'` cho toàn bộ yêu cầu chuyển giao/duyệt khi Task bị đưa vào thùng rác.
+    - **LC-25 (Bảo Vệ Quyền Tải & Xóa File Đính Kèm)**: Ràng buộc quyền tải file theo thành viên dự án và quyền xóa file theo Assignee/Creator/Manager.
+    - **LC-26 (Ràng Buộc Thành Viên Khi Gán Subtask Assignee)**: Kiểm tra bắt buộc nhân sự nhận Task con phải thuộc bảng `project_members` của Dự án.
+    - **LC-28 (Chặn Gửi Yêu Cầu Trợ Giúp/Chuyển Giao Cho Chính Mình)**: Mở rộng chặn toàn bộ các loại request tự gửi cho bản thân.
+    - **LC-29 (Phân Quyền Bình Luận Trong Task Thuộc Dự Án)**: Kiểm tra chỉ thành viên dự án hoặc Admin mới được phép gửi bình luận vào Task.
+    - **LC-30 (Chống Phân Công Trùng Lặp Khi Manager Giao Cho Người Cũ)**: Báo lỗi nếu Manager giao việc cho người đang trực tiếp giữ Task đó.
+    - **LC-31 (Khóa Kéo Thả Backend Khi Task Đang IN_REVIEW)**: Chặn gọi `updateStatus` khi Task đang có yêu cầu chuyển giao `PENDING`.
+    - **LC-32 (Đóng Băng Chỉnh Sửa Mô Tả Khi Task PAUSED/BLOCKED)**: Khóa sửa mô tả đối với nhân viên khi Task đang bị tạm dừng hoặc nghẽn.
+- **File 2:** `docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md`
+  - **Hành động:** `[CẬP NHẬT NHẬT KÝ CONFLICT CHÍNH THỨC]`.
+  - **Chi tiết:** Ghi chép chi tiết đầy đủ 10 mục giải pháp kỹ thuật, phân tích nguyên nhân gốc rễ và phân loại mức độ nghiêm trọng.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 124. Tối Ưu Hóa Dọn Dẹp Yêu Cầu Thành Viên Bị Xóa & Khôi Phục Task Realtime (LC-33 & LC-35)
+- **File 1:** `be/src/modules/project/project.service.ts`
+  - **Hành động:** `[XỬ LÝ LC-33]`.
+  - **Chi tiết:** Trong `removeMember`, tự động hủy toàn bộ các `TaskRequest` đang `PENDING` có liên quan đến thành viên bị xóa để tránh rác hộp thư và tranh chấp nhiệm vụ.
+- **File 2:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[XỬ LÝ LC-35 & LC-36]`.
+  - **Chi tiết:**
+    - Trong `restoreTask`: Tự động tính toán lại tiến độ `%` chính xác và phát sóng sự kiện Realtime `task:created` đến toàn bộ thành viên đang mở bảng Kanban.
+    - Chuẩn hóa thông báo quyền và ghi chú phê duyệt trong `reviewSubtask` sang chuẩn `"Task con"`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 125. Thắt Chặt Xác Thực Phản Hồi Request & Phân Quyền Hủy Yêu Cầu Duyệt (LC-37 & LC-38)
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[XỬ LÝ LC-37 & LC-38]`.
+  - **Chi tiết:**
+    - Trong `respondToRequest`: Bắt buộc chỉ người nhận (`receiverId`) hoặc Quản lý dự án/Admin mới có quyền duyệt hoặc từ chối yêu cầu.
+    - Trong `cancelTaskRequest`: Cho phép Admin/Manager hủy các request bị kẹt; tự động reset `subtask.approvalStatus = 'NONE'` khi hủy yêu cầu duyệt việc con.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 126. Xác Thực Mã Hóa Đổi Mật Khẩu & Lọc Bỏ Task Xóa Khỏi Thống Kê (LC-39 & LC-40)
+- **File 1:** `be/src/modules/profile/profile.service.ts`
+  - **Hành động:** `[XỬ LÝ LC-39 & LC-40]`.
+  - **Chi tiết:**
+    - Trong `changePassword`: Thực hiện kiểm tra mật khẩu hiện tại bằng `bcrypt.compare`, mã hóa mật khẩu mới bằng `bcrypt.hash` và thu hồi `refreshToken` cũ trong PostgreSQL để bảo mật phiên.
+    - Trong `getPersonalStats`: Bổ sung điều kiện `isDeleted: false` vào tất cả các truy vấn đếm (Hoàn thành, Đang làm, Quá hạn) để loại trừ Task trong thùng rác.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 127. Xử Lý Toàn Diện 10 Luồng Xung Đột Logic Dự Án & Nhiệm Vụ (LC-41 đến LC-50)
+- **File 1:** `be/src/modules/project/project.service.ts`, `be/src/modules/project/project.controller.ts`
+  - **Hành động:** `[XỬ LÝ LC-41, LC-42, LC-43, LC-48, LC-50]`.
+  - **Chi tiết:**
+    - **LC-41**: Phân quyền cập nhật thông tin dự án, bắt buộc là Admin hoặc Quản lý dự án.
+    - **LC-42**: Lọc bỏ hoàn toàn các Task trong thùng rác (`isDeleted: false`) trong API `findOne` chi tiết dự án.
+    - **LC-43**: Ràng buộc Quản lý được chỉ định (`managerId`) phải tồn tại trong CSDL.
+    - **LC-48**: Chặn tạo trùng tên dự án đang hoạt động (`isCompleted: false`).
+    - **LC-50**: Lọc bỏ các task đã xóa khỏi trường đếm `_count.tasks` khi truy vấn danh sách dự án.
+- **File 2:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[XỬ LÝ LC-44, LC-45, LC-46, LC-47]`.
+  - **Chi tiết:**
+    - **LC-44**: Khóa toàn diện việc chỉnh sửa nội dung Task con khi đã hoàn thành và nghiệm thu.
+    - **LC-45**: Chặn gửi yêu cầu chuyển giao đối với Task đã hoàn thành (`DONE`).
+    - **LC-46**: Chặn gửi yêu cầu chuyển giao đối với Task đang bị tạm dừng hoặc nghẽn (`PAUSED`/`BLOCKED`).
+    - **LC-47**: Ràng buộc hạn chót của Task con không thể vượt quá hạn chót của Task cha hoặc trước ngày bắt đầu.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 128. Khóa Xóa Task Con Đã Duyệt, Hạ Trạng Thái Task DONE Khi Reopen & Phân Quyền Thùng Rác (LC-51 đến LC-55)
+- **File 1:** `be/src/modules/task/task.service.ts`, `be/src/modules/task/task.controller.ts`
+  - **Hành động:** `[XỬ LÝ LC-51, LC-52, LC-53, LC-54, LC-55]`.
+  - **Chi tiết:**
+    - **LC-51**: Khóa không cho phép nhân viên thường xóa Task con đã được nghiệm thu hoàn thành (`isDone: true`).
+    - **LC-52**: Tự động chuyển Task cha từ `DONE` về `IN_PROGRESS` khi Quản lý mở lại (`REOPEN`) hoặc từ chối (`REJECT`) một Task con.
+    - **LC-53**: Phân quyền nghiêm ngặt cho API `restoreTask`, chỉ Admin hoặc Quản lý dự án mới có quyền khôi phục Task từ Thùng Rác.
+    - **LC-54**: Bảo vệ API `getComments`, chỉ thành viên dự án hoặc Quản lý/Admin mới được quyền đọc danh sách bình luận.
+    - **LC-55**: Mở rộng quyền cho Quản lý dự án cấp cơ sở (`project.managerId`/`createdById`) được phép xóa Task vào thùng rác ngay cả khi role toàn cục là `EMPLOYEE`.
+- **File 2:** `docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md`
+  - **Hành động:** `[CẬP NHẬT TÀI LIỆU QUẢN LÝ CONFLICT]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+
+
+
+
+
+
+
+
+
+
 
 
 

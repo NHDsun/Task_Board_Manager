@@ -27,6 +27,9 @@ export interface Subtask {
   title: string;
   isCompleted: boolean;
   isUrgent?: boolean;
+  estimatedDays?: number;
+  approvalStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string;
   taskId: string;
 }
 
@@ -42,6 +45,7 @@ export interface Task {
   description?: string | null;
   status: TaskStatus;
   priority: TaskPriority;
+  startDate?: string | null;
   dueDate?: string | null;
   recurrenceRule?: string | null;
   isArchived: boolean;

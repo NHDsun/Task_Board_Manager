@@ -38,7 +38,7 @@ export const DeleteTaskConfirmModal: React.FC<DeleteTaskConfirmModalProps> = ({
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-base font-extrabold text-white">Xác Nhận Xóa Nhiệm Vụ</h2>
+            <h2 className="text-base font-extrabold text-white">Xác Nhận Xóa Task</h2>
             <p className="text-xs text-rose-300 font-mono">Dành riêng cho Cấp Quản Lý & Admin</p>
           </div>
         </div>
@@ -46,7 +46,7 @@ export const DeleteTaskConfirmModal: React.FC<DeleteTaskConfirmModalProps> = ({
         {/* Warning Body */}
         <div className="p-4 rounded-2xl bg-slate-950/80 border border-rose-500/30 text-xs space-y-2">
           <p className="text-slate-300">
-            Bạn có chắc chắn muốn xóa vĩnh viễn Nhiệm Vụ:
+            Bạn có chắc chắn muốn xóa vĩnh viễn Task:
           </p>
           <p className="font-extrabold text-rose-300 text-sm bg-rose-950/40 p-2.5 rounded-xl border border-rose-500/40 break-words">
             "{taskTitle}"

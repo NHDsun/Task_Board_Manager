@@ -210,12 +210,17 @@ async function main() {
 
   const projectUi = await prisma.project.upsert({
     where: { id: 'project-solaris-ui-id' },
-    update: { name: 'Solaris UI Redesign', description: 'Nâng cấp Giao Diện UI UX Pro Max Bento Grid' },
+    update: {
+      name: 'Solaris UI Redesign',
+      description: 'Nâng cấp Giao Diện UI UX Pro Max Bento Grid',
+      managerId: managerUser.id,
+    },
     create: {
       id: 'project-solaris-ui-id',
       name: 'Solaris UI Redesign',
       description: 'Nâng cấp Giao Diện UI UX Pro Max Bento Grid',
-      createdById: managerUser.id,
+      createdById: huyDatUser.id,
+      managerId: managerUser.id,
     },
   });
 
@@ -228,6 +233,11 @@ async function main() {
       where: { projectId_userId: { projectId: projectCore.id, userId: u.id } },
       update: {},
       create: { projectId: projectCore.id, userId: u.id },
+    });
+    await prisma.projectMember.upsert({
+      where: { projectId_userId: { projectId: projectUi.id, userId: u.id } },
+      update: {},
+      create: { projectId: projectUi.id, userId: u.id },
     });
   }
 

@@ -68,6 +68,7 @@ enum TaskRequestType {
   TRANSFER
   ASSIST
   REVIEW
+  SUBTASK_APPROVAL
 }
 
 enum TaskRequestStatus {
@@ -181,6 +182,7 @@ model Task {
   status         TaskStatus   @default(TODO)
   priority       TaskPriority @default(NORMAL)
   progress       Int          @default(0)
+  startDate      DateTime?    @map("start_date")
   dueDate        DateTime?    @map("due_date")
   recurrenceRule String?      @map("recurrence_rule")
   isArchived     Boolean      @default(false) @map("is_archived")
@@ -213,16 +215,18 @@ model Task {
 }
 
 model Subtask {
-  id          String    @id @default(uuid())
-  taskId      String    @map("task_id")
-  title       String
-  isDone      Boolean   @default(false) @map("is_done")
-  isUrgent    Boolean   @default(false) @map("is_urgent")
-  order       Int       @default(0)
-  assigneeId  String?   @map("assignee_id")
-  dueDate     DateTime? @map("due_date")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(uuid())
+  taskId          String    @map("task_id")
+  title           String
+  isDone          Boolean   @default(false) @map("is_done")
+  isUrgent        Boolean   @default(false) @map("is_urgent")
+  approvalStatus  String    @default("APPROVED") @map("approval_status")
+  rejectionReason String?   @map("rejection_reason")
+  order           Int       @default(0)
+  assigneeId      String?   @map("assignee_id")
+  dueDate         DateTime? @map("due_date")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   task     Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
   assignee User? @relation("SubtaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)

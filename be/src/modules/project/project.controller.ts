@@ -48,8 +48,12 @@ export class ProjectController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProjectDto: UpdateProjectDto) {
-    return this.projectService.update(id, updateProjectDto);
+  update(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() updateProjectDto: UpdateProjectDto,
+  ) {
+    return this.projectService.update(id, updateProjectDto, req.user);
   }
 
   @Delete(':id')
@@ -58,6 +62,29 @@ export class ProjectController {
       throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền xóa dự án!');
     }
     return this.projectService.remove(id);
+  }
+
+  @Get(':id/members')
+  getMembers(@Param('id') id: string) {
+    return this.projectService.getMembers(id);
+  }
+
+  @Post(':id/members')
+  addMember(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: { userId: string },
+  ) {
+    return this.projectService.addMember(id, body.userId, req.user);
+  }
+
+  @Delete(':id/members/:userId')
+  removeMember(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Request() req: any,
+  ) {
+    return this.projectService.removeMember(id, userId, req.user);
   }
 }
 

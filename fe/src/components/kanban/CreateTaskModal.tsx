@@ -45,19 +45,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [subtaskInputDays, setSubtaskInputDays] = useState(1);
   const [subtaskInputIsUrgent, setSubtaskInputIsUrgent] = useState(false);
 
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+
   const totalEstimatedDays = subtasksDraft.reduce((acc, st) => acc + (st.days || 1), 0);
 
-  const minDueDate = (() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().slice(0, 10);
-  })();
-
   const computedDueDate = (() => {
-    const d = new Date();
+    const base = startDate ? new Date(startDate) : new Date();
     const daysToAdd = Math.max(totalEstimatedDays, 1);
-    d.setDate(d.getDate() + daysToAdd);
-    return d.toISOString().slice(0, 10);
+    base.setDate(base.getDate() + daysToAdd);
+    return base.toISOString().slice(0, 10);
   })();
 
   const [customDueDate, setCustomDueDate] = useState('');
@@ -121,8 +117,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       return;
     }
 
-    if (effectiveDueDate && effectiveDueDate < minDueDate) {
-      setError('Hạn Deadline (due date) phải lớn hơn ngày tạo Task (từ ngày mai trở đi)!');
+    if (effectiveDueDate && startDate && effectiveDueDate < startDate) {
+      setError('Hạn Deadline (due date) phải lớn hơn hoặc bằng Ngày Bắt Đầu Task!');
       return;
     }
 
@@ -135,6 +131,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         description,
         projectId: projectId || undefined,
         assigneeId: assigneeId || undefined,
+        startDate: startDate || undefined,
         dueDate: effectiveDueDate,
         status: 'TODO',
         progress: 0,
@@ -178,7 +175,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 Tạo Task Mới (Create Task)
               </h2>
               <p className="text-[11px] text-slate-400">
-                Phân rã lộ trình việc con theo từng ngày, tự động tính hạn chót công bằng cho nhân sự.
+                Phân rã lộ trình Task con theo từng ngày, tự động tính hạn chót công bằng cho nhân sự.
               </p>
             </div>
           </div>
@@ -264,15 +261,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </div>
           </div>
 
-          {/* 🔘 PHÂN RÃ VIỆC CON & ƯỚC LƯỢNG NGÀY (SUBTASKS DAILY SPRINT BUILDER) */}
+          {/* 🔘 PHÂN RÃ TASK CON & ƯỚC LƯỢNG NGÀY (SUBTASKS DAILY SPRINT BUILDER) */}
           <div className="p-4 rounded-2xl bg-slate-950/80 border border-purple-500/30 space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-bold text-purple-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-purple-400" />
-                Lộ Trình Việc Con & Thời Hạn Thực Hiện (1, 2, 3 Ngày):
+                Lộ Trình Task Con & Thời Hạn Thực Hiện (1, 2, 3 Ngày):
               </span>
               <span className="text-[11px] font-mono text-amber-400 font-bold bg-purple-950 px-2 py-0.5 rounded border border-purple-500/40">
-                {subtasksDraft.length} Việc Con ({totalEstimatedDays} Ngày)
+                {subtasksDraft.length} Task Con ({totalEstimatedDays} Ngày)
               </span>
             </div>
 
@@ -303,7 +300,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         type="button"
                         onClick={() => handleRemoveDraftSubtask(idx)}
                         className="text-slate-500 hover:text-rose-400 cursor-pointer p-1"
-                        title="Xóa việc con này"
+                        title="Xóa Task con này"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -313,7 +310,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               </div>
             )}
 
-            {/* Form thêm việc con nhanh */}
+            {/* Form thêm Task con nhanh */}
             <div className="flex items-center gap-2 flex-wrap pt-1">
               <input
                 type="text"
@@ -325,7 +322,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                     handleAddDraftSubtask();
                   }
                 }}
-                placeholder="Nhập tên việc con (VD: Thiết kế cơ sở dữ liệu)..."
+                placeholder="Nhập tên Task con (VD: Thiết kế cơ sở dữ liệu)..."
                 className="flex-1 min-w-[200px] p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-purple-400 text-xs"
               />
               <select
@@ -355,12 +352,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 onClick={handleAddDraftSubtask}
                 className="px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition-all shadow-md shrink-0"
               >
-                <Plus className="w-4 h-4" /> Thêm Việc Con
+                <Plus className="w-4 h-4" /> Thêm Task Con
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* GIAI ĐOẠN DỰ ÁN */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-300 uppercase tracking-wider block">
@@ -369,7 +366,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               <select
                 value={stageId}
                 onChange={(e) => setStageId(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
+                className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer text-xs"
               >
                 <option value="stage_1" className="bg-[#0F172A] text-slate-200 py-1">1. Yêu Cầu & Phân Tích</option>
                 <option value="stage_2" className="bg-[#0F172A] text-slate-200 py-1">2. Thiết Kế UI/UX</option>
@@ -380,18 +377,32 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               </select>
             </div>
 
-            {/* HẠN DEADLINE (TỰ ĐỘNG TÍNH TOÁN THEO TỔNG NGÀY VIỆC CON) */}
+            {/* NGÀY BẮT ĐẦU TASK */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-amber-300 uppercase tracking-wider block flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                Ngày Bắt Đầu Task
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-slate-900 border border-amber-500/40 text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400 cursor-pointer text-xs"
+              />
+            </div>
+
+            {/* HẠN DEADLINE (TỰ ĐỘNG TÍNH TOÁN THEO TỔNG NGÀY TASK CON TỪ NGÀY BẮT ĐẦU) */}
             <div className="space-y-1.5">
               <label className="font-bold text-emerald-300 uppercase tracking-wider block flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                Hạn Deadline Tổng (Tự Động Tính)
+                Hạn Deadline Tổng
               </label>
               <input
                 type="date"
                 value={effectiveDueDate}
-                min={minDueDate}
+                min={startDate}
                 onChange={(e) => setCustomDueDate(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-300 font-mono font-bold focus:outline-none focus:border-emerald-400 cursor-pointer"
+                className="w-full p-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-300 font-mono font-bold focus:outline-none focus:border-emerald-400 cursor-pointer text-xs"
               />
             </div>
           </div>
@@ -400,7 +411,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <span>
-              <strong>Tôn trọng thời gian làm việc:</strong> Hạn chót tổng được tính toán dựa trên tổng thời gian các việc con ({totalEstimatedDays} ngày). Hạn chót gốc này sẽ được <strong>bảo lưu giữ nguyên</strong> ngay cả khi nhân sự hoàn thành sớm các việc con mỗi ngày.
+              <strong>Lên lịch linh hoạt:</strong> Ngày bắt đầu ({startDate}) giúp bạn có thể chuẩn bị task trước mà không bắt buộc nhân sự phải làm ngay lập tức. Hạn chót tổng ({effectiveDueDate}) được tự động tính dựa trên tổng thời gian các Task con ({totalEstimatedDays} ngày).
             </span>
           </div>
 

@@ -81,8 +81,8 @@ export class TaskController {
   }
 
   @Get(':id/comments')
-  getComments(@Param('id') id: string) {
-    return this.taskService.getComments(id);
+  getComments(@Param('id') id: string, @Request() req: any) {
+    return this.taskService.getComments(id, req.user);
   }
 
   @Post(':id/comments')
@@ -135,8 +135,8 @@ export class TaskController {
   }
 
   @Post(':id/restore')
-  restoreTask(@Param('id') id: string) {
-    return this.taskService.restoreTask(id);
+  restoreTask(@Param('id') id: string, @Request() req: any) {
+    return this.taskService.restoreTask(id, req.user);
   }
 
   @Delete(':id')
@@ -151,15 +151,19 @@ export class TaskController {
   @UseInterceptors(FileInterceptor('file'))
   addAttachment(
     @Param('id') id: string,
+    @Request() req: any,
     @UploadedFile() file: any,
     @Body() body: { name?: string; url?: string; type?: string },
   ) {
-    return this.taskService.addAttachment(id, file, body);
+    return this.taskService.addAttachment(id, file, body, req.user);
   }
 
   @Delete('attachments/:attachmentId')
-  deleteAttachment(@Param('attachmentId') attachmentId: string) {
-    return this.taskService.deleteAttachment(attachmentId);
+  deleteAttachment(
+    @Param('attachmentId') attachmentId: string,
+    @Request() req: any,
+  ) {
+    return this.taskService.deleteAttachment(attachmentId, req.user);
   }
 
   @Post(':id/subtasks')
@@ -178,6 +182,15 @@ export class TaskController {
     @Body() body: { isDone?: boolean; title?: string; assigneeId?: string; dueDate?: string; isUrgent?: boolean },
   ) {
     return this.taskService.updateSubtask(subtaskId, body, req.user);
+  }
+
+  @Patch('subtasks/:subtaskId/review')
+  reviewSubtask(
+    @Param('subtaskId') subtaskId: string,
+    @Request() req: any,
+    @Body() body: { action: 'APPROVE' | 'REJECT'; reason?: string },
+  ) {
+    return this.taskService.reviewSubtask(subtaskId, body, req.user);
   }
 
   @Delete('subtasks/:subtaskId')

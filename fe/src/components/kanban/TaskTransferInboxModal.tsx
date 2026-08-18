@@ -62,10 +62,10 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
     }
   }, [isOpen]);
 
-  const handleRespond = async (requestId: string, action: 'APPROVED' | 'REJECTED') => {
+  const handleRespond = async (requestId: string, action: 'APPROVED' | 'REJECTED', reason?: string) => {
     setProcessingId(requestId);
     try {
-      await api.patch(`/tasks/requests/${requestId}/respond`, { action });
+      await api.patch(`/tasks/requests/${requestId}/respond`, { action, reason });
       setIncomingRequests((prev) => prev.filter((r) => r.id !== requestId));
       fetchAllRequests();
       onSuccess();
@@ -192,20 +192,38 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
                         </div>
                       </div>
 
-                      <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold text-[10px]">
-                        ƯU TIÊN: {r.priority}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {r.note?.includes('[Xác thực hoàn thành]') ? (
+                          <span className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-black text-[10px] animate-pulse">
+                            🔍 DUYỆT TASK CON
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold text-[10px]">
+                            ƯU TIÊN: {r.priority}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1">
-                      <span className="text-[11px] font-bold text-amber-300 block">Nhiệm Vụ Chuyển Giao:</span>
+                      <span className="text-[11px] font-bold text-amber-300 block">
+                        {r.note?.includes('[Xác thực hoàn thành]') ? 'Task Cần Xác Thực:' : 'Task Chuyển Giao:'}
+                      </span>
                       <p className="font-extrabold text-white text-sm">{r.taskTitle}</p>
                       <p className="text-slate-300 italic pt-1">"{r.note}"</p>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-1">
                       <button
-                        onClick={() => handleRespond(r.id, 'REJECTED')}
+                        onClick={() => {
+                          let reason = undefined;
+                          if (r.note?.includes('[Xác thực hoàn thành]')) {
+                            const input = window.prompt('Nhập lý do từ chối xác thực Task con:');
+                            if (input === null) return;
+                            reason = input.trim() || 'Chưa đạt yêu cầu';
+                          }
+                          handleRespond(r.id, 'REJECTED', reason);
+                        }}
                         disabled={processingId === r.id}
                         className="px-4 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold flex items-center gap-1.5 cursor-pointer transition-all"
                       >
@@ -217,7 +235,7 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
                         disabled={processingId === r.id}
                         className="solar-corona-btn px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-extrabold flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
                       >
-                        <CheckCircle2 className="w-4 h-4 text-slate-950" /> Chấp Nhận Task
+                        <CheckCircle2 className="w-4 h-4 text-slate-950" /> {r.note?.includes('[Xác thực hoàn thành]') ? '✓ Phê Duyệt' : 'Chấp Nhận Task'}
                       </button>
                     </div>
                   </div>
@@ -272,7 +290,7 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
                       </div>
 
                       <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1">
-                        <span className="text-[11px] font-bold text-purple-300 block">Nhiệm Vụ Đã Gửi:</span>
+                        <span className="text-[11px] font-bold text-purple-300 block">Task Đã Gửi:</span>
                         <p className="font-extrabold text-white text-sm">{r.taskTitle}</p>
                         <p className="text-slate-300 italic pt-1">"{r.note}"</p>
                       </div>
