@@ -114,6 +114,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   // 🔘 Subtasks / Checklist States
   const [subtasks, setSubtasks] = useState<SubtaskItem[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newSubtaskIsUrgent, setNewSubtaskIsUrgent] = useState(false);
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   const [newComment, setNewComment] = useState('');
@@ -146,7 +147,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
     setIsAddingSubtask(true);
     try {
-      const res = await api.post(`/tasks/${task.id}/subtasks`, { title });
+      const res = await api.post(`/tasks/${task.id}/subtasks`, {
+        title,
+        isUrgent: newSubtaskIsUrgent,
+      });
       const updatedTask = res.data?.data || res.data;
       if (updatedTask && updatedTask.id) {
         setSubtasks(updatedTask.subtasks || []);
@@ -155,12 +159,39 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         }
       }
       setNewSubtaskTitle('');
+      setNewSubtaskIsUrgent(false);
     } catch (err: any) {
       console.error('Lỗi thêm công việc con:', err);
       const serverMsg = err.response?.data?.message || err.message || 'Không thể thêm việc con';
       alert(`⚠️ ${serverMsg}`);
     } finally {
       setIsAddingSubtask(false);
+    }
+  };
+
+  // 🚨 Đổi mức khẩn cấp (Urgent) của việc con
+  const handleToggleUrgentSubtask = async (subtaskId: string, currentUrgent?: boolean) => {
+    if (!task) return;
+    const previousSubtasks = [...subtasks];
+    const updated = subtasks.map((st) =>
+      st.id === subtaskId ? { ...st, isUrgent: !currentUrgent } : st
+    );
+    setSubtasks(updated);
+
+    try {
+      const res = await api.patch(`/tasks/subtasks/${subtaskId}`, {
+        isUrgent: !currentUrgent,
+      });
+      const updatedTask = res.data?.data || res.data;
+      if (updatedTask && updatedTask.id) {
+        setSubtasks(updatedTask.subtasks || []);
+        if (onUpdateTask) {
+          onUpdateTask(updatedTask);
+        }
+      }
+    } catch (err: any) {
+      console.error('Lỗi cập nhật mức khẩn cấp việc con:', err);
+      setSubtasks(previousSubtasks);
     }
   };
 
@@ -822,60 +853,101 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
             {/* Subtasks List */}
             <div className="space-y-2">
-              {subtasks.map((st, idx) => (
-                <div
-                  key={st.id || idx}
-                  className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 group/sub ${
-                    st.isDone
-                      ? 'bg-slate-900/30 border-slate-800/60 text-slate-500'
-                      : 'bg-slate-900/80 border-slate-800 hover:border-amber-500/40 text-slate-200 shadow-sm'
-                  }`}
-                >
+              {subtasks.map((st, idx) => {
+                const firstPendingIdx = subtasks.findIndex((s) => !s.isDone);
+                const isToday = idx === firstPendingIdx;
+
+                return (
                   <div
-                    onClick={() => canToggleSubtask && handleToggleSubtask(st.id, st.isDone)}
-                    title={canToggleSubtask ? 'Nhấn để đánh dấu hoàn thành' : '🔒 Chỉ người được giao Task mới có quyền đánh dấu hoàn thành'}
-                    className={`flex items-center gap-3 flex-1 min-w-0 ${canToggleSubtask ? 'cursor-pointer' : 'cursor-default'}`}
+                    key={st.id || idx}
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 group/sub ${
+                      st.isDone
+                        ? 'bg-slate-900/30 border-slate-800/60 text-slate-500'
+                        : st.isUrgent
+                        ? 'bg-red-950/20 border-red-500/60 text-slate-100 shadow-[0_0_15px_rgba(239,68,68,0.25)]'
+                        : isToday
+                        ? 'bg-gradient-to-r from-amber-500/15 via-purple-600/10 to-slate-900/90 border-amber-500/50 shadow-md'
+                        : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 text-slate-200 shadow-sm'
+                    }`}
                   >
-                    <button
-                      type="button"
-                      disabled={!canToggleSubtask}
-                      className={`shrink-0 text-slate-400 group-hover/sub:text-amber-400 transition-colors ${canToggleSubtask ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
+                    <div
+                      onClick={() => canToggleSubtask && handleToggleSubtask(st.id, st.isDone)}
+                      title={canToggleSubtask ? 'Nhấn để đánh dấu hoàn thành' : '🔒 Chỉ người được giao Task mới có quyền đánh dấu hoàn thành'}
+                      className={`flex items-center gap-3 flex-1 min-w-0 ${canToggleSubtask ? 'cursor-pointer' : 'cursor-default'}`}
                     >
-                      {st.isDone ? (
-                        <CheckSquare className="w-4 h-4 text-emerald-400 fill-emerald-500/20" />
-                      ) : (
-                        <Square className={`w-4 h-4 ${canToggleSubtask ? 'text-slate-500 group-hover/sub:text-amber-400' : 'text-slate-600'}`} />
-                      )}
-                    </button>
-                    <span
-                      className={`text-xs font-medium leading-relaxed truncate ${
-                        st.isDone ? 'line-through text-slate-500' : 'text-slate-200'
-                      }`}
-                    >
-                      {st.title}
-                    </span>
-                  </div>
-
-                  {/* Actions & Assignee Badge */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {st.isDone && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
-                        Xong
-                      </span>
-                    )}
-
-                    {canManageSubtasks && (
                       <button
-                        onClick={() => handleDeleteSubtask(st.id)}
-                        className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors opacity-0 group-hover/sub:opacity-100 cursor-pointer"
-                        title="Xóa công việc con này"
+                        type="button"
+                        disabled={!canToggleSubtask}
+                        className={`shrink-0 text-slate-400 group-hover/sub:text-amber-400 transition-colors ${canToggleSubtask ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {st.isDone ? (
+                          <CheckSquare className="w-4 h-4 text-emerald-400 fill-emerald-500/20" />
+                        ) : (
+                          <Square className={`w-4 h-4 ${canToggleSubtask ? 'text-slate-500 group-hover/sub:text-amber-400' : 'text-slate-600'}`} />
+                        )}
                       </button>
-                    )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-mono text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 font-bold">
+                            Ngày #{idx + 1}
+                          </span>
+                          <span
+                            className={`text-xs font-medium leading-relaxed ${
+                              st.isDone ? 'line-through text-slate-500' : 'text-slate-200'
+                            }`}
+                          >
+                            {st.title}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions & Assignee Badge */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* 🚨 Nút Bật/Tắt Khẩn Cấp (Urgent) Cho Việc Con */}
+                      {canManageSubtasks && !st.isDone && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleUrgentSubtask(st.id, st.isUrgent);
+                          }}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer border ${
+                            st.isUrgent
+                              ? 'bg-red-500 text-white border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-red-300 hover:border-red-500/40'
+                          }`}
+                          title="Đặt/Hủy mức độ khẩn cấp (URGENT) cho việc con này"
+                        >
+                          {st.isUrgent ? '🚨 GẤP' : '⚪ Bình thường'}
+                        </button>
+                      )}
+
+                      {isToday && !st.isUrgent && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-mono font-black animate-pulse">
+                          🔥 HÔM NAY
+                        </span>
+                      )}
+
+                      {st.isDone && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-bold">
+                          ✓ Xong
+                        </span>
+                      )}
+
+                      {canManageSubtasks && (
+                        <button
+                          onClick={() => handleDeleteSubtask(st.id)}
+                          className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors opacity-0 group-hover/sub:opacity-100 cursor-pointer"
+                          title="Xóa công việc con này"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {subtasks.length === 0 && (
                 <p className="text-slate-500 italic py-2 text-xs text-center">
@@ -886,8 +958,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
             {/* Quick Add Subtask Input Form */}
             {canManageSubtasks && (
-              <form onSubmit={handleAddSubtask} className="flex items-center gap-2 pt-1">
-                <div className="relative flex-1">
+              <form onSubmit={handleAddSubtask} className="flex items-center gap-2 pt-1 flex-wrap">
+                <div className="relative flex-1 min-w-[200px]">
                   <input
                     type="text"
                     value={newSubtaskTitle}
@@ -896,6 +968,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     className="w-full p-2.5 pl-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-amber-500/40 focus:border-amber-500 text-white placeholder-slate-500 focus:outline-none text-xs font-medium transition-all"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setNewSubtaskIsUrgent(!newSubtaskIsUrgent)}
+                  className={`px-3 py-2.5 rounded-xl font-mono text-xs font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                    newSubtaskIsUrgent
+                      ? 'bg-red-500 text-white border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-red-300'
+                  }`}
+                >
+                  🚨 {newSubtaskIsUrgent ? 'Việc Gấp' : 'Đặt Gấp?'}
+                </button>
                 <button
                   type="submit"
                   disabled={!newSubtaskTitle.trim() || isAddingSubtask}

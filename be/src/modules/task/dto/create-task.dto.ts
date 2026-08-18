@@ -43,8 +43,11 @@ export class CreateTaskDto {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
   subtaskTitles?: string[];
+
+  @IsOptional()
+  @IsArray()
+  subtasks?: { title: string; isUrgent?: boolean; estimatedDays?: number }[];
 
   @IsOptional()
   @IsString()

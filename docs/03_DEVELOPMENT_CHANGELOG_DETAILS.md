@@ -822,10 +822,104 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
 - **File 5:** `fe/src/pages/BoardPage.tsx`
   - **Hành động:** `[ĐỒNG BỘ onToggleSubtask CHO PIPELINE VÀ KANBAN VIEW]`.
   - **Chi tiết:** Truyền đầy đủ prop `onToggleSubtask={handleToggleSubtask}` vào `KanbanCard` trong tất cả các view (Kanban, Pipeline Stage, Focus Queue).
-- **File 6:** `fe/src/App.tsx`
-  - **Hành động:** `[BỔ SUNG GLOBAL ERROR BOUNDARY]`.
-  - **Chi tiết:** Thêm component `ErrorBoundary` bọc quanh toàn bộ `MainLayout` để bắt mọi runtime exception, ngăn chặn triệt để hiện tượng màn hình đen và hiển thị giao diện phục hồi với nút Tải Lại Trang (Reload).
 - **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 107. Triển Khai Giao Diện Pro Max: Today's Focus Cockpit & Master Plan & Project Roadmap
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[NÂNG CẤP MASTER TABS SWITCHER VÀ 2 LUỒNG CHÍNH]`.
+  - **Chi tiết:** 
+    - **☀️ Today's Focus Cockpit (Việc Cần Xong Hôm Nay)**: Tích hợp thanh điều hành Management Pulse (cho Admin & Manager: cảnh báo trễ hạn, tắc nghẽn, việc chờ duyệt); Nâng cấp Hero Focus Task #1 với Live Progress Slider và checklist Subtasks tích hợp trực tiếp có thể tick `[✓]` ngay trên thẻ; Danh sách Hàng chờ ưu tiên hôm nay kèm nút 1-click xin hỗ trợ / chuyển giao.
+    - **🌌 Master Plan & Project Roadmap (Kế Hoạch Tổng Thể)**: Trực quan hóa toàn diện vòng đời dự án theo từng giai đoạn (Pipeline Stages); Bộ chọn Dự án kèm thống kê % tiến độ Roadmap; Phân cấp quyền quản trị giai đoạn linh hoạt cho Admin & Manager; Mở rộng khả năng theo dõi Roadmap cho toàn bộ nhân sự (Member/Assignee).
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 108. Thiết Kế Lộ Trình Thực Thi Subtasks Mỗi Ngày 1 Việc Con (Daily Micro-Sprint Schedule)
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[TÍCH HỢP DAILY MICRO-SPRINT STEPPER TRÊN HERO FOCUS TASK]`.
+  - **Chi tiết:** 
+    - Tự động nhận diện việc con chưa xong đầu tiên và làm nổi bật thành **"🔥 VIỆC CON MỤC TIÊU HÔM NAY (NGÀY X)"** với quầng sáng Sci-fi Amber và nút 1-click `[✓ Xong Việc Hôm Nay]`.
+    - Hiển thị lộ trình phân bổ theo từng ngày (`✅ Đã xong Ngày 1`, `🔥 Hôm nay Ngày 2`, `⏳ Kế hoạch Ngày 3...`), tạo động lực hoàn thành từng bước mỗi ngày.
+- **File 2:** `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[HIỂN THỊ BADGE TIẾN ĐỘ NGÀY TRÊN CHECKLIST KANBAN CARD]`.
+  - **Chi tiết:** Gắn nhãn `Ngày #` và huy hiệu `🔥 HÔM NAY` cho việc con đang thực hiện trực tiếp trên từng thẻ Kanban.
+- **File 3:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[ĐỒNG BỘ DAILY TIMELINE TRONG MODAL CHI TIẾT TASK]`.
+  - **Chi tiết:** Danh sách công việc con trong Modal hiển thị thứ tự theo từng ngày kèm trạng thái `Xong` / `Hôm Nay` / `Kế Hoạch` tương ứng.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 109. Chuyển Đổi Cơ Chế Khẩn Cấp (Urgent) Trực Tiếp Sang Việc Con (Subtask-Level Urgency)
+- **File 1:** `be/prisma/schema.prisma`
+  - **Hành động:** `[BỔ SUNG TRƯỜNG isUrgent TRONG MODEL SUBTASK]`.
+  - **Chi tiết:** Thêm `isUrgent Boolean @default(false) @map("is_urgent")` vào model `Subtask`. Đã đồng bộ qua `npx prisma db push` và `npx prisma generate`.
+- **File 2:** `be/src/modules/task/task.service.ts` & `task.controller.ts`
+  - **Hành động:** `[HỖ TRỢ isUrgent TRONG API SUBTASK]`.
+  - **Chi tiết:** Cập nhật endpoint `POST /tasks/:id/subtasks` và `PATCH /tasks/subtasks/:subtaskId` cho phép cập nhật mức độ khẩn cấp của việc con.
+- **File 3:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[NÚT BẬT/TẮT GẤP 1-CLICK CHO TỪNG VIỆC CON]`.
+  - **Chi tiết:** Cho phép người giao việc/người làm task gắn cờ `🚨 GẤP` cho từng việc con cụ thể, và chọn `🚨 Đặt Gấp?` ngay khi tạo việc con mới.
+- **File 4:** `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[TỰ ĐỘNG CẢNH BÁO VIỆC CON GẤP TRÊN HEADER THẺ KANBAN]`.
+  - **Chi tiết:** Thẻ Kanban tự động đếm và hiển thị `🚨 {count} VIỆC CON GẤP` nhấp nháy pulse khi có việc con khẩn cấp cần làm ngay.
+- **File 5:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[ĐỒNG BỘ BỘ LỌC TODAY FOCUS VÀ HERO TASK]`.
+  - **Chi tiết:** Bộ lọc `🚨 Cần Gấp Hôm Nay` và thanh điều hành Management Strip tự động lọc và ưu tiên các task chứa việc con `isUrgent`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 110. Tối Ưu Hóa Toàn Diện Luồng Logic & Loại Bỏ Tính Năng Thừa
+- **File 1:** `fe/src/components/navigation/MeteorEdgeMenu.tsx`
+  - **Hành động:** `[LOẠI BỎ TÍNH NĂNG PHÒNG HỌP WEBRTC]`.
+  - **Chi tiết:** Xóa bỏ menu "Phòng Họp WebRTC" khỏi thanh điều hướng để tập trung hoàn toàn vào tác vụ Kanban và Quản trị lộ trình.
+- **File 2:** `be/src/modules/task/dto/create-task.dto.ts` & `task.service.ts`
+  - **Hành động:** `[HỖ TRỢ KHỞI TẠO DANH SÁCH SUBTASK VÀ TỰ ĐỘNG TÍNH PRIORITY]`.
+  - **Chi tiết:** Cho phép truyền mảng `subtasks` kèm `estimatedDays` và `isUrgent` khi tạo Task mới, tự động suy ra `priority` của Task lớn từ các Việc Con.
+- **File 3:** `fe/src/components/kanban/CreateTaskModal.tsx`
+  - **Hành động:** `[NÂNG CẤP BỘ PHÂN RÃ VIỆC CON & TỰ ĐỘNG TÍNH DEADLINE CÔNG BẰNG]`.
+  - **Chi tiết:** Cho phép người dùng thêm việc con theo từng ngày (1, 2, 3... ngày) kèm cờ Gấp. Tự động tính hạn chót tổng = Ngày hiện tại + Tổng số ngày việc con. Bỏ dropdown chọn Priority thủ công trên Task lớn.
+- **File 4:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[CƠ CHẾ PROMPT TÔN TRỌNG THỜI GIAN NHÂN VIÊN KHI XONG VIỆC HÔM NAY]`.
+  - **Chi tiết:** Khi nhân sự click `[✓ Xong Việc Hôm Nay]`, hệ thống mở Modal chúc mừng kèm 2 lựa chọn: (1) `✨ Tiến Hành Luôn Việc Ngày Mai` hoặc (2) `☕ Nghỉ Ngơi (Xong Hôm Nay)`. Luôn cam kết giữ nguyên 100% Deadline gốc, không chiếm dụng thời gian làm thêm ngoài giờ.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 111. Tích Hợp Bảng Gửi Tài Liệu & Đính Kèm Trực Tiếp Tại Today's Focus Cockpit
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[THÊM KHỐI COCKPIT ATTACHMENTS & TÀI LIỆU TRONG HERO FOCUS TASK #1]`.
+  - **Chi tiết:** Bổ sung khu vực quản trị tài liệu ngay trong Hero Task của Today's Focus Cockpit:
+    - Nút `📤 Tải Tệp Lên`: Tải file trực tiếp lên server và lưu vào CSDL PostgreSQL qua API `POST /tasks/:id/attachments`.
+    - Nút `🔗 Thêm Link (Figma/Docs)`: Nhập nhanh URL tài liệu kèm tiêu đề.
+    - Danh sách tài liệu kèm badge kích thước, nút mở liên kết, nút tải file, và nút xóa đính kèm realtime.
+- **File 2:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT TÀI LIỆU QUẢN TRỊ KẾ HOẠCH TỔNG THỂ DỰ ÁN]`.
+  - **Chi tiết:** Bổ sung hạng mục 11 vào bảng thành tựu đã hoàn thành của dự án.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 112. Khóa Tính Năng Sửa Tiến Độ Thủ Công & Chuyển Sang Tự Động Hóa 100% Theo Việc Con
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[XÓA BỎ BỘ NÚT SỬA TIẾN ĐỘ THỦ CÔNG & THAY BẰNG KHỐI TIẾN ĐỘ KHÓA TỰ ĐỘNG]`.
+  - **Chi tiết:**
+    - Xóa bỏ toàn bộ các nút sửa % tiến độ thủ công (`0%`, `25%`, `50%`, `75%`, `100%`) và hàm `updateHeroProgress`.
+    - Thanh tiến độ trên Hero Task chuyển thành chế độ hiển thị chỉ đọc (Read-Only) kèm huy hiệu `🔒 Tiến độ tính toán tự động dựa trên số việc con hoàn thành, không sửa tay`.
+    - Tự động hiển thị chính xác tỉ lệ hoàn thành theo thời gian thực: `{completedSubtasks}/{totalSubtasks} Việc Con Xong — {progress}%`.
+- **File 2:** `docs/PROJECT_PLAN_AND_ROADMAP.md`
+  - **Hành động:** `[CẬP NHẬT HẠNG MỤC 12 VÀO TÀI LIỆU QUẢN TRỊ KẾ HOẠCH]`.
+  - **Chi tiết:** Ghi nhận quy chuẩn tiến độ tự động vào bảng theo dõi tiến độ tổng thể.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+
+
+
+
+
 
 
 

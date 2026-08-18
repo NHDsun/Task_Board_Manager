@@ -217,6 +217,7 @@ model Subtask {
   taskId      String    @map("task_id")
   title       String
   isDone      Boolean   @default(false) @map("is_done")
+  isUrgent    Boolean   @default(false) @map("is_urgent")
   order       Int       @default(0)
   assigneeId  String?   @map("assignee_id")
   dueDate     DateTime? @map("due_date")

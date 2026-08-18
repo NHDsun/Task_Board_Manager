@@ -26,6 +26,7 @@ export interface Subtask {
   id: string;
   title: string;
   isCompleted: boolean;
+  isUrgent?: boolean;
   taskId: string;
 }
 

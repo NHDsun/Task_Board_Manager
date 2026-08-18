@@ -166,7 +166,7 @@ export class TaskController {
   addSubtask(
     @Param('id') id: string,
     @Request() req: any,
-    @Body() body: { title: string; assigneeId?: string; dueDate?: string },
+    @Body() body: { title: string; assigneeId?: string; dueDate?: string; isUrgent?: boolean },
   ) {
     return this.taskService.addSubtask(id, body, req.user);
   }
@@ -175,7 +175,7 @@ export class TaskController {
   updateSubtask(
     @Param('subtaskId') subtaskId: string,
     @Request() req: any,
-    @Body() body: { isDone?: boolean; title?: string; assigneeId?: string; dueDate?: string },
+    @Body() body: { isDone?: boolean; title?: string; assigneeId?: string; dueDate?: string; isUrgent?: boolean },
   ) {
     return this.taskService.updateSubtask(subtaskId, body, req.user);
   }

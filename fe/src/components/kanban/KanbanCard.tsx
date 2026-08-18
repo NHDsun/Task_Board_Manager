@@ -24,6 +24,7 @@ export interface SubtaskItem {
   id: string;
   title: string;
   isDone: boolean;
+  isUrgent?: boolean;
   order?: number;
   assigneeId?: string;
   assignee?: {
@@ -179,9 +180,22 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
       {/* Header Badges & 3-Dot Quick Actions Menu */}
       <div className="flex items-center justify-between gap-2 relative">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityBadge(task.priority)}`}>
-            {task.priority}
-          </span>
+          {/* Urgent Subtasks Warning Badge */}
+          {(() => {
+            const urgentSubtasksCount = task.subtasks?.filter((st) => st.isUrgent && !st.isDone).length || 0;
+            if (urgentSubtasksCount > 0) {
+              return (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border bg-red-500/25 text-red-300 border-red-500/60 flex items-center gap-1 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.4)]">
+                  🚨 {urgentSubtasksCount} VIỆC CON GẤP
+                </span>
+              );
+            }
+            return (
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityBadge(task.priority)}`}>
+                {task.priority}
+              </span>
+            );
+          })()}
           {statusBadge && StatusIcon && (
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 ${statusBadge.color}`}>
               <StatusIcon className="w-3 h-3" />
@@ -359,6 +373,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                     } ${
                       st.isDone
                         ? 'bg-slate-900/30 text-slate-500'
+                        : st.isUrgent
+                        ? 'bg-red-500/15 text-slate-100 border border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
                         : isFirstPending
                         ? 'bg-amber-500/10 text-slate-200 border border-amber-500/30'
                         : 'hover:bg-slate-900 text-slate-300'
@@ -377,16 +393,35 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                         <Square className={`w-3.5 h-3.5 ${canToggleSubtask ? 'text-slate-500 group-hover/st:text-amber-400' : 'text-slate-600'}`} />
                       )}
                     </button>
-                    <span
-                      className={`text-[11px] leading-tight flex-1 ${
-                        st.isDone ? 'line-through text-slate-500' : 'text-slate-200'
-                      }`}
-                    >
-                      {st.title}
-                    </span>
-                    {isFirstPending && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-bold shrink-0">
-                        ⚡ Đang làm
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[9px] font-mono text-slate-400 bg-slate-950 px-1 rounded">
+                          Ngày {idx + 1}
+                        </span>
+                        <span
+                          className={`text-[11px] leading-tight ${
+                            st.isDone ? 'line-through text-slate-500' : 'text-slate-200'
+                          }`}
+                        >
+                          {st.title}
+                        </span>
+                      </div>
+                    </div>
+                    {st.isUrgent && !st.isDone ? (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500 text-white font-mono font-black shrink-0 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]">
+                        🚨 GẤP
+                      </span>
+                    ) : isFirstPending ? (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-mono font-black shrink-0 animate-pulse">
+                        🔥 HÔM NAY
+                      </span>
+                    ) : st.isDone ? (
+                      <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono shrink-0">
+                        ✓ Xong
+                      </span>
+                    ) : (
+                      <span className="text-[9px] px-1 py-0.2 rounded bg-slate-900 text-slate-500 font-mono shrink-0">
+                        ⏳ Ngày {idx + 1}
                       </span>
                     )}
                   </div>

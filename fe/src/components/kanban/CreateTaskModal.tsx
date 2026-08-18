@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, PlusCircle, Sparkles, UserCheck } from 'lucide-react';
+import { X, PlusCircle, Sparkles, UserCheck, Plus, Trash2, Calendar, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 
@@ -20,6 +20,12 @@ interface DBUser {
   profession?: string;
 }
 
+interface SubtaskDraft {
+  title: string;
+  days: number;
+  isUrgent: boolean;
+}
+
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   isOpen,
   onClose,
@@ -29,21 +35,34 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<'LOW' | 'NORMAL' | 'IMPORTANT' | 'URGENT'>('NORMAL');
   const [projectId, setProjectId] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
-  const [minDueDate] = useState(() => {
+  const [stageId, setStageId] = useState('stage_1');
+
+  // 🔘 Subtasks Builder State
+  const [subtasksDraft, setSubtasksDraft] = useState<SubtaskDraft[]>([]);
+  const [subtaskInputTitle, setSubtaskInputTitle] = useState('');
+  const [subtaskInputDays, setSubtaskInputDays] = useState(1);
+  const [subtaskInputIsUrgent, setSubtaskInputIsUrgent] = useState(false);
+
+  const totalEstimatedDays = subtasksDraft.reduce((acc, st) => acc + (st.days || 1), 0);
+
+  const minDueDate = (() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow.toISOString().slice(0, 10);
-  });
+  })();
 
-  const [dueDate, setDueDate] = useState(() => {
+  const computedDueDate = (() => {
     const d = new Date();
-    d.setDate(d.getDate() + 3);
+    const daysToAdd = Math.max(totalEstimatedDays, 1);
+    d.setDate(d.getDate() + daysToAdd);
     return d.toISOString().slice(0, 10);
-  });
-  const [stageId, setStageId] = useState('stage_1');
+  })();
+
+  const [customDueDate, setCustomDueDate] = useState('');
+
+  const effectiveDueDate = customDueDate || computedDueDate;
 
   const [dbProjects, setDbProjects] = useState<DBProject[]>([]);
   const [dbUsers, setDbUsers] = useState<DBUser[]>([]);
@@ -76,6 +95,25 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     }
   }, [isOpen, currentUser?.id]);
 
+  const handleAddDraftSubtask = () => {
+    if (!subtaskInputTitle.trim()) return;
+    setSubtasksDraft((prev) => [
+      ...prev,
+      {
+        title: subtaskInputTitle.trim(),
+        days: subtaskInputDays,
+        isUrgent: subtaskInputIsUrgent,
+      },
+    ]);
+    setSubtaskInputTitle('');
+    setSubtaskInputDays(1);
+    setSubtaskInputIsUrgent(false);
+  };
+
+  const handleRemoveDraftSubtask = (index: number) => {
+    setSubtasksDraft((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -83,7 +121,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       return;
     }
 
-    if (dueDate && dueDate < minDueDate) {
+    if (effectiveDueDate && effectiveDueDate < minDueDate) {
       setError('Hạn Deadline (due date) phải lớn hơn ngày tạo Task (từ ngày mai trở đi)!');
       return;
     }
@@ -95,18 +133,24 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       const res = await api.post('/tasks', {
         title,
         description,
-        priority,
         projectId: projectId || undefined,
         assigneeId: assigneeId || undefined,
-        dueDate,
+        dueDate: effectiveDueDate,
         status: 'TODO',
         progress: 0,
         stageId,
+        subtasks: subtasksDraft.map((st) => ({
+          title: st.title,
+          isUrgent: st.isUrgent,
+          estimatedDays: st.days,
+        })),
       });
 
       onSuccess(res.data?.data || res.data);
       setTitle('');
       setDescription('');
+      setSubtasksDraft([]);
+      setCustomDueDate('');
       onClose();
     } catch (err: any) {
       const errMsg = err.response?.data?.message || err.message || 'Không thể tạo Task mới';
@@ -119,8 +163,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-lg solar-glass-card p-6 md:p-8 rounded-3xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.25)] relative overflow-hidden space-y-6 animate-solar-warp-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
+      <div className="w-full max-w-2xl solar-glass-card p-6 md:p-8 rounded-3xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.25)] relative overflow-hidden space-y-6 animate-solar-warp-in my-8">
         
         {/* Background Glow */}
         <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -129,9 +173,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-2.5">
             <PlusCircle className="w-6 h-6 text-amber-400" />
-            <h2 className="text-xl font-extrabold text-white tracking-tight">
-              Tạo Task Mới (Create Task)
-            </h2>
+            <div>
+              <h2 className="text-xl font-extrabold text-white tracking-tight">
+                Tạo Task Mới (Create Task)
+              </h2>
+              <p className="text-[11px] text-slate-400">
+                Phân rã lộ trình việc con theo từng ngày, tự động tính hạn chót công bằng cho nhân sự.
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -148,6 +197,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          {/* Tiêu đề Task */}
           <div className="space-y-1.5">
             <label className="font-bold text-slate-300 uppercase tracking-wider block">
               Tiêu Đề Task <span className="text-rose-400">*</span>
@@ -157,43 +207,44 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="VD: Lập trình API WebSockets Realtime"
-              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 font-semibold"
+              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 font-semibold text-xs"
             />
           </div>
 
+          {/* Mô tả */}
           <div className="space-y-1.5">
             <label className="font-bold text-slate-300 uppercase tracking-wider block">
               Mô Tả Chi Tiết (Description)
             </label>
             <textarea
-              rows={3}
+              rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Nhập chi tiết yêu cầu kỹ thuật và phân công..."
-              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60"
+              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 text-xs"
             />
           </div>
 
-          {/* 👤 CHỌN NGƯỜI THỰC HIỆN (ASSIGNEE) */}
-          <div className="space-y-1.5">
-            <label className="font-bold text-amber-300 uppercase tracking-wider block flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-amber-400" />
-              Giao Cho Nhân Viên Nào (Assignee) <span className="text-rose-400">*</span>
-            </label>
-            <select
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
-            >
-              {dbUsers.map((u) => (
-                <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200 py-1">
-                  👤 {u.fullName} ({u.profession || 'DEV'})
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 👤 CHỌN NGƯỜI THỰC HIỆN (ASSIGNEE) */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-amber-300 uppercase tracking-wider block flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-amber-400" />
+                Giao Cho Nhân Viên (Assignee) <span className="text-rose-400">*</span>
+              </label>
+              <select
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
+              >
+                {dbUsers.map((u) => (
+                  <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200 py-1">
+                    👤 {u.fullName} ({u.profession || 'DEV'})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="grid grid-cols-2 gap-4">
             {/* CHỌN DỰ ÁN */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-300 uppercase tracking-wider block">
@@ -211,30 +262,109 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 ))}
               </select>
             </div>
+          </div>
 
-            {/* MỨC ƯU TIÊN */}
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-300 uppercase tracking-wider block">
-                Mức Ưu Tiên
-              </label>
+          {/* 🔘 PHÂN RÃ VIỆC CON & ƯỚC LƯỢNG NGÀY (SUBTASKS DAILY SPRINT BUILDER) */}
+          <div className="p-4 rounded-2xl bg-slate-950/80 border border-purple-500/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-purple-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                Lộ Trình Việc Con & Thời Hạn Thực Hiện (1, 2, 3 Ngày):
+              </span>
+              <span className="text-[11px] font-mono text-amber-400 font-bold bg-purple-950 px-2 py-0.5 rounded border border-purple-500/40">
+                {subtasksDraft.length} Việc Con ({totalEstimatedDays} Ngày)
+              </span>
+            </div>
+
+            {/* Draft list */}
+            {subtasksDraft.length > 0 && (
+              <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                {subtasksDraft.map((st, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[10px] font-mono text-purple-400 font-bold bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                        Ngày #{idx + 1}
+                      </span>
+                      <span className="text-xs text-white truncate font-medium">{st.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-mono text-slate-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                        ⏳ {st.days} ngày
+                      </span>
+                      {st.isUrgent && (
+                        <span className="text-[10px] font-mono text-red-300 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/40 font-bold animate-pulse">
+                          🚨 GẤP
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDraftSubtask(idx)}
+                        className="text-slate-500 hover:text-rose-400 cursor-pointer p-1"
+                        title="Xóa việc con này"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Form thêm việc con nhanh */}
+            <div className="flex items-center gap-2 flex-wrap pt-1">
+              <input
+                type="text"
+                value={subtaskInputTitle}
+                onChange={(e) => setSubtaskInputTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddDraftSubtask();
+                  }
+                }}
+                placeholder="Nhập tên việc con (VD: Thiết kế cơ sở dữ liệu)..."
+                className="flex-1 min-w-[200px] p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-purple-400 text-xs"
+              />
               <select
-                value={priority}
-                onChange={(e: any) => setPriority(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
+                value={subtaskInputDays}
+                onChange={(e) => setSubtaskInputDays(Number(e.target.value))}
+                className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 font-mono text-xs focus:outline-none focus:border-purple-400 cursor-pointer"
               >
-                <option value="LOW" className="bg-[#0F172A] text-slate-200 py-1">LOW (Thấp)</option>
-                <option value="NORMAL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">NORMAL (Thường)</option>
-                <option value="IMPORTANT" className="bg-[#0F172A] text-slate-200 font-semibold py-1">IMPORTANT (Quan trọng)</option>
-                <option value="URGENT" className="bg-[#0F172A] text-slate-200 font-semibold py-1">URGENT (Khẩn cấp)</option>
+                <option value={1}>1 ngày</option>
+                <option value={2}>2 ngày</option>
+                <option value={3}>3 ngày</option>
+                <option value={4}>4 ngày</option>
+                <option value={5}>5 ngày</option>
               </select>
+              <button
+                type="button"
+                onClick={() => setSubtaskInputIsUrgent(!subtaskInputIsUrgent)}
+                className={`p-2.5 rounded-xl font-mono text-xs font-bold border transition-all cursor-pointer ${
+                  subtaskInputIsUrgent
+                    ? 'bg-red-500 text-white border-red-400 shadow-md'
+                    : 'bg-slate-900 text-slate-400 border-slate-800'
+                }`}
+              >
+                🚨 {subtaskInputIsUrgent ? 'Gấp' : 'Đặt Gấp?'}
+              </button>
+              <button
+                type="button"
+                onClick={handleAddDraftSubtask}
+                className="px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition-all shadow-md shrink-0"
+              >
+                <Plus className="w-4 h-4" /> Thêm Việc Con
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* GIAI ĐOẠN DỰ ÁN */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-300 uppercase tracking-wider block">
-                Giai Đoạn Dự Án
+                Giai Đoạn Quy Trình
               </label>
               <select
                 value={stageId}
@@ -250,19 +380,28 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               </select>
             </div>
 
-            {/* HẠN DEADLINE (PHẢI LỚN HƠN NGÀY TẠO TASK) */}
+            {/* HẠN DEADLINE (TỰ ĐỘNG TÍNH TOÁN THEO TỔNG NGÀY VIỆC CON) */}
             <div className="space-y-1.5">
-              <label className="font-bold text-slate-300 uppercase tracking-wider block">
-                Hạn Deadline (Từ Ngày Mai)
+              <label className="font-bold text-emerald-300 uppercase tracking-wider block flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                Hạn Deadline Tổng (Tự Động Tính)
               </label>
               <input
                 type="date"
-                value={dueDate}
+                value={effectiveDueDate}
                 min={minDueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
+                onChange={(e) => setCustomDueDate(e.target.value)}
+                className="w-full p-3 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-300 font-mono font-bold focus:outline-none focus:border-emerald-400 cursor-pointer"
               />
             </div>
+          </div>
+
+          {/* 🛡️ Thông điệp Tôn Trọng Nhân Viên */}
+          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <span>
+              <strong>Tôn trọng thời gian làm việc:</strong> Hạn chót tổng được tính toán dựa trên tổng thời gian các việc con ({totalEstimatedDays} ngày). Hạn chót gốc này sẽ được <strong>bảo lưu giữ nguyên</strong> ngay cả khi nhân sự hoàn thành sớm các việc con mỗi ngày.
+            </span>
           </div>
 
           <div className="pt-2 flex justify-end gap-3 border-t border-slate-800">

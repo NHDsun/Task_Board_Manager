@@ -124,12 +124,18 @@ export class TaskService {
       }
     }
 
+    // 🚨 Tự động suy ra độ ưu tiên Task lớn từ các Việc Con
+    let calculatedPriority = createTaskDto.priority || 'NORMAL';
+    if (createTaskDto.subtasks && createTaskDto.subtasks.some((st) => st.isUrgent)) {
+      calculatedPriority = 'URGENT';
+    }
+
     const task = await this.prisma.task.create({
       data: {
         title: createTaskDto.title,
         description: createTaskDto.description,
         status: createTaskDto.status || 'TODO',
-        priority: createTaskDto.priority || 'NORMAL',
+        priority: calculatedPriority,
         progress: createTaskDto.progress || 0,
         projectId: createTaskDto.projectId,
         assigneeId: createTaskDto.assigneeId || effectiveUserId,
@@ -146,36 +152,55 @@ export class TaskService {
       },
     });
 
-    const createdTask = {
-      id: task.id,
-      title: task.title,
-      description: task.description || undefined,
-      status: task.status,
-      priority: task.priority,
-      progress: task.progress,
-      dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : undefined,
-      projectName: task.project?.name || 'Solaris Core',
-      assigneeId: task.assigneeId || undefined,
-      stageId: task.stageId || undefined,
-      assignee: task.assignee
-        ? {
-            id: task.assignee.id,
-            fullName: task.assignee.fullName,
-            avatar: task.assignee.avatar || undefined,
-            profession: task.assignee.profession,
-          }
-        : undefined,
-      tags: task.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })),
-      commentsCount: 0,
-      attachments: task.attachments ? task.attachments.map((att) => ({
-        id: att.id,
-        name: att.name,
-        url: att.url,
-        type: att.type,
-        size: att.size || undefined,
-        createdAt: att.createdAt ? att.createdAt.toISOString() : undefined,
-      })) : [],
-    };
+    // 🔘 Tạo các Việc Con (Subtasks) khởi tạo nếu có
+    if (createTaskDto.subtasks && Array.isArray(createTaskDto.subtasks) && createTaskDto.subtasks.length > 0) {
+      for (let i = 0; i < createTaskDto.subtasks.length; i++) {
+        const item = createTaskDto.subtasks[i];
+        if (item.title && item.title.trim()) {
+          await this.prisma.subtask.create({
+            data: {
+              taskId: task.id,
+              title: item.title.trim(),
+              isUrgent: Boolean(item.isUrgent),
+              order: i,
+              isDone: false,
+            },
+          });
+        }
+      }
+    } else if (createTaskDto.subtaskTitles && Array.isArray(createTaskDto.subtaskTitles) && createTaskDto.subtaskTitles.length > 0) {
+      for (let i = 0; i < createTaskDto.subtaskTitles.length; i++) {
+        const titleStr = createTaskDto.subtaskTitles[i];
+        if (titleStr && titleStr.trim()) {
+          await this.prisma.subtask.create({
+            data: {
+              taskId: task.id,
+              title: titleStr.trim(),
+              isUrgent: false,
+              order: i,
+              isDone: false,
+            },
+          });
+        }
+      }
+    }
+
+    const taskWithSubtasks = await this.prisma.task.findUnique({
+      where: { id: task.id },
+      include: {
+        project: { select: { id: true, name: true } },
+        assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
+        createdBy: { select: { id: true, fullName: true, email: true, avatar: true } },
+        tags: { include: { tag: true } },
+        subtasks: {
+          include: { assignee: { select: { id: true, fullName: true, avatar: true } } },
+          orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+        },
+        attachments: true,
+      },
+    });
+
+    const createdTask = this.mapTaskResponse(taskWithSubtasks);
 
     if (task.projectId) {
       this.socketGateway.broadcastToProject(task.projectId, 'task:created', createdTask);
@@ -912,7 +937,7 @@ export class TaskService {
     return { success: true };
   }
 
-  async addSubtask(taskId: string, body: { title: string; assigneeId?: string; dueDate?: string }, user?: any) {
+  async addSubtask(taskId: string, body: { title: string; assigneeId?: string; dueDate?: string; isUrgent?: boolean }, user?: any) {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: { subtasks: true },
@@ -938,6 +963,7 @@ export class TaskService {
         title: body.title.trim(),
         assigneeId: body.assigneeId || undefined,
         dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+        isUrgent: Boolean(body.isUrgent),
         order: nextOrder,
         isDone: false,
       },
@@ -948,7 +974,7 @@ export class TaskService {
 
   async updateSubtask(
     subtaskId: string,
-    body: { isDone?: boolean; title?: string; assigneeId?: string; dueDate?: string },
+    body: { isDone?: boolean; title?: string; assigneeId?: string; dueDate?: string; isUrgent?: boolean },
     user?: any,
   ) {
     const subtask = await this.prisma.subtask.findUnique({
@@ -972,6 +998,7 @@ export class TaskService {
 
     const updateData: any = {};
     if (body.isDone !== undefined) updateData.isDone = Boolean(body.isDone);
+    if (body.isUrgent !== undefined) updateData.isUrgent = Boolean(body.isUrgent);
     if (body.title !== undefined) updateData.title = body.title.trim();
     if (body.assigneeId !== undefined) updateData.assigneeId = body.assigneeId || null;
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;

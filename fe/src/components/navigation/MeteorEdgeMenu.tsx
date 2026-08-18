@@ -3,7 +3,6 @@ import { useAuthStore } from '../../store/useAuthStore';
 import {
   User,
   Kanban,
-  Video,
   MessageSquare,
   Inbox,
   Users,
@@ -48,14 +47,6 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
       trailColor: 'from-emerald-500 to-teal-300',
       badge: 'NEW',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-    },
-    {
-      id: 'meetings',
-      label: 'Phòng Họp WebRTC',
-      route: '/meetings',
-      icon: Video,
-      trailColor: 'from-purple-500 to-purple-300',
-      badge: 'LIVE',
     },
     {
       id: 'messages',

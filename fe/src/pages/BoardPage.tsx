@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -51,6 +51,13 @@ import {
   Unlock,
   Archive,
   History,
+  Paperclip,
+  Upload,
+  FileText,
+  ExternalLink,
+  Trash2,
+  Link2,
+  Download,
 } from 'lucide-react';
 
 import { TaskTransferInboxModal } from '../components/kanban/TaskTransferInboxModal';
@@ -124,6 +131,15 @@ export const BoardPage: React.FC = () => {
     taskTitle: string;
   } | null>(null);
 
+  // 🌟 State Prompt Hỏi Tiến Hành Việc Ngày Mai (Tôn trọng thời gian nhân viên)
+  const [workAheadModal, setWorkAheadModal] = useState<{
+    taskId: string;
+    taskTitle: string;
+    nextSubtaskTitle: string;
+    nextDayIndex: number;
+    dueDate?: string;
+  } | null>(null);
+
   // Custom Solar Notification Modal State
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -144,6 +160,108 @@ export const BoardPage: React.FC = () => {
       message,
       type,
     });
+  };
+
+  // 📎 Cockpit Attachment States & Handlers
+  const cockpitFileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingCockpitAtt, setIsUploadingCockpitAtt] = useState(false);
+  const [showCockpitAddUrl, setShowCockpitAddUrl] = useState(false);
+  const [cockpitUrlInput, setCockpitUrlInput] = useState('');
+  const [cockpitUrlTitleInput, setCockpitUrlTitleInput] = useState('');
+
+  const handleCockpitFileUpload = async (taskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    setIsUploadingCockpitAtt(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await api.post(`/tasks/${taskId}/attachments`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const newAtt = res.data?.data || res.data;
+      if (newAtt && newAtt.id) {
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === taskId
+              ? { ...t, attachments: [newAtt, ...(t.attachments || [])] }
+              : t
+          )
+        );
+        showNotification(`📎 Đã tải lên tài liệu "${newAtt.name}" thành công!`, 'success', 'Tải Tài Liệu');
+      }
+    } catch (err: any) {
+      console.error('Lỗi tải file:', err);
+      showNotification('Không thể tải file lên CSDL', 'warning', 'Lỗi Tải File');
+    } finally {
+      setIsUploadingCockpitAtt(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleCockpitAddUrl = async (taskId: string, e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cockpitUrlInput.trim()) return;
+    const formattedUrl = cockpitUrlInput.startsWith('http') ? cockpitUrlInput : `https://${cockpitUrlInput}`;
+    const name = cockpitUrlTitleInput.trim() || formattedUrl;
+    try {
+      const res = await api.post(`/tasks/${taskId}/attachments`, {
+        name,
+        url: formattedUrl,
+        type: 'link',
+      });
+      const newAtt = res.data?.data || res.data;
+      if (newAtt && newAtt.id) {
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === taskId
+              ? { ...t, attachments: [newAtt, ...(t.attachments || [])] }
+              : t
+          )
+        );
+        showNotification(`🔗 Đã đính kèm liên kết "${name}" thành công!`, 'success', 'Đính Kèm Link');
+      }
+      setCockpitUrlInput('');
+      setCockpitUrlTitleInput('');
+      setShowCockpitAddUrl(false);
+    } catch (err: any) {
+      console.error('Lỗi thêm liên kết:', err);
+      showNotification('Không thể thêm liên kết', 'warning', 'Lỗi Đính Kèm');
+    }
+  };
+
+  const handleCockpitDeleteAttachment = async (taskId: string, attachmentId: string) => {
+    try {
+      await api.delete(`/tasks/attachments/${attachmentId}`);
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? { ...t, attachments: (t.attachments || []).filter((a) => a.id !== attachmentId) }
+            : t
+        )
+      );
+      showNotification('Đã xóa tệp đính kèm', 'info', 'Xóa Đính Kèm');
+    } catch (err: any) {
+      console.error('Lỗi xóa file:', err);
+      showNotification('Không thể xóa tệp đính kèm', 'warning', 'Lỗi');
+    }
+  };
+
+  const handleCockpitDownloadAttachment = (att: any) => {
+    let downloadUrl = att.url;
+    if (att.url && att.url.startsWith('/uploads/')) {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      const backendUrl = apiBase.replace('/api', '');
+      downloadUrl = `${backendUrl}${att.url}`;
+    }
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = att.name;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // 🗄️ Task dataset fetched straight from PostgreSQL Database
@@ -280,6 +398,27 @@ export const BoardPage: React.FC = () => {
       const serverMsg = err.response?.data?.message || err.message || 'Không thể cập nhật việc con';
       showNotification(serverMsg, 'warning', 'Lỗi Cập Nhật Việc Con');
       fetchTasksFromBackend();
+    }
+  };
+
+  // 🎯 Handler hoàn thành mục tiêu ngày hôm nay kèm cơ chế Prompt Tôn Trọng Nhân Viên
+  const handleCompleteTodaySubtask = async (task: TaskItem, todaySubtask: any, currentPendingIdx: number) => {
+    await handleToggleSubtask(task.id, todaySubtask.id, true);
+
+    const subtasks = task.subtasks || [];
+    const nextSubtask = subtasks.find((s, idx) => idx > currentPendingIdx && !s.isDone);
+
+    if (nextSubtask) {
+      const nextIdx = subtasks.indexOf(nextSubtask);
+      setWorkAheadModal({
+        taskId: task.id,
+        taskTitle: task.title,
+        nextSubtaskTitle: nextSubtask.title,
+        nextDayIndex: nextIdx + 1,
+        dueDate: task.dueDate,
+      });
+    } else {
+      showNotification(`🎉 Bạn đã hoàn thành xuất sắc toàn bộ các việc con của "${task.title}"!`, 'success', 'Hoàn Thành Task');
     }
   };
 
@@ -586,13 +725,45 @@ export const BoardPage: React.FC = () => {
         {/* View Switcher Tabs with Animated Sliding Pill Indicator */}
         {(() => {
           const tabs = [
-            { id: 'kanban', label: 'Kanban 6 Cột', icon: Kanban, color: 'from-amber-500 to-amber-600', shadow: 'shadow-[0_0_20px_rgba(245,158,11,0.4)]', activeText: 'text-slate-950' },
-            ...((user?.globalRole === 'ADMIN' || user?.globalRole === 'MANAGER') ? [{ id: 'pipeline', label: `Pipeline Stage (${user?.globalRole === 'ADMIN' ? 'Admin' : 'Manager'})`, icon: GitMerge, color: 'from-purple-600 to-indigo-600', shadow: 'shadow-[0_0_20px_rgba(147,51,234,0.4)]', activeText: 'text-white' }] : []),
-            { id: 'focus', label: 'My Focus Queue', icon: Target, color: 'from-emerald-500 to-teal-600', shadow: 'shadow-[0_0_20px_rgba(16,185,129,0.4)]', activeText: 'text-slate-950' },
-            ...(user?.globalRole === 'ADMIN' ? [{ id: 'audit', label: 'Audit Log (Admin)', icon: Archive, color: 'from-cyan-500 to-blue-600', shadow: 'shadow-[0_0_20px_rgba(6,182,212,0.4)]', activeText: 'text-slate-950' }] : []),
+            {
+              id: 'focus',
+              label: "☀️ Today's Focus Cockpit",
+              icon: Target,
+              color: 'from-amber-500 via-orange-500 to-amber-600',
+              shadow: 'shadow-[0_0_20px_rgba(245,158,11,0.5)]',
+              activeText: 'text-slate-950 font-black',
+            },
+            {
+              id: 'pipeline',
+              label: '🌌 Master Plan & Roadmap',
+              icon: GitMerge,
+              color: 'from-purple-600 via-indigo-600 to-blue-600',
+              shadow: 'shadow-[0_0_20px_rgba(147,51,234,0.5)]',
+              activeText: 'text-white font-black',
+            },
+            {
+              id: 'kanban',
+              label: '📊 Kanban Matrix',
+              icon: Kanban,
+              color: 'from-blue-600 to-cyan-600',
+              shadow: 'shadow-[0_0_20px_rgba(37,99,235,0.4)]',
+              activeText: 'text-white font-bold',
+            },
+            ...(user?.globalRole === 'ADMIN'
+              ? [
+                  {
+                    id: 'audit',
+                    label: '🗄️ Audit Log',
+                    icon: Archive,
+                    color: 'from-cyan-500 to-blue-600',
+                    shadow: 'shadow-[0_0_20px_rgba(6,182,212,0.4)]',
+                    activeText: 'text-slate-950 font-bold',
+                  },
+                ]
+              : []),
           ];
 
-          const activeIndex = tabs.findIndex((t) => t.id === activeView);
+          const activeIndex = Math.max(0, tabs.findIndex((t) => t.id === activeView));
           const currentTab = tabs[activeIndex] || tabs[0];
           const tabWidthPercent = 100 / tabs.length;
 
@@ -798,15 +969,16 @@ export const BoardPage: React.FC = () => {
         </DragDropContext>
       )}
 
-      {/* 📈 VIEW 2: PIPELINE STAGE VIEW (TÍCH HỢP BỘ LỌC DỰ ÁN DYNAMIC & SUMMARY) */}
+      {/* 📈 VIEW 2: MASTER PLAN & PROJECT ROADMAP (VÒNG ĐỜI DỰ ÁN & TIẾN TRÌNH GIAI ĐOẠN) */}
       {activeView === 'pipeline' && (() => {
-        // Dynamic list of unique projects filtered by Role: Admin sees all, Manager sees managed projects
+        // Dynamic list of unique projects filtered by Role: Admin sees all, Manager sees managed projects, Member sees assigned projects
         const isManager = user?.globalRole === 'MANAGER';
+        const isMember = user?.globalRole !== 'ADMIN' && user?.globalRole !== 'MANAGER';
 
         let rawProjectList = tasks.map((t) => t.projectName).filter(Boolean) as string[];
 
-        if (isManager) {
-          const myManagedProjects = tasks
+        if (isManager || isMember) {
+          const myProjects = tasks
             .filter(
               (t) =>
                 t.assigneeId === user?.id ||
@@ -816,11 +988,10 @@ export const BoardPage: React.FC = () => {
             .map((t) => t.projectName)
             .filter(Boolean) as string[];
 
-          rawProjectList = rawProjectList.filter((pName) => myManagedProjects.includes(pName));
+          rawProjectList = rawProjectList.filter((pName) => myProjects.includes(pName));
         }
 
         const availableProjects = Array.from(new Set(rawProjectList));
-
         const activeProjectName = selectedPipelineProject;
 
         // Filter tasks for pipeline by project selection
@@ -841,26 +1012,28 @@ export const BoardPage: React.FC = () => {
               <div>
                 <h2 className="text-xl font-extrabold text-purple-300 flex items-center gap-2 mb-1">
                   <GitMerge className="w-6 h-6 text-purple-400" />
-                  Tiến Trình Pipeline Stage Vòng Đời Dự Án (Project Life-Cycle)
+                  🌌 Kế Hoạch Tổng Thể & Lộ Trình Dự Án (Master Plan & Roadmap)
                 </h2>
                 <p className="text-xs text-slate-300">
-                  Theo dõi tiến độ phát triển theo các Giai đoạn từ Yêu Cầu đến Bàn Giao Sản Phẩm.
+                  Trực quan hóa vòng đời dự án theo từng giai đoạn (Pipeline Stages) từ Khảo Sát, Thiết Kế đến Bàn Giao & Nghiệm Thu.
                 </p>
               </div>
 
               {/* Project Stats Summary & Edit Toggle */}
               <div className="flex items-center gap-3 flex-wrap shrink-0">
-                <button
-                  onClick={() => setIsEditingPipelineStages(!isEditingPipelineStages)}
-                  className="px-4 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
-                >
-                  <Sliders className="w-4 h-4 text-purple-400" />
-                  {isEditingPipelineStages ? '✓ Đóng Quản Lý Giai Đoạn' : '⚙️ Quản Lý Giai Đoạn Pipeline'}
-                </button>
+                {(user?.globalRole === 'ADMIN' || user?.globalRole === 'MANAGER') && (
+                  <button
+                    onClick={() => setIsEditingPipelineStages(!isEditingPipelineStages)}
+                    className="px-4 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
+                  >
+                    <Sliders className="w-4 h-4 text-purple-400" />
+                    {isEditingPipelineStages ? '✓ Đóng Quản Lý Giai Đoạn' : '⚙️ Quản Lý Giai Đoạn Pipeline'}
+                  </button>
+                )}
 
                 <div className="flex items-center gap-3 bg-purple-950/40 p-3 rounded-2xl border border-purple-500/30 shrink-0">
                   <div className="text-right">
-                    <span className="text-[10px] text-purple-300 font-mono block">TIẾN ĐỘ DỰ ÁN</span>
+                    <span className="text-[10px] text-purple-300 font-mono block">TIẾN ĐỘ ROADMAP</span>
                     <span className="text-lg font-black text-amber-400 font-mono">{projectCompletionPercent}%</span>
                   </div>
                   <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center font-mono font-bold text-xs text-purple-300">
@@ -881,7 +1054,7 @@ export const BoardPage: React.FC = () => {
                       Dự Án: {selectedPipelineProject}
                     </h3>
                     <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                      🔒 Dự Án Đang Hoạt Động (Active Lifecycle)
+                      🔒 Dự Án Đang Hoạt Động (Active Roadmap)
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
@@ -910,7 +1083,7 @@ export const BoardPage: React.FC = () => {
             })()}
 
             {/* 🎛️ BỘ CHỈNH SỬA GIAI ĐOẠN PIPELINE (IN-PLACE PIPELINE STAGE EDITOR) */}
-            {isEditingPipelineStages && (
+            {isEditingPipelineStages && (user?.globalRole === 'ADMIN' || user?.globalRole === 'MANAGER') && (
               <div className="solar-glass-card p-5 rounded-2xl bg-purple-950/20 border border-purple-500/40 space-y-4 animate-fade-in">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <h3 className="text-sm font-extrabold text-purple-300 flex items-center gap-2">
@@ -918,87 +1091,83 @@ export const BoardPage: React.FC = () => {
                     Chỉnh Sửa & Thêm Giai Đoạn Pipeline Trực Tiếp ({activePipelineStages.length} giai đoạn)
                   </h3>
 
-                  {/* 🔘 Nút Bật/Tắt Khóa Giai Đoạn Tuần Tự */}
+                  {/* Lock Toggle */}
                   <button
-                    onClick={() => {
-                      const nextState = !isStageLockingEnabled;
-                      setIsStageLockingEnabled(nextState);
-                      showNotification(
-                        nextState
-                          ? '🔒 Đã BẬT tính năng Khóa Giai Đoạn tuần tự! Các giai đoạn sau sẽ bị khóa nếu giai đoạn trước chưa xong 100%.'
-                          : '🔓 Đã MỞ KHÓA toàn bộ Giai Đoạn! Tất cả các giai đoạn hiện có thể truy cập tự do.',
-                        nextState ? 'info' : 'success',
-                        'Cấu Hình Khóa Giai Đoạn'
-                      );
-                    }}
-                    className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer shadow-md ${
+                    onClick={() => setIsStageLockingEnabled(!isStageLockingEnabled)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                       isStageLockingEnabled
-                        ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border-rose-500/40'
-                        : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'bg-slate-800 text-slate-400 border border-slate-700'
                     }`}
                   >
-                    {isStageLockingEnabled ? (
-                      <>
-                        <Lock className="w-3.5 h-3.5 text-rose-400" />
-                        <span>Khóa Giai Đoạn: <b>ĐANG BẬT</b> (Click để Tắt)</span>
-                      </>
-                    ) : (
-                      <>
-                        <Unlock className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Khóa Giai Đoạn: <b>ĐANG TẮT</b> (Click để Bật)</span>
-                      </>
-                    )}
+                    {isStageLockingEnabled ? <Lock className="w-3.5 h-3.5 text-amber-400" /> : <Unlock className="w-3.5 h-3.5" />}
+                    Khóa Nghiêm Ngặt Thứ Tự Chuyển Stage: {isStageLockingEnabled ? 'BẬT (Khóa tuần tự)' : 'TẮT (Tự do)'}
                   </button>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
+
+                {/* Quick Add Stage Form */}
+                <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="text"
                     value={newStageNameInput}
                     onChange={(e) => setNewStageNameInput(e.target.value)}
-                    placeholder="Tên giai đoạn mới (VD: 7. Triển Khai Cloud AWS)"
-                    className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 min-w-[280px]"
+                    placeholder="Nhập tên giai đoạn mới (VD: 7. Bảo Trì & Hậu Mãi)..."
+                    className="flex-1 min-w-[260px] bg-slate-900 border border-purple-500/30 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-purple-400 font-medium"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newStageNameInput.trim()) {
+                        const newStage = {
+                          id: `stage_${Date.now()}`,
+                          name: newStageNameInput.trim(),
+                          status: 'TODO',
+                          color: 'border-purple-500/40 text-purple-300',
+                        };
+                        setActivePipelineStages((prev) => [...prev, newStage]);
+                        setNewStageNameInput('');
+                        showNotification(`🟢 Đã thêm giai đoạn "${newStage.name}" vào quy trình!`, 'success', 'Thêm Giai Đoạn');
+                      }
+                    }}
                   />
                   <button
                     onClick={() => {
                       if (!newStageNameInput.trim()) return;
-                      const newStageObj = {
+                      const newStage = {
                         id: `stage_${Date.now()}`,
                         name: newStageNameInput.trim(),
-                        status: 'IN_PROGRESS',
+                        status: 'TODO',
                         color: 'border-purple-500/40 text-purple-300',
                       };
-                      setActivePipelineStages((prev) => [...prev, newStageObj]);
+                      setActivePipelineStages((prev) => [...prev, newStage]);
                       setNewStageNameInput('');
-                      showNotification('🟢 Đã thêm Giai đoạn Pipeline mới thành công!', 'success', 'Pipeline Editor');
+                      showNotification(`🟢 Đã thêm giai đoạn "${newStage.name}" vào quy trình!`, 'success', 'Thêm Giai Đoạn');
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs cursor-pointer shadow-lg"
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
                   >
-                    + Thêm Giai Đoạn
+                    <PlusCircle className="w-4 h-4" /> Thêm Giai Đoạn
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-                  {activePipelineStages.map((st) => (
-                    <div key={st.id} className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2">
-                      <input
-                        type="text"
-                        value={st.name}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setActivePipelineStages((prev) =>
-                            prev.map((item) => (item.id === st.id ? { ...item, name: val } : item))
-                          );
-                        }}
-                        className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none border-b border-transparent focus:border-purple-400"
-                      />
+                {/* Stage chips list */}
+                <div className="flex items-center gap-2 flex-wrap pt-1">
+                  {activePipelineStages.map((st, idx) => (
+                    <div
+                      key={st.id}
+                      className="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-mono flex items-center gap-2 group"
+                    >
+                      <span className="text-purple-400 font-bold">#{idx + 1}</span>
+                      <span className="text-slate-200">{st.name}</span>
                       <button
                         onClick={() => {
-                          setActivePipelineStages((prev) => prev.filter((item) => item.id !== st.id));
-                          showNotification('Đã xóa Giai đoạn Pipeline!', 'info', 'Pipeline Editor');
+                          if (activePipelineStages.length <= 2) {
+                            showNotification('Pipeline cần tối thiểu 2 giai đoạn quy trình!', 'warning', 'Không Thể Xóa');
+                            return;
+                          }
+                          setActivePipelineStages((prev) => prev.filter((s) => s.id !== st.id));
+                          showNotification(`Đã xóa giai đoạn "${st.name}"`, 'info', 'Xóa Giai Đoạn');
                         }}
-                        className="text-slate-500 hover:text-rose-400 text-xs font-bold px-2 py-1 rounded hover:bg-slate-800 cursor-pointer"
+                        className="text-slate-500 hover:text-rose-400 cursor-pointer ml-1 text-xs"
+                        title="Xóa giai đoạn"
                       >
-                        Xóa
+                        ✕
                       </button>
                     </div>
                   ))}
@@ -1006,7 +1175,7 @@ export const BoardPage: React.FC = () => {
               </div>
             )}
 
-            {/* 📁 PROJECT PICKER TABS (CHỌN DỰ ÁN XEM PIPELINE) */}
+            {/* 📁 PROJECT PICKER TABS (CHỌN DỰ ÁN XEM ROADMAP) */}
             <div className="solar-glass-card p-3 rounded-2xl bg-[#0F172A]/90 border border-slate-800 flex items-center gap-2 overflow-x-auto">
               <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1.5 px-2">
                 <Folder className="w-4 h-4 text-purple-400" /> Chọn Dự Án:
@@ -1040,180 +1209,110 @@ export const BoardPage: React.FC = () => {
               })}
             </div>
 
-            {/* Pipeline Stage Columns with Sequential Unlocking Logic */}
-            {(() => {
-              const computedStages = [];
-              let isLocked = false;
+            {/* 🚀 PIPELINE STAGES DRAG-AND-DROP WORKFLOW BOARD */}
+            <DragDropContext onDragEnd={handlePipelineDragEnd}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                {activePipelineStages.map((stage, sIdx) => {
+                  const stageTasks = pipelineTasks.filter((t) => {
+                    if (t.stageId) return t.stageId === stage.id;
+                    return sIdx === 0;
+                  });
 
-              for (let i = 0; i < activePipelineStages.length; i++) {
-                const originalStage = activePipelineStages[i];
-                const stageTasks = pipelineTasks.filter(
-                  (t) => t.stageId === originalStage.id || (!t.stageId && originalStage.id === 'stage_1')
-                );
-
-                const hasTasks = stageTasks.length > 0;
-                const allTasksDone = hasTasks && stageTasks.every((t) => t.status === 'DONE');
-
-                let status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'LOCKED' = 'TODO';
-                let color = originalStage.color;
-
-                if (isStageLockingEnabled && isLocked) {
-                  status = 'LOCKED';
-                  color = 'border-slate-800/50 text-slate-500';
-                } else {
-                  if (hasTasks) {
-                    if (allTasksDone) {
-                      status = 'DONE';
-                      color = 'border-emerald-500/30 text-emerald-300';
-                    } else {
-                      status = 'IN_PROGRESS';
-                      color = originalStage.color;
-                      // Since this stage is not fully done, all subsequent stages must be locked if locking feature is enabled
-                      if (isStageLockingEnabled) {
-                        isLocked = true;
-                      }
-                    }
-                  } else {
-                    // Empty stage behaves as unlocked/in progress
-                    status = 'IN_PROGRESS';
-                    color = 'border-slate-700/60 text-slate-400';
-                  }
-                }
-
-                computedStages.push({
-                  ...originalStage,
-                  status,
-                  color,
-                  tasks: stageTasks,
-                });
-              }
-
-              return (
-                <DragDropContext onDragEnd={handlePipelineDragEnd}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {computedStages.map((stage) => {
-                      const isStageLocked = stage.status === 'LOCKED';
-
-                      return (
-                        <Droppable key={stage.id} droppableId={stage.id} isDropDisabled={isStageLocked}>
-                          {(providedDroppable, snapshotDroppable) => (
-                            <div
-                              ref={providedDroppable.innerRef}
-                              {...providedDroppable.droppableProps}
-                              className={`solar-glass-card p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden shadow-xl flex flex-col min-h-[320px] ${
-                                snapshotDroppable.isDraggingOver
-                                  ? 'border-purple-400/80 bg-purple-950/40 ring-2 ring-purple-400/30'
-                                  : isStageLocked
-                                  ? 'bg-slate-950/40 border-slate-900/60 opacity-50'
-                                  : `bg-[#0F172A]/90 ${stage.color}`
-                              }`}
-                            >
-                              {isStageLocked && (
-                                <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[0.5px] z-10 flex flex-col items-center justify-center pointer-events-none">
-                                  <Lock className="w-8 h-8 text-rose-500/40 mb-1" />
-                                  <span className="text-[10px] font-mono text-rose-400/50 font-bold uppercase tracking-wider">
-                                    GIAI ĐOẠN ĐANG KHÓA
-                                  </span>
-                                </div>
-                              )}
-
-                              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
-                                <span className={`font-extrabold text-sm ${isStageLocked ? 'text-slate-500' : 'text-white'}`}>
-                                  {stage.name}
-                                </span>
-                                <span
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 border ${
-                                    isStageLocked
-                                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                                      : stage.status === 'DONE'
-                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                      : 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                                  }`}
-                                >
-                                  {isStageLocked && <Lock className="w-2.5 h-2.5" />}
-                                  {isStageLocked ? 'LOCKED' : stage.status} ({stage.tasks.length})
-                                </span>
-                              </div>
-
-                              <div className={`space-y-3 flex-1 ${isStageLocked ? 'select-none pointer-events-none' : ''}`}>
-                                {stage.tasks.map((t, index) => {
-                                  const isAdminRole = user?.globalRole === 'ADMIN';
-                                  const hasAssignee = Boolean(t.assigneeId || t.assignee?.id || t.assignee?.email);
-                                  const isMyOwnTask = hasAssignee
-                                    ? (t.assigneeId === user?.id ||
-                                       t.assignee?.id === user?.id ||
-                                       t.assignee?.email === user?.email)
-                                    : (t as any).createdById === user?.id;
-                                  const isDragDisabled = isStageLocked || (!isAdminRole && !isMyOwnTask);
-
-                                  return (
-                                    <Draggable key={t.id} draggableId={t.id} index={index} isDragDisabled={isDragDisabled}>
-                                      {(providedDraggable, snapshotDraggable) => {
-                                        const cardElement = (
-                                          <div
-                                            ref={providedDraggable.innerRef}
-                                            {...providedDraggable.draggableProps}
-                                            {...providedDraggable.dragHandleProps}
-                                            style={{
-                                              ...providedDraggable.draggableProps.style,
-                                              pointerEvents: 'auto',
-                                            }}
-                                            className={`transform-gpu ${
-                                              snapshotDraggable.isDragging
-                                                ? '!z-[999999] rotate-2 scale-105 shadow-[0_0_60px_rgba(168,85,247,0.8)] border-2 border-purple-400 rounded-2xl bg-[#0F172A] cursor-grabbing'
-                                                : snapshotDraggable.isDropAnimating || recentlyMovedTaskId === t.id
-                                                ? 'animate-solar-drop-snap border-2 border-purple-400/90 rounded-2xl shadow-[0_0_35px_rgba(168,85,247,0.6)]'
-                                                : 'hover:-translate-y-0.5 transition-transform duration-150'
-                                            }`}
-                                          >
-                                            <KanbanCard
-                                              task={t}
-                                              onRequestTransfer={handleQuickRequest}
-                                              onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
-                                              onToggleSubtask={handleToggleSubtask}
-                                              onDeleteTask={(taskItem) => {
-                                                setTaskToDelete(taskItem);
-                                                setIsDeleteModalOpen(true);
-                                              }}
-                                            />
-                                          </div>
-                                        );
-
-                                        if (snapshotDraggable.isDragging) {
-                                          return ReactDOM.createPortal(cardElement, getPortalRoot());
-                                        }
-
-                                        return cardElement;
-                                      }}
-                                    </Draggable>
-                                  );
-                                })}
-                                {providedDroppable.placeholder}
-                                {stage.tasks.length === 0 && (
-                                  <div className="h-24 border border-dashed border-slate-800/60 rounded-xl flex items-center justify-center text-[11px] font-mono text-slate-600">
-                                    Kéo thả Task vào giai đoạn này
-                                  </div>
-                                )}
-                              </div>
+                  return (
+                    <Droppable key={stage.id} droppableId={stage.id}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`solar-glass-card p-4 rounded-2xl bg-[#0F172A]/70 border transition-all duration-200 min-h-[520px] flex flex-col space-y-3 ${
+                            snapshot.isDraggingOver
+                              ? 'border-2 border-dashed border-purple-400 bg-purple-500/15 shadow-[0_0_30px_rgba(168,85,247,0.3)]'
+                              : stage.color
+                          }`}
+                        >
+                          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                            <div>
+                              <span className="text-[10px] font-mono text-purple-400 font-bold block">GIAI ĐOẠN #{sIdx + 1}</span>
+                              <span className="text-xs font-black text-slate-100 tracking-tight">{stage.name}</span>
                             </div>
-                          )}
-                        </Droppable>
-                      );
-                    })}
-                  </div>
-                </DragDropContext>
-              );
-            })()}
+                            <span className="px-2 py-0.5 rounded-md bg-purple-950/60 border border-purple-500/30 text-[10px] font-mono text-purple-300 font-bold">
+                              {stageTasks.length}
+                            </span>
+                          </div>
+
+                          <div className="flex-1 space-y-3">
+                            {stageTasks.map((t, index) => (
+                              <Draggable key={t.id} draggableId={t.id} index={index}>
+                                {(providedDraggable, snapshotDraggable) => {
+                                  const cardElement = (
+                                    <div
+                                      ref={providedDraggable.innerRef}
+                                      {...providedDraggable.draggableProps}
+                                      {...providedDraggable.dragHandleProps}
+                                      style={{
+                                        ...providedDraggable.draggableProps.style,
+                                        pointerEvents: 'auto',
+                                      }}
+                                      className={`transform-gpu ${
+                                        snapshotDraggable.isDragging
+                                          ? '!z-[999999] rotate-2 scale-105 shadow-[0_0_60px_rgba(168,85,247,0.8)] border-2 border-purple-400 rounded-2xl bg-[#0F172A] cursor-grabbing'
+                                          : snapshotDraggable.isDropAnimating || recentlyMovedTaskId === t.id
+                                          ? 'animate-solar-drop-snap border-2 border-purple-400/90 rounded-2xl shadow-[0_0_35px_rgba(168,85,247,0.6)]'
+                                          : 'hover:-translate-y-0.5 transition-transform duration-150'
+                                      }`}
+                                    >
+                                      <KanbanCard
+                                        task={t}
+                                        onRequestTransfer={handleQuickRequest}
+                                        onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                                        onToggleSubtask={handleToggleSubtask}
+                                        onDeleteTask={(taskItem) => {
+                                          setTaskToDelete(taskItem);
+                                          setIsDeleteModalOpen(true);
+                                        }}
+                                      />
+                                    </div>
+                                  );
+
+                                  if (snapshotDraggable.isDragging) {
+                                    return ReactDOM.createPortal(cardElement, getPortalRoot());
+                                  }
+
+                                  return cardElement;
+                                }}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+
+                            {stageTasks.length === 0 && (
+                              <div
+                                className={`h-36 border-2 border-dashed rounded-xl flex items-center justify-center text-xs font-mono transition-colors text-center p-3 ${
+                                  snapshot.isDraggingOver
+                                    ? 'border-purple-400 text-purple-300 bg-purple-500/10'
+                                    : 'border-slate-800/60 text-slate-600'
+                                }`}
+                              >
+                                Kéo Task vào Giai đoạn {sIdx + 1}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </Droppable>
+                  );
+                })}
+              </div>
+            </DragDropContext>
           </div>
         );
       })()}
 
-      {/* 🎯 VIEW 3: MY FOCUS QUEUE VIEW (TÍCH HỢP ƯU TIÊN SẮP XẾP & CẬP NHẬT TIẾN ĐỘ THỜI GIAN THỰC) */}
+      {/* ☀️ VIEW 3: TODAY'S FOCUS COCKPIT (TRUNG TÂM ĐIỀU HÀNH CÔNG VIỆC HÔM NAY) */}
       {activeView === 'focus' && (() => {
         // Priority weight dictionary
         const priorityWeight = { URGENT: 1, IMPORTANT: 2, NORMAL: 3, LOW: 4 };
 
-        // Filter tasks assigned to current user & exclude completed tasks (progress = 100% or status = DONE)
+        // 1. Task thuộc về người dùng hiện tại
         let myFocusTasks = filteredTasks.filter((t) => {
           if (t.progress >= 100 || t.status === 'DONE') return false;
           if (!user) return true;
@@ -1224,31 +1323,38 @@ export const BoardPage: React.FC = () => {
           );
         });
 
-        // Apply Priority Filter Mode
+        // 2. Thống kê toàn cục dành cho Admin/Manager
+        const isManagement = user?.globalRole === 'ADMIN' || user?.globalRole === 'MANAGER';
+        const allPendingTasks = filteredTasks.filter((t) => t.status !== 'DONE');
+        const allUrgentTasks = allPendingTasks.filter(
+          (t) => t.priority === 'URGENT' || t.subtasks?.some((st) => st.isUrgent && !st.isDone)
+        );
+        const allInReviewTasks = filteredTasks.filter((t) => t.status === 'IN_REVIEW');
+        const allBlockedTasks = filteredTasks.filter((t) => t.status === 'BLOCKED');
+
+        // Apply Priority Filter Mode (Ưu tiên lọc theo các Task có Việc Con Gấp)
         if (focusFilterMode === 'URGENT') {
           myFocusTasks = myFocusTasks.filter(
-            (t) => t.priority === 'URGENT' || t.priority === 'IMPORTANT'
+            (t) =>
+              t.subtasks?.some((st) => st.isUrgent && !st.isDone) ||
+              t.priority === 'URGENT' ||
+              t.priority === 'IMPORTANT'
           );
         } else if (focusFilterMode === 'IN_PROGRESS') {
           myFocusTasks = myFocusTasks.filter((t) => t.status === 'IN_PROGRESS');
         }
 
-        // Auto-sort Focus Queue by Priority (URGENT first)
-        myFocusTasks.sort((a, b) => priorityWeight[a.priority] - priorityWeight[b.priority]);
+        // Auto-sort Focus Queue: Task có việc con khẩn cấp (isUrgent) đứng đầu tiên
+        myFocusTasks.sort((a, b) => {
+          const aHasUrgent = a.subtasks?.some((st) => st.isUrgent && !st.isDone) ? 0 : 1;
+          const bHasUrgent = b.subtasks?.some((st) => st.isUrgent && !st.isDone) ? 0 : 1;
+          if (aHasUrgent !== bHasUrgent) return aHasUrgent - bHasUrgent;
+          return priorityWeight[a.priority] - priorityWeight[b.priority];
+        });
 
         // 🎯 CHỈ LẤY TASK CÓ TRẠNG THÁI IN_PROGRESS ĐƯA VÀO HERO FOCUS TASK #1
         const heroTask = myFocusTasks.find((t) => t.status === 'IN_PROGRESS');
         const queueTasks = myFocusTasks.filter((t) => t.id !== heroTask?.id);
-
-        // Quick Progress update handler for Hero Task
-        const updateHeroProgress = (newProgress: number) => {
-          if (!heroTask) return;
-          const newStatus = newProgress === 100 ? 'DONE' : newProgress === 0 ? 'TODO' : 'IN_PROGRESS';
-          setTasks((prev) =>
-            prev.map((t) => (t.id === heroTask.id ? { ...t, progress: newProgress, status: newStatus } : t))
-          );
-          api.patch(`/tasks/${heroTask.id}/status`, { status: newStatus, progress: newProgress });
-        };
 
         return (
           <div className="space-y-6 pb-12">
@@ -1257,10 +1363,10 @@ export const BoardPage: React.FC = () => {
               <div>
                 <h2 className="text-xl font-extrabold text-amber-300 flex items-center gap-2 mb-1">
                   <Target className="w-6 h-6 text-amber-400 animate-pulse" />
-                  Hàng Chờ Tập Trung Cá Nhân (My Focus Queue)
+                  ☀️ Today's Focus Cockpit (Trung Tâm Điều Hành Việc Hôm Nay)
                 </h2>
                 <p className="text-xs text-slate-300">
-                  Tự động sắp xếp các công việc cấp bách nhất cần bạn xử lý theo thứ tự ưu tiên.
+                  Tập trung giải quyết các nhiệm vụ trọng tâm hôm nay, theo dõi tiến độ micro-task và gỡ bỏ tắc nghẽn tức thì.
                 </p>
               </div>
 
@@ -1268,27 +1374,27 @@ export const BoardPage: React.FC = () => {
               <div className="flex items-center gap-2 overflow-x-auto shrink-0">
                 <button
                   onClick={() => setFocusFilterMode('ALL')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     focusFilterMode === 'ALL'
                       ? 'bg-amber-500 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
                       : 'bg-slate-900 text-slate-400 border border-slate-800'
                   }`}
                 >
-                  🎯 Tất Cả Focus
+                  🎯 Tất Cả Hôm Nay ({myFocusTasks.length})
                 </button>
                 <button
                   onClick={() => setFocusFilterMode('URGENT')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     focusFilterMode === 'URGENT'
                       ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]'
                       : 'bg-slate-900 text-slate-400 border border-slate-800'
                   }`}
                 >
-                  🚨 Cần Làm Gấp (Urgent)
+                  🚨 Cần Gấp Hôm Nay
                 </button>
                 <button
                   onClick={() => setFocusFilterMode('IN_PROGRESS')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     focusFilterMode === 'IN_PROGRESS'
                       ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]'
                       : 'bg-slate-900 text-slate-400 border border-slate-800'
@@ -1299,12 +1405,61 @@ export const BoardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Hero Focus Card #1 */}
+            {/* 👑 MANAGEMENT PULSE STRIP (DÀNH CHO ADMIN & MANAGER) */}
+            {isManagement && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
+                <div className="solar-glass-card p-4 rounded-2xl bg-red-950/20 border border-red-500/40 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono text-red-300 block">CẦN XỬ LÝ GẤP</span>
+                    <span className="text-xl font-black text-red-400 font-mono">{allUrgentTasks.length}</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 font-bold">
+                    🚨
+                  </div>
+                </div>
+
+                <div className="solar-glass-card p-4 rounded-2xl bg-amber-950/20 border border-amber-500/40 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono text-amber-300 block">CHỜ DUYỆT BÀN GIAO</span>
+                    <span className="text-xl font-black text-amber-400 font-mono">{allInReviewTasks.length}</span>
+                  </div>
+                  <button
+                    onClick={() => setIsTransferInboxOpen(true)}
+                    className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold hover:scale-105 transition-all cursor-pointer"
+                    title="Mở Hộp Thư Duyệt"
+                  >
+                    📬
+                  </button>
+                </div>
+
+                <div className="solar-glass-card p-4 rounded-2xl bg-rose-950/20 border border-rose-500/40 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono text-rose-300 block">BỊ TẮC NGHẼN (BLOCKED)</span>
+                    <span className="text-xl font-black text-rose-400 font-mono">{allBlockedTasks.length}</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 font-bold">
+                    ⚠️
+                  </div>
+                </div>
+
+                <div className="solar-glass-card p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/40 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono text-emerald-300 block">TỔNG TASK ĐANG CHẠY</span>
+                    <span className="text-xl font-black text-emerald-400 font-mono">{allPendingTasks.length}</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
+                    🚀
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 🚀 HERO FOCUS CARD #1 (CHỈ DÀNH CHO TASK ĐANG IN_PROGRESS CHÍNH) */}
             {heroTask ? (
-              <div className="solar-glass-card p-6 md:p-8 rounded-3xl bg-gradient-to-br from-amber-500/15 via-[#0F172A] to-purple-600/15 border-2 border-amber-400/80 shadow-2xl relative space-y-5 animate-fade-in">
+              <div className="solar-glass-card p-6 md:p-8 rounded-3xl bg-gradient-to-br from-amber-500/15 via-[#0F172A] to-purple-600/15 border-2 border-amber-400/80 shadow-2xl relative space-y-6 animate-fade-in">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500 text-slate-950 flex items-center gap-1.5 shadow-lg">
-                    <Zap className="w-4 h-4 fill-current" /> HERO FOCUS TASK #1 (ĐANG XỬ LÝ CHÍNH)
+                    <Zap className="w-4 h-4 fill-current" /> HERO FOCUS TASK #1 (VIỆC TRỌNG TÂM HÔM NAY)
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-amber-300 font-mono font-bold">
@@ -1324,66 +1479,303 @@ export const BoardPage: React.FC = () => {
                   </div>
                 </div>
 
-                <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                  {heroTask.title}
-                </h2>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  {heroTask.description ||
-                    'Tập trung xử lý hoàn tất các nhiệm vụ được phân công cá nhân.'}
-                </p>
+                <div className="space-y-2">
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight cursor-pointer hover:text-amber-300 transition-colors"
+                      onClick={() => setSelectedTaskForDetail(heroTask)}>
+                    {heroTask.title}
+                  </h2>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {heroTask.description || 'Tập trung xử lý hoàn tất các nhiệm vụ được phân công cá nhân trong ngày hôm nay.'}
+                  </p>
+                </div>
 
-                {/* 🎚️ DYNAMIC PROGRESS CONTROL BAR */}
+                {/* 🔒 TIẾN ĐỘ TỰ ĐỘNG THEO VIỆC CON (AUTO-CALCULATED PROGRESS) */}
                 <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-2">
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                      <Sliders className="w-4 h-4 text-amber-400" /> Cập Nhật Tiến Độ Nhiệm Vụ:
+                    <span className="text-slate-300 font-bold flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-amber-400" /> Tiến Độ Nhiệm Vụ (Tự Động Theo Việc Con):
                     </span>
-                    <span className="text-amber-400 font-extrabold text-sm">{heroTask.progress}%</span>
+                    <span className="text-amber-400 font-extrabold text-sm font-mono bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
+                      {heroTask.progress}% Hoàn Thành
+                    </span>
                   </div>
                   <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden p-0.5 border border-slate-800">
                     <div
-                      className="bg-gradient-to-r from-amber-500 to-purple-500 h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                      className="bg-gradient-to-r from-amber-500 to-purple-500 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
                       style={{ width: `${heroTask.progress}%` }}
                     />
                   </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      onClick={() => updateHeroProgress(0)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 text-[11px] font-mono border border-slate-800 cursor-pointer"
-                    >
-                      0% (Chưa làm)
-                    </button>
-                    <button
-                      onClick={() => updateHeroProgress(25)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 text-[11px] font-mono border border-slate-800 cursor-pointer"
-                    >
-                      25%
-                    </button>
-                    <button
-                      onClick={() => updateHeroProgress(50)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 text-[11px] font-mono border border-slate-800 cursor-pointer"
-                    >
-                      50% (Một Nửa)
-                    </button>
-                    <button
-                      onClick={() => updateHeroProgress(75)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-purple-300 text-[11px] font-mono border border-slate-800 cursor-pointer"
-                    >
-                      75%
-                    </button>
-                    <button
-                      onClick={() => updateHeroProgress(100)}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-mono border border-emerald-500/40 cursor-pointer font-bold"
-                    >
-                      100% (Hoàn Thành)
-                    </button>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                    <span className="flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-slate-500" />
+                      Tiến độ tính toán tự động dựa trên số việc con hoàn thành, không sửa tay.
+                    </span>
+                    <span className="font-mono text-slate-400">
+                      {heroTask.subtasks?.filter((s) => s.isDone).length || 0}/{heroTask.subtasks?.length || 0} Việc Con Xong
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 pt-2 flex-wrap">
+                {/* 🔘 LỘ TRÌNH MỖI NGÀY 1 VIỆC CON (DAILY MICRO-TASK SCHEDULE) */}
+                {heroTask.subtasks && heroTask.subtasks.length > 0 && (() => {
+                  const subtaskList = heroTask.subtasks;
+                  const firstPendingIdx = subtaskList.findIndex((s) => !s.isDone);
+                  const todaySubtask = firstPendingIdx !== -1 ? subtaskList[firstPendingIdx] : null;
+                  const completedCount = subtaskList.filter((s) => s.isDone).length;
+
+                  return (
+                    <div className="p-5 rounded-2xl bg-slate-950/90 border border-amber-500/40 shadow-inner space-y-4">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="text-amber-300 font-extrabold flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                          Lộ Trình Mỗi Ngày 1 Việc Con (Daily Micro-Sprint):
+                        </span>
+                        <span className="text-amber-400 font-extrabold bg-amber-500/20 px-2.5 py-0.5 rounded-md border border-amber-500/30">
+                          {completedCount}/{subtaskList.length} Ngày Hoàn Tất
+                        </span>
+                      </div>
+
+                      {/* 🎯 Mục tiêu việc con của HÔM NAY (Today's Micro-Goal) */}
+                      {todaySubtask ? (
+                        <div
+                          className={`p-4 rounded-2xl border-2 space-y-2 transition-all ${
+                            todaySubtask.isUrgent
+                              ? 'bg-gradient-to-r from-red-950/40 via-red-900/20 to-slate-900 border-red-500 shadow-[0_0_25px_rgba(239,68,68,0.4)]'
+                              : 'bg-gradient-to-r from-amber-500/20 via-purple-600/15 to-slate-900 border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-md text-[10px] font-mono font-black uppercase flex items-center gap-1 ${
+                                todaySubtask.isUrgent
+                                  ? 'bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse'
+                                  : 'bg-amber-500 text-slate-950'
+                              }`}
+                            >
+                              {todaySubtask.isUrgent ? '🚨 VIỆC CON KHẨN CẤP (NGÀY ' : '🔥 VIỆC CON MỤC TIÊU HÔM NAY (NGÀY '}
+                              {firstPendingIdx + 1})
+                            </span>
+                            <span className="text-[10px] font-mono text-amber-300 font-bold">
+                              Hạn hoàn thành: Hôm nay 23:59
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 pt-1">
+                            <h4 className="text-sm font-extrabold text-white leading-snug flex-1">
+                              {todaySubtask.title}
+                            </h4>
+                            <button
+                              onClick={() => handleCompleteTodaySubtask(heroTask, todaySubtask, firstPendingIdx)}
+                              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all shrink-0"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" /> ✓ Xong Việc Hôm Nay
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-center gap-2">
+                          <Sparkles className="w-4 h-4 text-emerald-400" />
+                          🎉 Xuất sắc! Bạn đã hoàn thành toàn bộ việc con của tất cả các ngày trong nhiệm vụ này!
+                        </div>
+                      )}
+
+                      {/* Danh sách toàn bộ các ngày (Days Timeline) */}
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10px] font-mono text-slate-400 uppercase font-bold block">
+                          📅 Chi tiết kế hoạch theo từng ngày:
+                        </span>
+                        {subtaskList.map((st, idx) => {
+                          const isToday = idx === firstPendingIdx;
+                          return (
+                            <div
+                              key={st.id}
+                              onClick={() => handleToggleSubtask(heroTask.id, st.id, !st.isDone)}
+                              className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                                st.isDone
+                                  ? 'bg-slate-900/40 border-slate-800/80 text-slate-500'
+                                  : st.isUrgent
+                                  ? 'bg-red-950/20 border-red-500/60 text-slate-100 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                                  : isToday
+                                  ? 'bg-amber-500/10 border-amber-500/50 text-slate-100 font-bold'
+                                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={st.isDone}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer"
+                                />
+                                <span className={`text-xs ${st.isDone ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+                                  {st.title}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span
+                                  className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded ${
+                                    st.isDone
+                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                      : st.isUrgent
+                                      ? 'bg-red-500 text-white font-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]'
+                                      : isToday
+                                      ? 'bg-amber-500 text-slate-950 font-black animate-pulse'
+                                      : 'bg-slate-800 text-slate-400'
+                                  }`}
+                                >
+                                  {st.isDone
+                                    ? `✅ Xong (Ngày ${idx + 1})`
+                                    : st.isUrgent
+                                    ? `🚨 GẤP (Ngày ${idx + 1})`
+                                    : isToday
+                                    ? `🔥 HÔM NAY (Ngày ${idx + 1})`
+                                    : `⏳ Kế hoạch Ngày ${idx + 1}`}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 📎 TÀI LIỆU & DỮ LIỆU ĐÍNH KÈM CỦA TASK ĐANG LÀM (COCKPIT ATTACHMENTS) */}
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Paperclip className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs font-mono font-extrabold text-cyan-300 uppercase tracking-wider">
+                        Tài Liệu & Dữ Liệu Task Đang Làm ({heroTask.attachments?.length || 0})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* Hidden File Input */}
+                      <input
+                        type="file"
+                        ref={cockpitFileInputRef}
+                        onChange={(e) => handleCockpitFileUpload(heroTask.id, e)}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => cockpitFileInputRef.current?.click()}
+                        disabled={isUploadingCockpitAtt}
+                        className="px-3 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        {isUploadingCockpitAtt ? 'Đang Tải...' : 'Tải Tệp Lên'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCockpitAddUrl(!showCockpitAddUrl)}
+                        className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+                      >
+                        <Link2 className="w-3.5 h-3.5" /> Thêm Link (Figma/Docs)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Form Thêm Link Nhanh */}
+                  {showCockpitAddUrl && (
+                    <form onSubmit={(e) => handleCockpitAddUrl(heroTask.id, e)} className="p-3 rounded-xl bg-slate-900 border border-purple-500/30 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={cockpitUrlTitleInput}
+                          onChange={(e) => setCockpitUrlTitleInput(e.target.value)}
+                          placeholder="Tiêu đề tài liệu (VD: Figma UI Design, API Specs)..."
+                          className="flex-1 p-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-400"
+                        />
+                        <input
+                          type="text"
+                          value={cockpitUrlInput}
+                          onChange={(e) => setCockpitUrlInput(e.target.value)}
+                          placeholder="Dán đường dẫn URL (https://...)"
+                          className="flex-1 p-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-400 font-mono"
+                        />
+                        <button
+                          type="submit"
+                          className="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs cursor-pointer"
+                        >
+                          Đính Kèm
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Danh Sách Attachments Hiện Có */}
+                  {heroTask.attachments && heroTask.attachments.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                      {heroTask.attachments.map((att) => (
+                        <div
+                          key={att.id}
+                          className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2 hover:border-cyan-500/40 transition-all group"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                              {att.type === 'link' ? <Link2 className="w-4 h-4 text-purple-400" /> : <FileText className="w-4 h-4 text-cyan-400" />}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs text-white font-semibold truncate block">
+                                {att.name}
+                              </span>
+                              <span className="text-[10px] font-mono text-slate-400 block">
+                                {att.type === 'link' ? '🔗 Liên kết ngoài' : att.size ? `${Math.round(Number(att.size) / 1024)} KB` : '📁 Tệp đính kèm'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {att.type === 'link' ? (
+                              <a
+                                href={att.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-lg bg-slate-800 text-purple-300 hover:text-white hover:bg-purple-600 transition-all cursor-pointer"
+                                title="Mở liên kết"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleCockpitDownloadAttachment(att)}
+                                className="p-1.5 rounded-lg bg-slate-800 text-cyan-300 hover:text-white hover:bg-cyan-600 transition-all cursor-pointer"
+                                title="Tải xuống tệp"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleCockpitDeleteAttachment(heroTask.id, att.id)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
+                              title="Xóa đính kèm"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-slate-900/40 border border-dashed border-slate-800 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
+                      <Paperclip className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Chưa có tài liệu đính kèm cho Task này. Bấm <strong>"Tải Tệp Lên"</strong> để gửi tài liệu tác nghiệp!</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 🎮 ACTION BUTTONS */}
+                <div className="flex items-center gap-3 pt-2 flex-wrap">
                   {heroTask.status !== 'IN_PROGRESS' && (
                     <button
-                      onClick={() => updateHeroProgress(Math.max(heroTask.progress, 10))}
+                      onClick={() => {
+                        setTasks((prev) =>
+                          prev.map((t) => (t.id === heroTask.id ? { ...t, status: 'IN_PROGRESS' } : t))
+                        );
+                        api.patch(`/tasks/${heroTask.id}/status`, { status: 'IN_PROGRESS' });
+                        showNotification(`▶️ Đã bắt đầu thực hiện Task "${heroTask.title}"!`, 'success', 'Bắt Đầu Task');
+                      }}
                       className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_15px_rgba(147,51,234,0.4)]"
                     >
                       <Play className="w-4 h-4 fill-current" /> Bắt Đầu Làm Task
@@ -1391,15 +1783,14 @@ export const BoardPage: React.FC = () => {
                   )}
                   <button
                     onClick={() => {
-                      // Đổi trạng thái Hero Task về TODO để tự động chuyển xuống Hàng Chờ
                       setTasks((prev) =>
                         prev.map((t) => (t.id === heroTask.id ? { ...t, status: 'TODO' } : t))
                       );
                       api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' });
                       showNotification(
-                        `⏸️ Đã tạm dừng Task "${heroTask.title}" và chuyển về Hàng Chờ!`,
+                        `⏸️ Đã tạm dừng Task "${heroTask.title}" và chuyển về Hàng Chờ Hôm Nay!`,
                         'info',
-                        'Focus Queue'
+                        'Today Focus'
                       );
                     }}
                     className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-md"
@@ -1414,6 +1805,12 @@ export const BoardPage: React.FC = () => {
                   >
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Đánh Dấu Hoàn Thành
                   </button>
+                  <button
+                    onClick={() => handleQuickRequest(heroTask)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all ml-auto"
+                  >
+                    <Inbox className="w-4 h-4 text-amber-400" /> Xin Trợ Giúp / Bàn Giao
+                  </button>
                 </div>
               </div>
             ) : (
@@ -1421,16 +1818,16 @@ export const BoardPage: React.FC = () => {
                 <Target className="w-12 h-12 text-amber-400 mx-auto opacity-80 animate-pulse" />
                 <h3 className="text-lg font-bold text-white">Chưa Có Task Nào Đang Thực Hiện (IN_PROGRESS)</h3>
                 <p className="text-xs text-slate-300 max-w-md mx-auto">
-                  Hero Focus Task #1 chỉ hiển thị các nhiệm vụ bạn đang trực tiếp thực hiện (`IN_PROGRESS`). Hãy bấm chọn một Task trong Hàng chờ bên dưới và click <strong className="text-amber-300 font-mono">"▶️ Tiếp Tục Làm Task"</strong> để đưa lên làm việc!
+                  Today's Focus Cockpit chỉ hiển thị nhiệm vụ bạn đang trực tiếp thực hiện (`IN_PROGRESS`). Hãy bấm chọn một Task trong Hàng chờ bên dưới và click <strong className="text-amber-300 font-mono">"▶️ Tiếp Tục Làm Task"</strong> để đưa lên Hero Focus!
                 </p>
               </div>
             )}
 
-            {/* Queue List */}
+            {/* 📋 TODAY'S PRIORITY QUEUE LIST */}
             {queueTasks.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" /> Hàng Chờ Ưu Tiên Tiếp Theo Của Bạn ({queueTasks.length})
+                  <Sparkles className="w-4 h-4 text-amber-400" /> Hàng Chờ Nhiệm Vụ Hôm Nay Của Bạn ({queueTasks.length})
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {queueTasks.map((t) => (
@@ -1461,9 +1858,9 @@ export const BoardPage: React.FC = () => {
                             }
                             api.patch(`/tasks/${t.id}/status`, { status: 'IN_PROGRESS' });
                             showNotification(
-                              `🟢 Task "${t.title}" đã được chuyển lên vị trí HERO FOCUS TASK #1 (Đang xử lý chính)!`,
+                              `🟢 Task "${t.title}" đã được đưa lên HERO FOCUS TASK #1 hôm nay!`,
                               'success',
-                              'Focus Queue'
+                              'Today Focus'
                             );
                           }}
                           className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
@@ -1650,6 +2047,84 @@ export const BoardPage: React.FC = () => {
         confirmText="🚀 Xác Nhận Hoàn Thành"
         onConfirm={executeMoveToDone}
       />
+
+      {/* 🌟 MODAL PROMPT HỎI TIẾN HÀNH VIỆC NGÀY MAI (TÔN TRỌNG THỜI GIAN NHÂN VIÊN) */}
+      {workAheadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg solar-glass-card p-6 md:p-8 rounded-3xl bg-[#0F172A]/95 border-2 border-amber-400 shadow-[0_0_50px_rgba(245,158,11,0.3)] relative overflow-hidden space-y-6 animate-solar-warp-in">
+            {/* Ambient glow */}
+            <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-purple-600 flex items-center justify-center text-2xl shadow-lg">
+                🎉
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-white">
+                  Chúc Mừng Hoàn Thành Mục Tiêu Hôm Nay!
+                </h3>
+                <span className="text-xs text-amber-300 font-mono font-bold">
+                  Task: {workAheadModal.taskTitle}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs leading-relaxed text-slate-300">
+              <p>
+                Bạn đã hoàn thành xuất sắc việc con của ngày hôm nay!
+              </p>
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                <span className="text-[11px] font-mono text-slate-400 block">
+                  Việc con kế tiếp theo kế hoạch:
+                </span>
+                <span className="text-sm font-extrabold text-amber-400 block">
+                  📅 Ngày #{workAheadModal.nextDayIndex}: {workAheadModal.nextSubtaskTitle}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 text-[11px] flex items-center gap-2">
+                <span>🛡️</span>
+                <span>
+                  <strong>Đảm bảo quyền lợi:</strong> Thời hạn Deadline tổng của Task ({workAheadModal.dueDate || 'Hạn chót gốc'}) vẫn được <strong>bảo lưu giữ nguyên 100%</strong>.
+                </span>
+              </div>
+              <p className="text-slate-400 text-[11px]">
+                Bạn có muốn bắt đầu luôn việc của ngày mai để vượt tiến độ, hay nghỉ ngơi để hoàn thành đúng kế hoạch?
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setWorkAheadModal(null);
+                  showNotification(
+                    '☕ Chúc bạn nghỉ ngơi vui vẻ! Bạn đã hoàn thành đúng mục tiêu ngày hôm nay. Hạn chót gốc của bạn vẫn được bảo lưu trọn vẹn.',
+                    'info',
+                    'Hoàn Thành Hôm Nay'
+                  );
+                }}
+                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                ☕ Nghỉ Ngơi (Xong Hôm Nay)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWorkAheadModal(null);
+                  showNotification(
+                    `🚀 Tuyệt vời! Bạn đang vượt tiến độ. Việc con '${workAheadModal.nextSubtaskTitle}' (Ngày #${workAheadModal.nextDayIndex}) đã sẵn sàng trên bàn làm việc!`,
+                    'success',
+                    'Tiến Hành Việc Ngày Mai'
+                  );
+                }}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-slate-950 font-black text-xs cursor-pointer shadow-lg transition-all flex items-center gap-1.5"
+              >
+                <Sparkles className="w-4 h-4" /> ✨ Tiến Hành Luôn Việc Ngày Mai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 🔔 SOLAR NOTIFICATION MODAL BÌNH THƯỜNG */}
       <SolarNotificationModal
