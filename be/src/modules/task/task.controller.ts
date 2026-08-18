@@ -161,4 +161,30 @@ export class TaskController {
   deleteAttachment(@Param('attachmentId') attachmentId: string) {
     return this.taskService.deleteAttachment(attachmentId);
   }
+
+  @Post(':id/subtasks')
+  addSubtask(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: { title: string; assigneeId?: string; dueDate?: string },
+  ) {
+    return this.taskService.addSubtask(id, body, req.user);
+  }
+
+  @Patch('subtasks/:subtaskId')
+  updateSubtask(
+    @Param('subtaskId') subtaskId: string,
+    @Request() req: any,
+    @Body() body: { isDone?: boolean; title?: string; assigneeId?: string; dueDate?: string },
+  ) {
+    return this.taskService.updateSubtask(subtaskId, body, req.user);
+  }
+
+  @Delete('subtasks/:subtaskId')
+  deleteSubtask(
+    @Param('subtaskId') subtaskId: string,
+    @Request() req: any,
+  ) {
+    return this.taskService.deleteSubtask(subtaskId, req.user);
+  }
 }

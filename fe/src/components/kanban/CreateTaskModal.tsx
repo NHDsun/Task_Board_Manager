@@ -25,8 +25,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  if (!isOpen) return null;
-
   const currentUser = useAuthStore((state) => state.user);
 
   const [title, setTitle] = useState('');
@@ -117,6 +115,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">

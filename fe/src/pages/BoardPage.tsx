@@ -30,8 +30,6 @@ import { CreateProjectModal } from '../components/kanban/CreateProjectModal';
 import { CreateTaskModal } from '../components/kanban/CreateTaskModal';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import {
-  Mic,
-  Clock,
   Inbox,
   Search,
   Kanban,
@@ -87,16 +85,6 @@ export const BoardPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<string | null>(null);
 
-  const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const [attendanceData, setAttendanceData] = useState<{
-    formattedTime: string;
-    workMode: string;
-    durationMinutes: number;
-  }>({
-    formattedTime: '00h:00m',
-    workMode: 'OFFICE',
-    durationMinutes: 0,
-  });
   const [isLoading, setIsLoading] = useState(false);
   const [archivedTasks, setArchivedTasks] = useState<Array<any>>([]);
   const [isLoadingArchived, setIsLoadingArchived] = useState(false);
@@ -111,23 +99,6 @@ export const BoardPage: React.FC = () => {
   const [filterAssignee, setFilterAssignee] = useState<string>('ALL');
   const [filterPriority, setFilterPriority] = useState<string>('ALL');
   const [filterProfession, setFilterProfession] = useState<string>('ALL');
-
-  // Fetch real attendance status from Backend
-  const fetchAttendanceStatus = async () => {
-    try {
-      const res = await api.get('/profile/attendance/today');
-      if (res.data) {
-        setIsCheckedIn(!!res.data.isCheckedIn);
-        setAttendanceData({
-          formattedTime: res.data.formattedTime || '00h:00m',
-          workMode: res.data.workMode || 'OFFICE',
-          durationMinutes: res.data.durationMinutes || 0,
-        });
-      }
-    } catch {
-      // Fallback
-    }
-  };
 
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -145,17 +116,7 @@ export const BoardPage: React.FC = () => {
     };
 
     fetchMetadata();
-    fetchAttendanceStatus();
   }, [token]);
-
-  // Realtime attendance timer updater if checked-in
-  useEffect(() => {
-    if (!isCheckedIn) return;
-    const timer = setInterval(() => {
-      fetchAttendanceStatus();
-    }, 60000); // Poll/update every minute
-    return () => clearInterval(timer);
-  }, [isCheckedIn]);
 
   // State xác nhận khi kéo Task vào cột DONE
   const [confirmDoneTask, setConfirmDoneTask] = useState<{
@@ -211,7 +172,11 @@ export const BoardPage: React.FC = () => {
     setIsLoadingArchived(true);
     try {
       const res = await api.get('/tasks/archived');
-      const data = Array.isArray(res.data) ? res.data : [];
+      const data = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+        ? res.data.data
+        : [];
       setArchivedTasks(data);
     } catch {
       // Fallback
@@ -284,6 +249,40 @@ export const BoardPage: React.FC = () => {
     }
   }, [filterProject, token, dbProjects]);
 
+  // 🔘 Handler toggle completion of a subtask directly from Card or Modal
+  const handleToggleSubtask = async (taskId: string, subtaskId: string, isDone: boolean) => {
+    // Optimistic UI update across all task lists
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        const subtasks = (t.subtasks || []).map((st) =>
+          st.id === subtaskId ? { ...st, isDone } : st
+        );
+        const completedCount = subtasks.filter((st) => st.isDone).length;
+        const progress = subtasks.length > 0 ? Math.round((completedCount / subtasks.length) * 100) : t.progress;
+        return { ...t, subtasks, progress };
+      })
+    );
+
+    try {
+      const res = await api.patch(`/tasks/subtasks/${subtaskId}`, { isDone });
+      const updatedTask = res.data?.data || res.data;
+      if (updatedTask && updatedTask.id) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, ...updatedTask } : t))
+        );
+        if (selectedTaskForDetail?.id === taskId) {
+          setSelectedTaskForDetail((prev) => (prev ? { ...prev, ...updatedTask } : updatedTask));
+        }
+      }
+    } catch (err: any) {
+      console.error('Lỗi khi cập nhật việc con:', err);
+      const serverMsg = err.response?.data?.message || err.message || 'Không thể cập nhật việc con';
+      showNotification(serverMsg, 'warning', 'Lỗi Cập Nhật Việc Con');
+      fetchTasksFromBackend();
+    }
+  };
+
   // Handle Drag and Drop via @hello-pangea/dnd Library (Tối ưu phản hồi tức thì 0s trễ + Mô hình Retry)
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -298,17 +297,18 @@ export const BoardPage: React.FC = () => {
     const taskToMove = tasks.find((t) => t.id === draggableId);
     if (!taskToMove) return;
 
-    // 🔒 1. BỊ CẤM: Drag Ownership Rule (Tất cả User chỉ kéo Task của mình, TRỪ ADMIN có quyền kéo tất cả)
+    // 🔒 1. BỊ CẤM: Drag Ownership Rule (Khi đã giao việc, Task thuộc hoàn toàn về Assignee. Người tạo không được kéo thay, TRỪ ADMIN)
     const isAdmin = user?.globalRole === 'ADMIN';
-    const isTaskOwner =
-      taskToMove.assigneeId === user?.id ||
-      taskToMove.assignee?.id === user?.id ||
-      taskToMove.assignee?.email === user?.email ||
-      (taskToMove as any).createdById === user?.id;
+    const hasAssignee = Boolean(taskToMove.assigneeId || taskToMove.assignee?.id || taskToMove.assignee?.email);
+    const isTaskOwner = hasAssignee
+      ? (taskToMove.assigneeId === user?.id ||
+         taskToMove.assignee?.id === user?.id ||
+         taskToMove.assignee?.email === user?.email)
+      : (taskToMove as any).createdById === user?.id;
 
     if (!isAdmin && !isTaskOwner) {
       showNotification(
-        `Bạn (${user?.fullName || 'Người dùng'}) chỉ có quyền kéo thả các Task chính chủ của mình! (Chỉ Admin mới có quyền kéo Task của mọi người).`,
+        `Task này đã được giao cho ${taskToMove.assignee?.fullName || 'thành viên khác'}! Bạn không có quyền kéo thả Task của người khác (Chỉ Admin hoặc chính người được giao mới có quyền).`,
         'warning',
         'Quyền Hạn Bị Từ Chối (Drag Ownership)'
       );
@@ -357,6 +357,65 @@ export const BoardPage: React.FC = () => {
       progress: targetStatus === 'TODO' ? 0 : taskToMove.progress,
     }).catch(() => {
       // Khôi phục giao diện theo dữ liệu chuẩn từ CSDL nếu có lỗi
+      fetchTasksFromBackend();
+    });
+  };
+
+  // 📈 Handle Drag and Drop for Pipeline Stages View (Cập nhật Giai đoạn Dự Án)
+  const handlePipelineDragEnd = (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+
+    const targetStageId = destination.droppableId;
+    const taskToMove = tasks.find((t) => t.id === draggableId);
+    if (!taskToMove) return;
+
+    // 🔒 1. Drag Ownership Rule: Khi đã giao việc, Task thuộc hoàn toàn về Assignee (chỉ Assignee hoặc ADMIN mới có quyền kéo)
+    const isAdmin = user?.globalRole === 'ADMIN';
+    const hasAssignee = Boolean(taskToMove.assigneeId || taskToMove.assignee?.id || taskToMove.assignee?.email);
+    const isTaskOwner = hasAssignee
+      ? (taskToMove.assigneeId === user?.id ||
+         taskToMove.assignee?.id === user?.id ||
+         taskToMove.assignee?.email === user?.email)
+      : (taskToMove as any).createdById === user?.id;
+
+    if (!isAdmin && !isTaskOwner) {
+      showNotification(
+        `Task này đã được giao cho ${taskToMove.assignee?.fullName || 'thành viên khác'}! Bạn không có quyền chuyển giai đoạn Pipeline của người khác.`,
+        'warning',
+        'Quyền Hạn Bị Từ Chối (Pipeline Ownership)'
+      );
+      return;
+    }
+
+    // ⚡ 2. Cập nhật tức thì trên giao diện & Animation Snap
+    setRecentlyMovedTaskId(draggableId);
+    setTimeout(() => {
+      setRecentlyMovedTaskId(null);
+    }, 800);
+
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === draggableId) {
+          return { ...t, stageId: targetStageId };
+        }
+        return t;
+      })
+    );
+
+    const targetStageObj = activePipelineStages.find((s) => s.id === targetStageId);
+    showNotification(
+      `Đã chuyển Task "${taskToMove.title}" sang giai đoạn "${targetStageObj?.name || targetStageId}" thành công!`,
+      'success',
+      'Cập Nhật Giai Đoạn Pipeline'
+    );
+
+    // 🚀 Gửi API cập nhật stageId vào CSDL Postgres
+    api.patch(`/tasks/${draggableId}/status`, {
+      stageId: targetStageId,
+    }).catch(() => {
       fetchTasksFromBackend();
     });
   };
@@ -463,94 +522,41 @@ export const BoardPage: React.FC = () => {
       {/* 🚀 Top Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-wrap">
-          <button
-            onClick={async () => {
-              try {
-                if (isCheckedIn) {
-                  const res = await api.patch('/profile/attendance/check-out');
-                  setIsCheckedIn(false);
-                  if (res.data) {
-                    setAttendanceData({
-                      formattedTime: res.data.formattedTime || '00h:00m',
-                      workMode: res.data.workMode || 'OFFICE',
-                      durationMinutes: res.data.durationMinutes || 0,
-                    });
-                  }
-                  showNotification(
-                    'Đã Checkout ca làm việc hôm nay thành công!',
-                    'info',
-                    'Chấm Công Hệ Thống'
-                  );
-                } else {
-                  const res = await api.patch('/profile/attendance/check-in', {
-                    type: 'VOICE',
-                    workMode: 'OFFICE',
-                  });
-                  setIsCheckedIn(true);
-                  if (res.data) {
-                    setAttendanceData({
-                      formattedTime: res.data.formattedTime || '00h:00m',
-                      workMode: res.data.workMode || 'OFFICE',
-                      durationMinutes: res.data.durationMinutes || 0,
-                    });
-                  }
-                  showNotification(
-                    '🟢 Solaris: Đã ghi nhận Check-in ca làm việc hôm nay thành công!',
-                    'success',
-                    'Chấm Công Hệ Thống'
-                  );
-                }
-              } catch (err: any) {
-                showNotification('Có lỗi khi cập nhật trạng thái chấm công', 'warning', 'Lỗi Chấm Công');
-              }
-            }}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all duration-300 shadow-md cursor-pointer ${
-              isCheckedIn
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                : 'bg-amber-500 text-slate-950 hover:bg-amber-400 animate-pulse'
-            }`}
-          >
-            <Mic className="w-4 h-4" />
-            {isCheckedIn ? 'Voice Check-In Active' : 'Bắt Đầu Chấm Công Voice'}
-          </button>
-
-          <div className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-amber-300 flex items-center gap-1.5 shadow-inner">
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>
-              {isCheckedIn ? '🟢' : '⚪'} {attendanceData.formattedTime} ({attendanceData.workMode})
-            </span>
+          <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-slate-900/90 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-mono font-bold text-amber-300">SOLARIS WORKSPACE</span>
           </div>
 
           <button
             onClick={fetchTasksFromBackend}
             disabled={isLoading}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer shadow-md"
             title="Đồng Bộ CSDL Postgres"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
           </button>
         </div>
 
-        {/* 👑 NÚT TẠO DỰ ÁN & TẠO TASK CHO ADMIN VÀ MANAGER */}
+        {/* 👑 NÚT TẠO DỰ ÁN (CHỈ ADMIN) & TẠO TASK CHO ADMIN VÀ MANAGER */}
         <div className="flex items-center gap-3 flex-wrap">
-          {isRoleAdminOrManager && (
-            <>
-              <button
-                onClick={() => setIsCreateProjectModalOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-lg"
-              >
-                <FolderPlus className="w-4 h-4 text-purple-400" />
-                <span>+ Tạo Dự Án Mới</span>
-              </button>
+          {user?.globalRole === 'ADMIN' && (
+            <button
+              onClick={() => setIsCreateProjectModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-lg"
+            >
+              <FolderPlus className="w-4 h-4 text-purple-400" />
+              <span>+ Tạo Dự Án Mới</span>
+            </button>
+          )}
 
-              <button
-                onClick={() => setIsCreateTaskModalOpen(true)}
-                className="solar-corona-btn px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer flex items-center gap-2"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>+ Tạo Task Mới</span>
-              </button>
-            </>
+          {isRoleAdminOrManager && (
+            <button
+              onClick={() => setIsCreateTaskModalOpen(true)}
+              className="solar-corona-btn px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer flex items-center gap-2"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>+ Tạo Task Mới</span>
+            </button>
           )}
 
           <div className="relative hidden lg:block">
@@ -723,11 +729,12 @@ export const BoardPage: React.FC = () => {
                       <div className="flex-1 space-y-3">
                         {colTasks.map((t, index) => {
                           const isAdminRole = user?.globalRole === 'ADMIN';
-                          const isMyOwnTask =
-                            t.assigneeId === user?.id ||
-                            t.assignee?.id === user?.id ||
-                            t.assignee?.email === user?.email ||
-                            (t as any).createdById === user?.id;
+                          const hasAssignee = Boolean(t.assigneeId || t.assignee?.id || t.assignee?.email);
+                          const isMyOwnTask = hasAssignee
+                            ? (t.assigneeId === user?.id ||
+                               t.assignee?.id === user?.id ||
+                               t.assignee?.email === user?.email)
+                            : (t as any).createdById === user?.id;
                           const isDragDisabled = t.status === 'IN_REVIEW' || (!isAdminRole && !isMyOwnTask);
 
                           return (
@@ -754,6 +761,7 @@ export const BoardPage: React.FC = () => {
                                       task={t}
                                       onRequestTransfer={handleQuickRequest}
                                       onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                                      onToggleSubtask={handleToggleSubtask}
                                       onDeleteTask={(taskItem) => {
                                         setTaskToDelete(taskItem);
                                         setIsDeleteModalOpen(true);
@@ -1081,69 +1089,119 @@ export const BoardPage: React.FC = () => {
               }
 
               return (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {computedStages.map((stage) => {
-                    const isStageLocked = stage.status === 'LOCKED';
+                <DragDropContext onDragEnd={handlePipelineDragEnd}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {computedStages.map((stage) => {
+                      const isStageLocked = stage.status === 'LOCKED';
 
-                    return (
-                      <div
-                        key={stage.id}
-                        className={`solar-glass-card p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden shadow-xl ${
-                          isStageLocked 
-                            ? 'bg-slate-950/40 border-slate-900/60 opacity-50' 
-                            : `bg-[#0F172A]/90 ${stage.color}`
-                        }`}
-                      >
-                        {isStageLocked && (
-                          <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[0.5px] z-10 flex flex-col items-center justify-center pointer-events-none">
-                            <Lock className="w-8 h-8 text-rose-500/40 mb-1" />
-                            <span className="text-[10px] font-mono text-rose-400/50 font-bold uppercase tracking-wider">
-                              GIAI ĐOẠN ĐANG KHÓA
-                            </span>
-                          </div>
-                        )}
+                      return (
+                        <Droppable key={stage.id} droppableId={stage.id} isDropDisabled={isStageLocked}>
+                          {(providedDroppable, snapshotDroppable) => (
+                            <div
+                              ref={providedDroppable.innerRef}
+                              {...providedDroppable.droppableProps}
+                              className={`solar-glass-card p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden shadow-xl flex flex-col min-h-[320px] ${
+                                snapshotDroppable.isDraggingOver
+                                  ? 'border-purple-400/80 bg-purple-950/40 ring-2 ring-purple-400/30'
+                                  : isStageLocked
+                                  ? 'bg-slate-950/40 border-slate-900/60 opacity-50'
+                                  : `bg-[#0F172A]/90 ${stage.color}`
+                              }`}
+                            >
+                              {isStageLocked && (
+                                <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[0.5px] z-10 flex flex-col items-center justify-center pointer-events-none">
+                                  <Lock className="w-8 h-8 text-rose-500/40 mb-1" />
+                                  <span className="text-[10px] font-mono text-rose-400/50 font-bold uppercase tracking-wider">
+                                    GIAI ĐOẠN ĐANG KHÓA
+                                  </span>
+                                </div>
+                              )}
 
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                          <span className={`font-extrabold text-sm ${isStageLocked ? 'text-slate-500' : 'text-white'}`}>
-                            {stage.name}
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 border ${
-                              isStageLocked
-                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                                : stage.status === 'DONE'
-                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                : 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                            }`}
-                          >
-                            {isStageLocked && <Lock className="w-2.5 h-2.5" />}
-                            {isStageLocked ? 'LOCKED' : stage.status} ({stage.tasks.length})
-                          </span>
-                        </div>
+                              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+                                <span className={`font-extrabold text-sm ${isStageLocked ? 'text-slate-500' : 'text-white'}`}>
+                                  {stage.name}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 border ${
+                                    isStageLocked
+                                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                      : stage.status === 'DONE'
+                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                      : 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                                  }`}
+                                >
+                                  {isStageLocked && <Lock className="w-2.5 h-2.5" />}
+                                  {isStageLocked ? 'LOCKED' : stage.status} ({stage.tasks.length})
+                                </span>
+                              </div>
 
-                        <div className={`space-y-3 ${isStageLocked ? 'select-none pointer-events-none' : ''}`}>
-                          {stage.tasks.map((t) => (
-                            <KanbanCard
-                              key={t.id}
-                              task={t}
-                              onRequestTransfer={handleQuickRequest}
-                              onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
-                              onDeleteTask={(taskItem) => {
-                                setTaskToDelete(taskItem);
-                                setIsDeleteModalOpen(true);
-                              }}
-                            />
-                          ))}
-                          {stage.tasks.length === 0 && (
-                            <div className="h-24 border border-dashed border-slate-800/60 rounded-xl flex items-center justify-center text-[11px] font-mono text-slate-600">
-                              Chưa có Task giai đoạn này
+                              <div className={`space-y-3 flex-1 ${isStageLocked ? 'select-none pointer-events-none' : ''}`}>
+                                {stage.tasks.map((t, index) => {
+                                  const isAdminRole = user?.globalRole === 'ADMIN';
+                                  const hasAssignee = Boolean(t.assigneeId || t.assignee?.id || t.assignee?.email);
+                                  const isMyOwnTask = hasAssignee
+                                    ? (t.assigneeId === user?.id ||
+                                       t.assignee?.id === user?.id ||
+                                       t.assignee?.email === user?.email)
+                                    : (t as any).createdById === user?.id;
+                                  const isDragDisabled = isStageLocked || (!isAdminRole && !isMyOwnTask);
+
+                                  return (
+                                    <Draggable key={t.id} draggableId={t.id} index={index} isDragDisabled={isDragDisabled}>
+                                      {(providedDraggable, snapshotDraggable) => {
+                                        const cardElement = (
+                                          <div
+                                            ref={providedDraggable.innerRef}
+                                            {...providedDraggable.draggableProps}
+                                            {...providedDraggable.dragHandleProps}
+                                            style={{
+                                              ...providedDraggable.draggableProps.style,
+                                              pointerEvents: 'auto',
+                                            }}
+                                            className={`transform-gpu ${
+                                              snapshotDraggable.isDragging
+                                                ? '!z-[999999] rotate-2 scale-105 shadow-[0_0_60px_rgba(168,85,247,0.8)] border-2 border-purple-400 rounded-2xl bg-[#0F172A] cursor-grabbing'
+                                                : snapshotDraggable.isDropAnimating || recentlyMovedTaskId === t.id
+                                                ? 'animate-solar-drop-snap border-2 border-purple-400/90 rounded-2xl shadow-[0_0_35px_rgba(168,85,247,0.6)]'
+                                                : 'hover:-translate-y-0.5 transition-transform duration-150'
+                                            }`}
+                                          >
+                                            <KanbanCard
+                                              task={t}
+                                              onRequestTransfer={handleQuickRequest}
+                                              onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                                              onToggleSubtask={handleToggleSubtask}
+                                              onDeleteTask={(taskItem) => {
+                                                setTaskToDelete(taskItem);
+                                                setIsDeleteModalOpen(true);
+                                              }}
+                                            />
+                                          </div>
+                                        );
+
+                                        if (snapshotDraggable.isDragging) {
+                                          return ReactDOM.createPortal(cardElement, getPortalRoot());
+                                        }
+
+                                        return cardElement;
+                                      }}
+                                    </Draggable>
+                                  );
+                                })}
+                                {providedDroppable.placeholder}
+                                {stage.tasks.length === 0 && (
+                                  <div className="h-24 border border-dashed border-slate-800/60 rounded-xl flex items-center justify-center text-[11px] font-mono text-slate-600">
+                                    Kéo thả Task vào giai đoạn này
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                        </Droppable>
+                      );
+                    })}
+                  </div>
+                </DragDropContext>
               );
             })()}
           </div>
@@ -1381,6 +1439,7 @@ export const BoardPage: React.FC = () => {
                         task={t}
                         onRequestTransfer={handleQuickRequest}
                         onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
+                        onToggleSubtask={handleToggleSubtask}
                       />
                       <div className="flex items-center justify-between bg-slate-950/80 p-2.5 rounded-xl border border-slate-800">
                         <span className="text-[11px] font-mono text-slate-400">

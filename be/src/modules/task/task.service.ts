@@ -78,7 +78,10 @@ export class TaskService {
         assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
         createdBy: { select: { id: true, fullName: true, email: true, avatar: true } },
         tags: { include: { tag: true } },
-        subtasks: true,
+        subtasks: {
+          include: { assignee: { select: { id: true, fullName: true, avatar: true } } },
+          orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+        },
         attachments: true,
         taskRequests: {
           where: { status: 'PENDING' },
@@ -97,54 +100,7 @@ export class TaskService {
       ],
     });
 
-    return tasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description || undefined,
-      status: t.status,
-      priority: t.priority,
-      progress: t.progress,
-      dueDate: t.dueDate ? t.dueDate.toISOString().slice(0, 10) : undefined,
-      projectName: t.project?.name || 'Solaris Core',
-      assigneeId: t.assigneeId || undefined,
-      assignee: t.assignee
-        ? {
-            id: t.assignee.id,
-            fullName: t.assignee.fullName,
-            avatar: t.assignee.avatar || undefined,
-            profession: t.assignee.profession,
-          }
-        : undefined,
-      createdById: t.createdById,
-      createdBy: t.createdBy
-        ? {
-            id: t.createdBy.id,
-            fullName: t.createdBy.fullName,
-            avatar: t.createdBy.avatar || undefined,
-          }
-        : undefined,
-      transferInfo:
-        t.taskRequests && t.taskRequests.length > 0
-          ? {
-              senderName: t.taskRequests[0].sender.fullName,
-              senderAvatar: t.taskRequests[0].sender.avatar || '',
-              receiverName: t.taskRequests[0].receiver.fullName,
-              receiverAvatar: t.taskRequests[0].receiver.avatar || '',
-              note: t.taskRequests[0].note || '',
-            }
-          : undefined,
-      tags: t.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })),
-      commentsCount: t._count.comments,
-      stageId: t.stageId || undefined,
-      attachments: t.attachments ? t.attachments.map((att) => ({
-        id: att.id,
-        name: att.name,
-        url: att.url,
-        type: att.type,
-        size: att.size || undefined,
-        createdAt: att.createdAt ? att.createdAt.toISOString() : undefined,
-      })) : [],
-    }));
+    return tasks.map((t) => this.mapTaskResponse(t));
   }
 
   async create(userId: string, createTaskDto: CreateTaskDto) {
@@ -189,10 +145,6 @@ export class TaskService {
         attachments: true,
       },
     });
-
-    if (task.status === 'IN_PROGRESS' && task.assigneeId) {
-      await this.triggerTaskDrivenCheckIn(task.assigneeId);
-    }
 
     const createdTask = {
       id: task.id,
@@ -244,11 +196,11 @@ export class TaskService {
         throw new NotFoundException('Task không tồn tại');
       }
 
-      // Check ownership & role permission: Only ADMIN, MANAGER, or Task Assignee/Creator can update status
-      if (user && user.role !== 'ADMIN' && user.role !== 'MANAGER') {
-        const isOwner = task.assigneeId === user.id || task.createdById === user.id;
+      // Check ownership: Khi đã giao việc, Task thuộc quyền sở hữu của Assignee (người tạo không được sửa thay, TRỪ ADMIN)
+      if (user && user.role !== 'ADMIN') {
+        const isOwner = task.assigneeId ? task.assigneeId === user.id : task.createdById === user.id;
         if (!isOwner) {
-          throw new ForbiddenException('Bạn không có quyền chỉnh sửa trạng thái Task của người khác');
+          throw new ForbiddenException('Task này thuộc về người được giao, bạn không có quyền chỉnh sửa trạng thái của người khác');
         }
       }
 
@@ -256,6 +208,7 @@ export class TaskService {
         where: { id },
         data: {
           status: updateTaskStatusDto.status,
+          stageId: updateTaskStatusDto.stageId !== undefined ? updateTaskStatusDto.stageId : undefined,
           description: (updateTaskStatusDto as any).description !== undefined ? (updateTaskStatusDto as any).description : undefined,
           progress:
             updateTaskStatusDto.progress !== undefined
@@ -276,10 +229,6 @@ export class TaskService {
         },
       });
     });
-
-    if (updateTaskStatusDto.status === 'IN_PROGRESS' && updatedTask.assigneeId) {
-      await this.triggerTaskDrivenCheckIn(updatedTask.assigneeId);
-    }
 
     const result = {
       id: updatedTask.id,
@@ -332,7 +281,7 @@ export class TaskService {
         throw new NotFoundException('Task không tồn tại');
       }
 
-      // Check ownership: ADMIN, MANAGER, or Assignee/Creator (matched by ID or Email)
+      // Check ownership: ADMIN, MANAGER, or Assignee (nếu chưa giao việc thì Creator)
       let isAllowed = false;
       if (!user || user.role === 'ADMIN' || user.role === 'MANAGER' || user.globalRole === 'ADMIN' || user.globalRole === 'MANAGER') {
         isAllowed = true;
@@ -345,12 +294,13 @@ export class TaskService {
           (task.assignee && task.assignee.email === userEmail) ||
           (task.assignee && task.assignee.id === userId);
 
-        const isCreator =
-          task.createdById === userId ||
-          (task.createdBy && task.createdBy.email === userEmail) ||
-          (task.createdBy && task.createdBy.id === userId);
+        const isCreatorUnassigned =
+          !task.assigneeId &&
+          (task.createdById === userId ||
+            (task.createdBy && task.createdBy.email === userEmail) ||
+            (task.createdBy && task.createdBy.id === userId));
 
-        if (isAssignee || isCreator) {
+        if (isAssignee || isCreatorUnassigned) {
           isAllowed = true;
         }
       }
@@ -477,7 +427,9 @@ export class TaskService {
 
     const senderUser = await this.prisma.user.findUnique({ where: { id: effectiveSenderId } });
     const isAdmin = senderUser?.role === 'ADMIN';
-    const isOwner = targetTask.assigneeId === effectiveSenderId || targetTask.createdById === effectiveSenderId;
+    const isOwner = targetTask.assigneeId
+      ? targetTask.assigneeId === effectiveSenderId
+      : targetTask.createdById === effectiveSenderId;
 
     if (!isOwner && !isAdmin) {
       throw new BadRequestException('Bạn chỉ có thể gửi yêu cầu chuyển giao cho Task thuộc quyền sở hữu của chính mình!');
@@ -793,33 +745,6 @@ export class TaskService {
     return { success: true, message: `Đã khôi phục thành công Task "${task.title}" về Bảng công việc!` };
   }
 
-  private async triggerTaskDrivenCheckIn(userId: string) {
-    try {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const existingLog = await this.prisma.attendanceLog.findFirst({
-        where: {
-          userId,
-          checkInAt: { gte: startOfDay },
-        },
-      });
-
-      if (!existingLog) {
-        await this.prisma.attendanceLog.create({
-          data: {
-            userId,
-            type: 'TASK_DRIVEN',
-            workMode: 'OFFICE',
-            note: 'Tự động Chấm công ngầm khi bắt đầu Task (Task-Driven Check-In)',
-          },
-        });
-      }
-    } catch {
-      // Ignore if error
-    }
-  }
-
   private mapTaskResponse(t: any) {
     return {
       id: t.id,
@@ -840,6 +765,7 @@ export class TaskService {
           }
         : undefined,
       createdById: t.createdById,
+      createdAt: t.createdAt ? t.createdAt.toISOString() : undefined,
       createdBy: t.createdBy
         ? {
             id: t.createdBy.id,
@@ -857,9 +783,26 @@ export class TaskService {
               note: t.taskRequests[0].note || '',
             }
           : undefined,
-      tags: t.tags ? t.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: 'amber' })) : [],
       commentsCount: t._count?.comments || 0,
       stageId: t.stageId || undefined,
+      subtasks: t.subtasks
+        ? t.subtasks.map((st: any) => ({
+            id: st.id,
+            title: st.title,
+            isDone: Boolean(st.isDone),
+            order: st.order || 0,
+            assigneeId: st.assigneeId || undefined,
+            assignee: st.assignee
+              ? {
+                  id: st.assignee.id,
+                  fullName: st.assignee.fullName,
+                  avatar: st.assignee.avatar || undefined,
+                }
+              : undefined,
+            dueDate: st.dueDate ? st.dueDate.toISOString().slice(0, 10) : undefined,
+            createdAt: st.createdAt ? st.createdAt.toISOString() : undefined,
+          }))
+        : [],
       attachments: t.attachments ? t.attachments.map((att) => ({
         id: att.id,
         name: att.name,
@@ -967,5 +910,141 @@ export class TaskService {
     }
 
     return { success: true };
+  }
+
+  async addSubtask(taskId: string, body: { title: string; assigneeId?: string; dueDate?: string }, user?: any) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { subtasks: true },
+    });
+    if (!task) {
+      throw new NotFoundException('Task không tồn tại');
+    }
+
+    // 🔒 PHÂN QUYỀN: Admin, Manager, Người tạo Task (Creator) hoặc Người được giao Task (Assignee) đều có quyền thêm Subtask
+    if (user) {
+      const isAdminOrManager = user.role === 'ADMIN' || user.role === 'MANAGER' || user.globalRole === 'ADMIN' || user.globalRole === 'MANAGER';
+      const isAssignee = task.assigneeId === user.id;
+      const isCreator = task.createdById === user.id;
+      if (!isAdminOrManager && !isAssignee && !isCreator) {
+        throw new ForbiddenException('Bạn không có quyền thêm công việc con vào Task này');
+      }
+    }
+
+    const nextOrder = task.subtasks.length;
+    await this.prisma.subtask.create({
+      data: {
+        taskId,
+        title: body.title.trim(),
+        assigneeId: body.assigneeId || undefined,
+        dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+        order: nextOrder,
+        isDone: false,
+      },
+    });
+
+    return this.recalculateTaskProgress(taskId, task.projectId);
+  }
+
+  async updateSubtask(
+    subtaskId: string,
+    body: { isDone?: boolean; title?: string; assigneeId?: string; dueDate?: string },
+    user?: any,
+  ) {
+    const subtask = await this.prisma.subtask.findUnique({
+      where: { id: subtaskId },
+      include: { task: true },
+    });
+    if (!subtask) {
+      throw new NotFoundException('Công việc con không tồn tại');
+    }
+
+    // 🔒 PHÂN QUYỀN: Chỉ Người được giao Task (Assignee), Assignee của Subtask, hoặc Admin/Manager mới có quyền cập nhật tiến độ việc con
+    if (user) {
+      const isAdminOrManager = user.role === 'ADMIN' || user.role === 'MANAGER' || user.globalRole === 'ADMIN' || user.globalRole === 'MANAGER';
+      const isSubtaskAssignee = subtask.assigneeId && subtask.assigneeId === user.id;
+      const isTaskAssignee = subtask.task.assigneeId && subtask.task.assigneeId === user.id;
+      const isCreatorWhenUnassigned = !subtask.task.assigneeId && subtask.task.createdById === user.id;
+      if (!isAdminOrManager && !isSubtaskAssignee && !isTaskAssignee && !isCreatorWhenUnassigned) {
+        throw new ForbiddenException('Chỉ người được giao Task mới có quyền đánh dấu hoàn thành công việc con');
+      }
+    }
+
+    const updateData: any = {};
+    if (body.isDone !== undefined) updateData.isDone = Boolean(body.isDone);
+    if (body.title !== undefined) updateData.title = body.title.trim();
+    if (body.assigneeId !== undefined) updateData.assigneeId = body.assigneeId || null;
+    if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+
+    await this.prisma.subtask.update({
+      where: { id: subtaskId },
+      data: updateData,
+    });
+
+    return this.recalculateTaskProgress(subtask.taskId, subtask.task.projectId);
+  }
+
+  async deleteSubtask(subtaskId: string, user?: any) {
+    const subtask = await this.prisma.subtask.findUnique({
+      where: { id: subtaskId },
+      include: { task: true },
+    });
+    if (!subtask) {
+      throw new NotFoundException('Công việc con không tồn tại');
+    }
+
+    // 🔒 PHÂN QUYỀN: Admin, Manager, Người tạo Task (Creator) hoặc Người được giao Task (Assignee) có quyền xóa việc con
+    if (user) {
+      const isAdminOrManager = user.role === 'ADMIN' || user.role === 'MANAGER' || user.globalRole === 'ADMIN' || user.globalRole === 'MANAGER';
+      const isAssignee = subtask.task.assigneeId === user.id;
+      const isCreator = subtask.task.createdById === user.id;
+      if (!isAdminOrManager && !isAssignee && !isCreator) {
+        throw new ForbiddenException('Bạn không có quyền xóa công việc con này');
+      }
+    }
+
+    await this.prisma.subtask.delete({
+      where: { id: subtaskId },
+    });
+
+    return this.recalculateTaskProgress(subtask.taskId, subtask.task.projectId);
+  }
+
+  private async recalculateTaskProgress(taskId: string, projectId: string) {
+    const subtasks = await this.prisma.subtask.findMany({
+      where: { taskId },
+      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+      include: {
+        assignee: { select: { id: true, fullName: true, avatar: true } },
+      },
+    });
+
+    let newProgress = 0;
+    if (subtasks.length > 0) {
+      const completedCount = subtasks.filter((st) => st.isDone).length;
+      newProgress = Math.round((completedCount / subtasks.length) * 100);
+    }
+
+    const updatedTask = await this.prisma.task.update({
+      where: { id: taskId },
+      data: { progress: newProgress },
+      include: {
+        project: { select: { id: true, name: true } },
+        assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
+        createdBy: { select: { id: true, fullName: true, email: true, avatar: true } },
+        tags: { include: { tag: true } },
+        subtasks: {
+          include: { assignee: { select: { id: true, fullName: true, avatar: true } } },
+          orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+        },
+        attachments: true,
+        _count: { select: { comments: true } },
+      },
+    });
+
+    const mapped = this.mapTaskResponse(updatedTask);
+    this.socketGateway.broadcastToProject(projectId, 'task:updated', mapped);
+
+    return mapped;
   }
 }

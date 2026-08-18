@@ -58,11 +58,6 @@ enum CallStatus {
   BUSY
 }
 
-enum AttendanceType {
-  VOICE
-  TASK_DRIVEN
-  MANUAL
-}
 
 enum WorkMode {
   OFFICE
@@ -128,9 +123,9 @@ model User {
   receivedDirectMessages DirectMessage[] @relation("ReceivedMessages")
   sentCalls              CallLog[]       @relation("SentCalls")
   receivedCalls          CallLog[]       @relation("ReceivedCalls")
-  attendanceLogs         AttendanceLog[]
   sentTaskRequests       TaskRequest[]   @relation("SentTaskRequests")
   receivedTaskRequests   TaskRequest[]   @relation("ReceivedTaskRequests")
+  assignedSubtasks       Subtask[]       @relation("SubtaskAssignee")
 
   @@map("users")
 }
@@ -218,15 +213,20 @@ model Task {
 }
 
 model Subtask {
-  id        String   @id @default(uuid())
-  title     String
-  isDone    Boolean  @default(false) @map("is_done")
-  taskId    String   @map("task_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String    @id @default(uuid())
+  taskId      String    @map("task_id")
+  title       String
+  isDone      Boolean   @default(false) @map("is_done")
+  order       Int       @default(0)
+  assigneeId  String?   @map("assignee_id")
+  dueDate     DateTime? @map("due_date")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task     Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  assignee User? @relation("SubtaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
+  @@index([taskId])
   @@map("subtasks")
 }
 
@@ -315,22 +315,6 @@ model CallLog {
   @@map("call_logs")
 }
 
-model AttendanceLog {
-  id         String         @id @default(uuid())
-  userId     String         @map("user_id")
-  checkInAt  DateTime       @default(now()) @map("check_in_at")
-  checkOutAt DateTime?      @map("check_out_at")
-  type       AttendanceType @default(VOICE)
-  workMode   WorkMode       @default(OFFICE)
-  ipAddress  String?        @map("ip_address")
-  location   String?
-  note       String?
-  createdAt  DateTime       @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("attendance_logs")
-}
 
 model TaskRequest {
   id           String            @id @default(uuid())

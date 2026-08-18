@@ -17,9 +17,12 @@ import {
   Download,
   Edit3,
   Check,
-  Trash2
+  Trash2,
+  ListTodo,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
-import type { TaskItem } from './KanbanCard';
+import type { TaskItem, SubtaskItem } from './KanbanCard';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 
@@ -56,33 +59,68 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onDeleteTask,
   onUpdateTask,
 }) => {
-  if (!isOpen || !task) return null;
-
   const currentUser = useAuthStore((state) => state.user);
 
-  // 🔒 PRECISE OWNERSHIP CHECK: Is this task assigned to me or created by me or am I Admin/Manager?
+  // 🔒 PRECISE OWNERSHIP CHECK: Khi đã giao việc, Task thuộc hoàn toàn về Assignee (người tạo không còn sở hữu, trừ Admin/Manager)
+  const hasAssignee = Boolean(task?.assigneeId || task?.assignee?.id || task?.assignee?.email);
+  const isAssignee = Boolean(
+    currentUser &&
+      task &&
+      (task.assigneeId === currentUser.id ||
+        task.assignee?.id === currentUser.id ||
+        (task.assignee?.email && currentUser.email === task.assignee.email))
+  );
+
+  const isCreator = Boolean(
+    currentUser &&
+      task &&
+      (task.createdById === currentUser.id ||
+        task.createdBy?.id === currentUser.id ||
+        ((task.createdBy as any)?.email && currentUser.email === (task.createdBy as any).email))
+  );
+
+  const isCreatorWhenUnassigned = !hasAssignee && isCreator;
+
   const isMyTask = Boolean(
     currentUser &&
       (currentUser.globalRole === 'ADMIN' ||
         currentUser.globalRole === 'MANAGER' ||
-        currentUser.id === task.assigneeId ||
-        currentUser.id === task.assignee?.id ||
-        (task.assignee?.email && currentUser.email === task.assignee.email) ||
-        currentUser.id === (task as any).createdById ||
-        currentUser.id === task.createdBy?.id ||
-        ((task.createdBy as any)?.email && currentUser.email === (task.createdBy as any).email))
+        (hasAssignee ? isAssignee : isCreator))
+  );
+
+  // 🔒 Quyền thêm / xóa việc con: Người tạo Task, Người được giao Task hoặc Admin/Manager
+  const canManageSubtasks = Boolean(
+    currentUser &&
+      (currentUser.globalRole === 'ADMIN' ||
+        currentUser.globalRole === 'MANAGER' ||
+        isAssignee ||
+        isCreator)
+  );
+
+  // 🔒 Quyền TICK việc con [✓]: CHỈ người được giao Task (Assignee) (hoặc Admin/Manager) mới được tick
+  const canToggleSubtask = Boolean(
+    currentUser &&
+      (currentUser.globalRole === 'ADMIN' ||
+        currentUser.globalRole === 'MANAGER' ||
+        isAssignee ||
+        isCreatorWhenUnassigned)
   );
 
   // 📝 Edit Description States
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [descriptionText, setDescriptionText] = useState(task.description || '');
+  const [descriptionText, setDescriptionText] = useState(task?.description || '');
   const [isSavingDescription, setIsSavingDescription] = useState(false);
+
+  // 🔘 Subtasks / Checklist States
+  const [subtasks, setSubtasks] = useState<SubtaskItem[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
-  // Attachments State (Trống ban đầu, tuân thủ No Static Mock Data Rule)
+  // Attachments State
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
 
   const [urlInput, setUrlInput] = useState('');
@@ -95,11 +133,92 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setIsEditingDescription(false);
       fetchComments();
       setAttachments(task.attachments || []);
+      setSubtasks(task.subtasks || []);
     }
-  }, [isOpen, task?.id, task?.description, task?.attachments]);
+  }, [isOpen, task?.id, task?.description, task?.attachments, task?.subtasks]);
+
+  // ➕ Thêm công việc con mới
+  const handleAddSubtask = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!task) return;
+    const title = newSubtaskTitle.trim();
+    if (!title || isAddingSubtask) return;
+
+    setIsAddingSubtask(true);
+    try {
+      const res = await api.post(`/tasks/${task.id}/subtasks`, { title });
+      const updatedTask = res.data?.data || res.data;
+      if (updatedTask && updatedTask.id) {
+        setSubtasks(updatedTask.subtasks || []);
+        if (onUpdateTask) {
+          onUpdateTask(updatedTask);
+        }
+      }
+      setNewSubtaskTitle('');
+    } catch (err: any) {
+      console.error('Lỗi thêm công việc con:', err);
+      const serverMsg = err.response?.data?.message || err.message || 'Không thể thêm việc con';
+      alert(`⚠️ ${serverMsg}`);
+    } finally {
+      setIsAddingSubtask(false);
+    }
+  };
+
+  // 🔄 Đổi trạng thái việc con (Toggle isDone)
+  const handleToggleSubtask = async (subtaskId: string, currentDone: boolean) => {
+    if (!task) return;
+    const previousSubtasks = [...subtasks];
+    // Optimistic update
+    const updated = subtasks.map((st) =>
+      st.id === subtaskId ? { ...st, isDone: !currentDone } : st
+    );
+    setSubtasks(updated);
+
+    try {
+      const res = await api.patch(`/tasks/subtasks/${subtaskId}`, {
+        isDone: !currentDone,
+      });
+      const updatedTask = res.data?.data || res.data;
+      if (updatedTask && updatedTask.id) {
+        setSubtasks(updatedTask.subtasks || []);
+        if (onUpdateTask) {
+          onUpdateTask(updatedTask);
+        }
+      }
+    } catch (err: any) {
+      console.error('Lỗi cập nhật công việc con:', err);
+      setSubtasks(previousSubtasks);
+      const serverMsg = err.response?.data?.message || err.message || 'Không thể cập nhật tiến độ việc con';
+      alert(`⚠️ ${serverMsg}`);
+    }
+  };
+
+  // 🗑️ Xóa việc con
+  const handleDeleteSubtask = async (subtaskId: string) => {
+    if (!task) return;
+    const previousSubtasks = [...subtasks];
+    const updated = subtasks.filter((st) => st.id !== subtaskId);
+    setSubtasks(updated);
+
+    try {
+      const res = await api.delete(`/tasks/subtasks/${subtaskId}`);
+      const updatedTask = res.data?.data || res.data;
+      if (updatedTask && updatedTask.id) {
+        setSubtasks(updatedTask.subtasks || []);
+        if (onUpdateTask) {
+          onUpdateTask(updatedTask);
+        }
+      }
+    } catch (err: any) {
+      console.error('Lỗi xóa công việc con:', err);
+      setSubtasks(previousSubtasks);
+      const serverMsg = err.response?.data?.message || err.message || 'Không thể xóa việc con';
+      alert(`⚠️ ${serverMsg}`);
+    }
+  };
 
   const handleSaveDescription = async () => {
-    if (isSavingDescription) return;
+    if (!task || isSavingDescription) return;
     setIsSavingDescription(true);
 
     // 🛡️ Safe fallback for mock/demo task IDs or offline tasks
@@ -154,6 +273,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   const fetchComments = async () => {
+    if (!task) return;
     try {
       const res = await api.get(`/tasks/${task.id}/comments`);
       const commentList = Array.isArray(res.data)
@@ -176,7 +296,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || isSubmittingComment) return;
+    if (!task || !newComment.trim() || isSubmittingComment) return;
 
     setIsSubmittingComment(true);
     try {
@@ -192,6 +312,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   // 📎 Handle Local File Selection (Upload)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!task) return;
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -205,7 +326,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           'Content-Type': 'multipart/form-data',
         },
       });
-      setAttachments((prev) => [res.data, ...prev]);
+      const newAtt = res.data?.data || res.data;
+      if (newAtt && newAtt.id) {
+        setAttachments((prev) => [newAtt, ...prev]);
+      }
     } catch (err) {
       console.error('Lỗi khi tải file lên:', err);
     }
@@ -215,7 +339,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   // 🔗 Handle Add Custom URL Attachment
   const handleAddUrlAttachment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!urlInput.trim()) return;
+    if (!task || !urlInput.trim()) return;
 
     const formattedUrl = urlInput.startsWith('http') ? urlInput : `https://${urlInput}`;
     const name = urlTitleInput.trim() || formattedUrl;
@@ -226,7 +350,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         url: formattedUrl,
         type: 'link',
       });
-      setAttachments((prev) => [res.data, ...prev]);
+      const newAtt = res.data?.data || res.data;
+      if (newAtt && newAtt.id) {
+        setAttachments((prev) => [newAtt, ...prev]);
+      }
       setUrlInput('');
       setUrlTitleInput('');
       setShowAddUrlForm(false);
@@ -359,6 +486,21 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
+  const formatDateTime = (dateStr?: string) => {
+    if (!dateStr) return 'Vừa tạo gần đây';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      const date = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      return `${time} • ${date}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  if (!isOpen || !task) return null;
+
   const statusStyle = getStatusBadge(task.status);
 
   return (
@@ -390,6 +532,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               {isMyTask ? (
                 <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-1 shrink-0">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> TASK CHÍNH CHỦ
+                </span>
+              ) : isCreator ? (
+                <span className="px-3 py-1 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold text-xs flex items-center gap-1 shrink-0">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-400" /> NGƯỜI GIAO VIỆC
                 </span>
               ) : (
                 <span className="px-3 py-1 rounded-xl bg-slate-800 text-slate-400 font-bold text-xs flex items-center gap-1 shrink-0">
@@ -505,41 +651,72 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           )}
 
-          {/* Metadata Bento Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Assignee Card */}
+          {/* 🌟 3-CARD METADATA BENTO GRID: NGƯỜI GIAO VIỆC • NGƯỜI THỰC HIỆN • HẠN DEADLINE */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* 👑 Người Giao Việc (Created / Assigned By) */}
             <div className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">Người Thực Hiện</span>
+              <span className="text-[11px] font-mono text-purple-400 uppercase tracking-wider block font-bold">
+                👑 Người Giao Việc
+              </span>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400 bg-slate-900 flex items-center justify-center font-bold text-amber-400">
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-purple-400/80 bg-slate-900 flex items-center justify-center font-bold text-purple-300 shrink-0">
+                  {task.createdBy?.avatar ? (
+                    <img src={task.createdBy.avatar} alt="Creator" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{task.createdBy?.fullName ? task.createdBy.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'CR'}</span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-extrabold text-white text-sm truncate" title={task.createdBy?.fullName || 'Người khởi tạo'}>
+                    {task.createdBy?.fullName || 'Người khởi tạo'}
+                  </h4>
+                  <span className="text-[10px] text-purple-300 font-mono flex items-center gap-1 truncate" title={`Thời gian giao việc: ${task.createdAt || 'N/A'}`}>
+                    <Clock className="w-3 h-3 text-purple-400 shrink-0" />
+                    {formatDateTime(task.createdAt)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 🎯 Người Thực Hiện (Assignee) */}
+            <div className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider block font-bold">
+                🎯 Người Thực Hiện
+              </span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400 bg-slate-900 flex items-center justify-center font-bold text-amber-400 shrink-0">
                   {task.assignee?.avatar ? (
                     <img src={task.assignee.avatar} alt="Assignee" className="w-full h-full object-cover" />
                   ) : (
                     <span>{task.assignee?.fullName ? task.assignee.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'UA'}</span>
                   )}
                 </div>
-                <div>
-                  <h4 className="font-extrabold text-white text-sm">{task.assignee?.fullName || 'Chưa phân công (Unassigned)'}</h4>
-                  <span className="text-[11px] text-blue-300 font-mono">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-extrabold text-white text-sm truncate" title={task.assignee?.fullName || 'Chưa phân công'}>
+                    {task.assignee?.fullName || 'Chưa phân công (Unassigned)'}
+                  </h4>
+                  <span className="text-[11px] text-blue-300 font-mono truncate block">
                     {task.assignee?.profession || 'MEMBER'} • Chuyên Môn
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Due Date & Deadline Card */}
+            {/* ⏳ Hạn Deadline & Đếm Ngược */}
             {(() => {
               const deadlineInfo = getDeadlineInfo(task.dueDate);
               return (
                 <div className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-                  <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">Hạn Deadline</span>
+                  <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block font-bold">
+                    ⏳ Hạn Deadline
+                  </span>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
                       <Clock className="w-5 h-5" />
                     </div>
-                    <div>
-                      <h4 className="font-extrabold text-amber-300 text-sm">{deadlineInfo.formattedDate}</h4>
-                      <span className={`text-[11px] font-mono ${deadlineInfo.statusColor}`}>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-extrabold text-amber-300 text-sm truncate">{deadlineInfo.formattedDate}</h4>
+                      <span className={`text-[11px] font-mono ${deadlineInfo.statusColor} truncate block`}>
                         {deadlineInfo.statusText}
                       </span>
                     </div>
@@ -603,6 +780,137 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <p className="text-slate-300 leading-relaxed font-normal whitespace-pre-wrap break-words max-w-full overflow-hidden">
                 {task.description || 'Chưa có mô tả chi tiết cho nhiệm vụ này.'}
               </p>
+            )}
+          </div>
+
+          {/* 🔘 SUBTASKS & CHECKLIST BREAKDOWN BENTO SECTION */}
+          <div className="solar-glass-card p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <ListTodo className="w-4 h-4 text-amber-400" />
+                <h3 className="font-bold text-white text-sm">
+                  Công Việc Con & Checklist ({subtasks.filter((st) => st.isDone).length}/{subtasks.length})
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold ${
+                    task.progress === 100
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                  }`}
+                >
+                  {task.progress}% Hoàn thành
+                </span>
+              </div>
+            </div>
+
+            {/* Neon Progress Bar */}
+            <div className="space-y-1">
+              <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    task.progress === 100
+                      ? 'bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                      : 'bg-gradient-to-r from-amber-500 to-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.4)]'
+                  }`}
+                  style={{ width: `${task.progress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Subtasks List */}
+            <div className="space-y-2">
+              {subtasks.map((st, idx) => (
+                <div
+                  key={st.id || idx}
+                  className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 group/sub ${
+                    st.isDone
+                      ? 'bg-slate-900/30 border-slate-800/60 text-slate-500'
+                      : 'bg-slate-900/80 border-slate-800 hover:border-amber-500/40 text-slate-200 shadow-sm'
+                  }`}
+                >
+                  <div
+                    onClick={() => canToggleSubtask && handleToggleSubtask(st.id, st.isDone)}
+                    title={canToggleSubtask ? 'Nhấn để đánh dấu hoàn thành' : '🔒 Chỉ người được giao Task mới có quyền đánh dấu hoàn thành'}
+                    className={`flex items-center gap-3 flex-1 min-w-0 ${canToggleSubtask ? 'cursor-pointer' : 'cursor-default'}`}
+                  >
+                    <button
+                      type="button"
+                      disabled={!canToggleSubtask}
+                      className={`shrink-0 text-slate-400 group-hover/sub:text-amber-400 transition-colors ${canToggleSubtask ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
+                    >
+                      {st.isDone ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-400 fill-emerald-500/20" />
+                      ) : (
+                        <Square className={`w-4 h-4 ${canToggleSubtask ? 'text-slate-500 group-hover/sub:text-amber-400' : 'text-slate-600'}`} />
+                      )}
+                    </button>
+                    <span
+                      className={`text-xs font-medium leading-relaxed truncate ${
+                        st.isDone ? 'line-through text-slate-500' : 'text-slate-200'
+                      }`}
+                    >
+                      {st.title}
+                    </span>
+                  </div>
+
+                  {/* Actions & Assignee Badge */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {st.isDone && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                        Xong
+                      </span>
+                    )}
+
+                    {canManageSubtasks && (
+                      <button
+                        onClick={() => handleDeleteSubtask(st.id)}
+                        className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors opacity-0 group-hover/sub:opacity-100 cursor-pointer"
+                        title="Xóa công việc con này"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {subtasks.length === 0 && (
+                <p className="text-slate-500 italic py-2 text-xs text-center">
+                  Task này chưa có công việc con. Hãy nhập bên dưới để chia nhỏ quy trình làm việc!
+                </p>
+              )}
+            </div>
+
+            {/* Quick Add Subtask Input Form */}
+            {canManageSubtasks && (
+              <form onSubmit={handleAddSubtask} className="flex items-center gap-2 pt-1">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={newSubtaskTitle}
+                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                    placeholder="+ Thêm công việc con mới... (Nhấn Enter để tạo)"
+                    className="w-full p-2.5 pl-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-amber-500/40 focus:border-amber-500 text-white placeholder-slate-500 focus:outline-none text-xs font-medium transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!newSubtaskTitle.trim() || isAddingSubtask}
+                  className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-40 transition-all shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Thêm Việc
+                </button>
+              </form>
+            )}
+
+            {!canToggleSubtask && (
+              <div className="pt-2 border-t border-slate-800/80 text-slate-500 italic text-[11px] flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span>Chỉ người được giao Task mới có quyền đánh dấu hoàn thành công việc con.</span>
+              </div>
             )}
           </div>
 

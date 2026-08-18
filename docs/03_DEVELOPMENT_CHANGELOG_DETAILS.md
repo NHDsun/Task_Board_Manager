@@ -595,6 +595,246 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
     - Căn chỉnh khoảng cách `gap-2` và font `text-[10px]` cho cụm thông số thời gian, tạo độ thông thoáng, sắc nét và chuyên nghiệp.
 - **Kết quả kiểm tra:** Biên dịch TypeScript toàn dự án (`npm --prefix be run build` và `npm --prefix fe run build`) thành công 100% (0 lỗi, 0 cảnh báo).
 
+---
+
+## 94. Tích Hợp Đồng Bộ Thời Gian Thực Bằng Socket.IO Đa Phòng Dự Án (SocketGateway)
+- **File 1:** `be/src/modules/socket/socket.gateway.ts` & `be/src/modules/socket/socket.module.ts`
+  - **Hành động:** `[THÊM MỚI WEBSOCKET GATEWAY & MODULE]`.
+  - **Chi tiết:** 
+    - Khởi tạo WebSocket Gateway phân chia theo từng Room phòng Dự án (`project:{projectId}`).
+    - Cho phép Client lắng nghe và đồng bộ dữ liệu đa người dùng tức thì.
+- **File 2:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[BROADCAST REAL-TIME EVENTS TỰ ĐỘNG]`.
+  - **Chi tiết:** Phát tín hiệu WebSocket cho các sự kiện: `task:created`, `task:updated`, `task:deleted`, `comment:created`.
+- **File 3:** `fe/src/services/socket.ts` & `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[CLIENT-SIDE REAL-TIME LISTENER]`.
+  - **Chi tiết:** Tự động lắng nghe và cập nhật dữ liệu bảng Kanban/Pipeline ngay lập tức khi có thay đổi từ người dùng khác mà không cần F5.
+
+---
+
+## 95. Tải Lên & Quản Lý Tệp Đính Kèm Thực Tế (PostgreSQL Attachments & Multer File Upload)
+- **File 1:** `be/prisma/schema.prisma`
+  - **Hành động:** `[BỔ SUNG MODEL ATTACHMENT]`.
+  - **Chi tiết:** Thêm bảng `attachments` (`id`, `name`, `url`, `type`, `size`, `taskId`, `createdAt`) liên kết trực tiếp với bảng `tasks`.
+- **File 2:** `be/src/modules/task/task.controller.ts` & `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[BỔ SUNG APIS MULTIPART UPLOAD & DELETE FILE]`.
+  - **Chi tiết:** 
+    - Thêm endpoint `POST /api/tasks/:id/attachments` sử dụng `FileInterceptor` lưu trữ file tĩnh vào thư mục `be/uploads`.
+    - Thêm endpoint `DELETE /api/tasks/attachments/:attachmentId` xóa bản ghi CSDL và xóa file vật lý tương ứng trên ổ đĩa.
+- **File 3:** `fe/src/components/kanban/TaskDetailModal.tsx` & `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[TÍCH HỢP UI QUẢN LÝ FILE ĐÍNH KÈM THẬT]`.
+  - **Chi tiết:** Cho phép chọn file từ máy tính, tải lên server, hiển thị dung lượng thật, tải xuống từ đường dẫn tĩnh và xóa file.
+
+---
+
+## 96. Tích Hợp Giai Đoạn Dự Án (stageId) & Luồng Mở Khóa Tuần Tự Pipeline
+- **File 1:** `be/prisma/schema.prisma`, `create-task.dto.ts`, `task.service.ts`
+  - **Hành động:** `[LƯU TRỮ VÀ ÁNH XẠ TRƯỜNG STAGEID VÀO POSTGRESQL]`.
+  - **Chi tiết:** Thêm cột `stageId` (Nullable) vào bảng `tasks`, hỗ trợ lưu thông tin giai đoạn khi tạo task và trả về trong tất cả response.
+- **File 2:** `fe/src/components/kanban/CreateTaskModal.tsx`
+  - **Hành động:** `[BỔ SUNG DROPDOWN CHỌN GIAI ĐOẠN DỰ ÁN]`.
+  - **Chi tiết:** Thêm menu chọn 6 giai đoạn dự án chuẩn (Yêu cầu, UI/UX, Lập trình, QA/QC, Staging, Nghiệm thu).
+- **File 3:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[LỌC TASK THEO STAGEID & TỰ ĐỘNG KHÓA CỘT GIAI ĐOẠN]`.
+  - **Chi tiết:** Lọc Task trên Pipeline View theo trường `stageId` thực tế; tự động khóa cột tiếp theo nếu cột trước đó chưa đạt 100% hoàn thành.
+
+---
+
+## 97. Triển Khai Hệ Thống Chấm Công Voice Mức Độ 1 (Chống Gian Lận Với Mã Thử Thách & IP Văn Phòng)
+- **File 1:** `be/src/modules/profile/profile.controller.ts` & `be/src/modules/profile/profile.service.ts`
+  - **Hành động:** `[XÁC THỰC IP MẠNG VĂN PHÒNG & LƯU CHI TIẾT CA CHẤM CÔNG]`.
+  - **Chi tiết:** 
+    - Trích xuất địa chỉ IP thiết bị (`req.ip`), tự động kiểm tra xem thiết bị có thuộc mạng Wi-Fi công ty khi chọn `OFFICE`.
+    - Lưu trữ nội dung khẩu lệnh vào trường `note` và trả về số giây tích lũy chính xác `durationSeconds`.
+- **File 2:** `fe/src/components/voice/SolarisVoiceAssistantWidget.tsx`
+  - **Hành động:** `[SINH MÃ THỬ THÁCH CHALLENGE PASSCODE & TRÍCH XUẤT NLP]`.
+  - **Chi tiết:** 
+    - Tự động sinh mã khẩu lệnh 3 từ khóa ngẫu nhiên (VD: `"Solaris Sáng Tạo 729"`) để loại bỏ 100% việc dùng file ghi âm cũ điểm danh hộ.
+    - Nhận diện tự nhiên chế độ làm việc (`Văn phòng` ➔ `OFFICE`, `Từ xa` ➔ `REMOTE`) và ghi nhận mục tiêu công việc đầu ngày.
+
+---
+
+## 98. Tích Hợp Đồng Hồ Chấm Công Live Shift Timer, Mã Xác Thực Tiếng Anh & Tối Ưu Giao Diện Modal Cuộn
+- **File 1:** `fe/src/components/voice/SolarisVoiceAssistantWidget.tsx` & `AudioWaveVisualizer.tsx`
+  - **Hành động:** `[CHUYỂN MÃ XÁC THỰC SANG TIẾNG ANH & TỐI ƯU GIAO DIỆN SCROLLABLE MODAL]`.
+  - **Chi tiết:** 
+    - Chuyển đổi toàn bộ bộ từ khóa thử thách Challenge Passcode sang chuẩn tiếng Anh quốc tế (`ALPHA`, `BRAVO`, `DELTA`, `QUANTUM`, `HORIZON`, `VELOCITY`, `INFINITY`, `PHOENIX`, `CYBER`, `MATRIX`, `STELLAR`, `APEX`, `TITAN`, `COSMOS`, `NEXUS`, `VANGUARD`).
+    - Khắc phục triệt để lỗi tràn khung màn hình bằng cách thiết lập `max-h-[92vh]`, ghim cố định Header & Footer (Sticky Header/Footer), bổ sung thanh cuộn riêng biệt (`custom-scrollbar`) cho phần thân bài.
+- **File 2:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[TÍCH HỢP MODAL VOICE CHECK-IN & ĐỒNG HỒ LIVE SHIFT TIMER]`.
+  - **Chi tiết:** 
+    - Nối nút Chấm công với Modal Voice Check-In.
+    - Xây dựng bộ đếm thời gian thực chạy từng giây `🟢 00h:00m:01s (OFFICE)` trên thanh công cụ.
+    - Tự động lấy lại mốc `checkInAt` từ CSDL PostgreSQL khi F5 hoặc mở lại trình duyệt.
+- **File 3:** `fe/src/App.tsx`
+  - **Hành động:** `[ĐỒNG BỘ ROUTE VÀO LOCALSTORAGE VÀ URL HISTORY]`.
+  - **Chi tiết:** Khắc phục tình trạng khi F5 tự động nhảy về `/profile`, đảm bảo người dùng luôn ở lại đúng trang đang làm việc (`/tasks`, `/remote-requests`,...).
+- **Kết quả kiểm tra:** Toàn bộ dự án Backend và Frontend biên dịch đạt 100% không có lỗi (`npm run build` exit code 0).
+
+---
+
+## 99. Loại Bỏ Triệt Để Chức Năng Chấm Công Khỏi Toàn Bộ Hệ Thống (Full Removal of Attendance System)
+- **File 1:** `be/prisma/schema.prisma`
+  - **Hành động:** `[XÓA BỎ ENUM AttendanceType & MODEL AttendanceLog]`.
+  - **Chi tiết:** Xóa bỏ enum `AttendanceType`, quan hệ `attendanceLogs` trong model `User`, và xóa toàn bộ bảng `attendance_logs`. Đã đồng bộ thành công vào CSDL PostgreSQL thông qua `prisma db push --accept-data-loss` và tái sinh `prisma generate`.
+- **File 2:** `be/src/modules/profile/profile.service.ts` & `profile.controller.ts`
+  - **Hành động:** `[LOẠI BỎ CÁC ENDPOINTS & LOGIC CHẤM CÔNG]`.
+  - **Chi tiết:** Xóa bỏ các API `GET /api/profile/attendance/today`, `PATCH /api/profile/attendance/check-in`, `PATCH /api/profile/attendance/check-out`. Tinh chỉnh endpoint `getPersonalStats` chuyển sang đo lường hiệu suất dựa trên tổng số task được giao.
+- **File 3:** `be/src/modules/task/task.service.ts` & `be/prisma/seed.ts`
+  - **Hành động:** `[LOẠI BỎ TASK-DRIVEN CHECK-IN]`.
+  - **Chi tiết:** Xóa bỏ helper `triggerTaskDrivenCheckIn` và các lệnh gọi tự động check-in ngầm khi kéo task sang `IN_PROGRESS`. Dọn dẹp import `AttendanceType` trong `seed.ts`.
+- **File 4:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[DỌN DẸP GIAO DIỆN HEADER & TIMER]`.
+  - **Chi tiết:** Xóa bỏ nút bấm Chấm công Voice, đồng hồ bấm giờ ca làm việc Live Shift Timer, và state kiểm tra ca làm việc. Header thanh công cụ được tối ưu gọn gàng với nhãn `SOLARIS WORKSPACE` và nút đồng bộ CSDL.
+- **File 5:** `fe/src/components/voice/SolarisVoiceAssistantWidget.tsx`
+  - **Hành động:** `[TINH GỌN THÀNH TRỢ LÝ RA LỆNH GIỌNG NÓI ĐỘC LẬP]`.
+  - **Chi tiết:** Loại bỏ toàn bộ mã xác thực điểm danh, chuyển widget thành Trợ lý AI nhận lệnh bằng giọng nói hỗ trợ tạo task và tìm kiếm.
+- **File 6:** `fe/src/components/navigation/MeteorEdgeMenu.tsx` & `fe/src/App.tsx`
+  - **Hành động:** `[XÓA BỎ MENU & ROUTE GIÁM SÁT CHẤM CÔNG ADMIN]`.
+  - **Chi tiết:** Xóa bỏ mục menu `Giám Sát Chấm Công` (`/admin/attendance`) và route tương ứng.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) đã build thành công 100% không còn bất kỳ lỗi nào.
+
+---
+
+## 100. Tái Cấu Trúc Giao Diện & Kiến Trúc Công Việc Con (Subtasks / Minitasks Breakdown & Auto-Progress)
+- **File 1:** `be/prisma/schema.prisma`
+  - **Hành động:** `[BỔ SUNG VÀ HOÀN THIỆN MODEL Subtask]`.
+  - **Chi tiết:** Mở rộng model `Subtask` với các trường `order`, `assigneeId`, `dueDate`, quan hệ `assignee` User và liên kết `subtasks` với `Task`. Đã chạy `prisma db push` và `prisma generate` thành công.
+- **File 2:** `be/src/modules/task/task.service.ts` & `task.controller.ts`
+  - **Hành động:** `[XÂY DỰNG API SUBTASKS & TỰ ĐỘNG TÍNH TOÁN TIẾN ĐỘ PROGRESS]`.
+  - **Chi tiết:** Triển khai các API:
+    - `POST /api/tasks/:id/subtasks`: Thêm công việc con mới và tự động tính lại `%` tiến độ.
+    - `PATCH /api/tasks/subtasks/:subtaskId`: Chuyển đổi trạng thái `isDone` và tự động cập nhật `%` của Task cha.
+    - `DELETE /api/tasks/subtasks/:subtaskId`: Xóa việc con và cập nhật lại `%`.
+    - Phát socket event `task:updated` theo thời gian thực tới phòng dự án.
+- **File 3:** `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[TÍCH HỢP ACCORDION CHECKLIST 1-CLICK TRỰC TIẾP TRÊN THẺ KANBAN]`.
+  - **Chi tiết:** Thêm thanh tiến độ Neon mini, nhãn số lượng `Việc con: 3/5 (60%)`, và nút bung Accordion danh sách việc con để đánh dấu `[✓]` ngay trên thẻ mà không cần mở Modal.
+- **File 4:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[NÂNG CẤP KHỐI CÔNG VIỆC CON BENTO TRONG MINISITE MODAL]`.
+  - **Chi tiết:** Bổ sung khối "Công Việc Con & Checklist", ô nhập nhanh hỗ trợ phím `Enter`, checkbox với hiệu ứng động, nút xóa, và thanh tiến độ thích ứng.
+- **File 5:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[LIÊN KẾT ĐỒNG BỘ SUBTASKS REAL-TIME & OPTIMISTIC UPDATE]`.
+  - **Chi tiết:** Truyền handler `onToggleSubtask` vào các chế độ xem Kanban, Pipeline, và Focus Queue.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 101. Thiết Lập Phân Quyền Bảo Mật Toàn Diện Cho Công Việc Con (Subtasks Role-Based Access Control)
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[BỔ SUNG KIỂM TRA QUYỀN TRÊN CÁC HÀM CRUD SUBTASK]`.
+  - **Chi tiết:** 
+    - `addSubtask`: Cho phép Admin, Manager hoặc Người sở hữu/Người được giao Task. Chặn các tài khoản khác (ném `ForbiddenException`).
+    - `updateSubtask`: Cho phép Admin, Manager, Người được giao Task hoặc Assignee của chính việc con đó được tick `[✓]`.
+    - `deleteSubtask`: Chỉ cho phép Admin, Manager hoặc Người sở hữu Task được xóa việc con.
+- **File 2:** `be/src/modules/task/task.controller.ts`
+  - **Hành động:** `[TRUYỀN req.user VÀO CÁC ENDPOINT SUBTASK]`.
+  - **Chi tiết:** Trích xuất định danh người dùng từ JWT Token và truyền vào service để thực thi kiểm tra phân quyền.
+- **File 3:** `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[KHÓA CHECKBOX NẾU KHÔNG CÓ QUYỀN TRÊN THẺ KANBAN]`.
+  - **Chi tiết:** Kiểm tra quyền `canToggleSubtask = isMyTask || isAdminOrManager`. Với người chỉ có quyền xem (Viewer), checkbox ở trạng thái disabled và hiển thị tooltip nhắc nhở quyền hạn.
+- **File 4:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[ẨN FORM NHẬP & HIỂN THỊ KHÓA BẢO MẬT TRÊN MODAL CHI TIẾT]`.
+  - **Chi tiết:** Ẩn form thêm/xóa subtask đối với Viewer, thay thế bằng thanh thông báo trạng thái chỉ xem có biểu tượng khóa `Lock`.
+- **Kết quả kiểm tra:** Cả Backend và Frontend build 100% thành công (Exit Code 0).
+
+---
+
+## 102. Cấp Quyền Thêm Việc Con Cho Người Tạo Task & Hiển Thị Thông Tin Giao Việc
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[CẤP QUYỀN THÊM/XÓA SUBTASK CHO NGƯỜI TẠO TASK & BỔ SUNG createdAt]`.
+  - **Chi tiết:** 
+    - `addSubtask`: Cho phép Người tạo Task (`createdById === user.id`) luôn có quyền thêm việc con vào Task dù đã giao cho Assignee khác.
+    - `deleteSubtask`: Cấp quyền xóa việc con cho Người tạo Task.
+    - `mapTaskResponse`: Bổ sung trường `createdAt` trả về thời gian khởi tạo/giao việc chính xác.
+- **File 2:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[THIẾT KẾ BENTO GRID 3 THẺ & HIỂN THỊ TÊN + THỜI GIAN GIAO VIỆC]`.
+  - **Chi tiết:**
+    - Cấu trúc lại Metadata Bento Grid thành 3 thẻ gồm: **👑 Người Giao Việc** (Tên, avatar, thời gian giao việc định dạng giờ/ngày), **🎯 Người Thực Hiện** (Tên, avatar, chuyên môn), **⏳ Hạn Deadline** (Đếm ngược thời gian).
+    - Cấp quyền cho Người tạo Task (`isCreator`) được sử dụng ô nhập nhanh thêm việc con, tick hoàn thành và xóa việc con.
+- **File 3:** `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[ĐỒNG BỘ QUYỀN VÀ TRƯỜNG createdAt TRÊN THẺ KANBAN]`.
+  - **Chi tiết:** Cập nhật `TaskItem` interface với `createdAt` và cho phép Người tạo Task tick `[✓]` việc con trực tiếp trên thẻ Kanban.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 103. Khởi Tạo Dữ Liệu Mẫu Công Việc Con (Subtasks) Động Vào PostgreSQL
+- **File 1:** `be/prisma/seed.ts`
+  - **Hành động:** `[SEED DỮ LIỆU ĐỘNG QUAN HỆ SUBTASKS VÀO DATABASE]`.
+  - **Chi tiết:** 
+    - Thêm 17 bản ghi Subtask quan hệ thực thể đầy đủ (`Subtask` model) trong PostgreSQL cho 4 Tasks chính.
+    - Cấu hình trạng thái `isDone`, thứ tự `order`, và liên kết người thực hiện `assigneeId`.
+    - Tự động tính toán lại `%` tiến độ thực tế lưu trực tiếp vào bảng `tasks` (60%, 0%, 75%, 100%).
+- **File 2:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[TỐI ƯU HÓA findAll QUERY VÀ MAP DỮ LIỆU SUBTASKS TOÀN DIỆN]`.
+  - **Chi tiết:** Cập nhật `findAll` include quan hệ `subtasks` kèm `assignee` sắp xếp theo `order asc` và đồng bộ qua hàm `mapTaskResponse`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 104. Khắc Phục Triệt Để Lỗi Màn Hình Đen Khi Tick Subtask & Phân Quyền Chỉ Assignee Mới Được Tick Việc Con
+- **File 1:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[BẢO VỆ UNWRAP RESPONSE DỮ LIỆU & ROLLBACK KHI LỖI]`.
+  - **Chi tiết:** Trích xuất an toàn `res.data?.data || res.data` để ngăn ngừa việc gán đè response wrapper `{ statusCode, message }` vào mảng Task (nguyên nhân gây crash màn hình đen do mất các thuộc tính `status`, `tags`). Thêm cơ chế rollback trạng thái UI nếu API trả về lỗi.
+- **File 2:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[SỬA LỖI UNWRAP SUBTASK HANDLERS & PHÂN TÁCH QUYỀN canToggleSubtask]`.
+  - **Chi tiết:** 
+    - Unwrap an toàn dữ liệu trả về trong `handleAddSubtask`, `handleToggleSubtask`, `handleDeleteSubtask`.
+    - Phân tách quyền: `canToggleSubtask` (CHỈ người được giao Task - Assignee hoặc Admin/Manager mới được tick `[✓]`), trong khi `canManageSubtasks` (Người tạo Task và Assignee đều có quyền thêm/xóa việc con).
+- **File 3:** `fe/src/components/kanban/KanbanCard.tsx`
+  - **Hành động:** `[CHẶN TICK VIỆC CON ĐỐI VỚI NGƯỜI KHÔNG PHẢI ASSIGNEE]`.
+  - **Chi tiết:** Checkbox việc con trên thẻ Kanban chỉ mở tương tác cho Assignee của Task; hiển thị tooltip cảnh báo quyền hạn đối với các thành viên khác.
+- **File 4:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[BẢO MẬT UPDATE SUBTASK Ở PHÍA BACKEND]`.
+  - **Chi tiết:** Trong hàm `updateSubtask`, chỉ cho phép `subtask.task.assigneeId === user.id`, Assignee của Subtask, hoặc Admin/Manager được cập nhật tiến độ; các tài khoản khác bị chặn bằng `ForbiddenException`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 105. Rà Soát Toàn Diện & Chuẩn Hóa Response Unwrapping Cho Toàn Bộ Chức Năng Hệ Thống
+- **File 1:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[CHUẨN HÓA ATTACHMENTS, COMMENTS, DESCRIPTION & SUBTASKS UNWRAPPING]`.
+  - **Chi tiết:** Đã rà soát và bảo vệ trích xuất dữ liệu an toàn cho chức năng tải file đính kèm (`handleFileUpload`), thêm link đính kèm (`handleAddUrlAttachment`), xóa đính kèm (`handleRemoveAttachment`), lưu mô tả task (`handleSaveDescription`) và danh sách bình luận (`fetchComments`).
+- **File 2:** `fe/src/components/kanban/CreateProjectModal.tsx` & `CreateTaskModal.tsx`
+  - **Hành động:** `[XÁC THỰC METADATA USERS, PROJECTS VÀ CREATE RESPONSE]`.
+  - **Chi tiết:** Đảm bảo khi tạo mới Project/Task, payload trả về luôn được unwrap `res.data?.data || res.data` chính xác trước khi trigger `onSuccess`.
+- **File 3:** `fe/src/components/kanban/TaskRequestModal.tsx` & `TaskTransferInboxModal.tsx`
+  - **Hành động:** `[XÁC THỰC CHUYỂN GIAO NHIỆM VỤ & HÒM THƯ YÊU CẦU]`.
+  - **Chi tiết:** Rà soát các luồng gửi yêu cầu chuyển giao, duyệt bàn giao (`handleRespond`), hủy yêu cầu (`handleCancelRequest`) và tải danh sách thư đến/đi.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 106. Khắc Phục Triệt Để Vi Phạm React Rules of Hooks Gây Màn Hình Đen Khi Mở Modal & Thêm Error Boundary
+- **File 1:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[SỬA LỖI CONDITIONAL RETURN TRƯỚC HOOKS & THÊM NULL CHECKS]`.
+  - **Chi tiết:** Đã di chuyển câu lệnh điều kiện `if (!isOpen || !task) return null;` từ đầu component xuống sau toàn bộ các React Hooks (`useAuthStore`, `useState`, `useEffect`) trước khi render JSX. Bổ sung các guard `if (!task) return;` trong tất cả các event handler để tránh vi phạm thứ tự render hook.
+- **File 2:** `fe/src/components/kanban/CreateTaskModal.tsx`
+  - **Hành động:** `[SỬA LỖI CONDITIONAL HOOKS ORDER]`.
+  - **Chi tiết:** Di chuyển `if (!isOpen) return null;` xuống sau 10 `useState` và 1 `useEffect`, đảm bảo số lượng hooks luôn bất biến giữa các lần render khi mở/đóng Modal "Tạo Task Mới".
+- **File 3:** `fe/src/components/kanban/CreateProjectModal.tsx`
+  - **Hành động:** `[SỬA LỖI CONDITIONAL HOOKS ORDER]`.
+  - **Chi tiết:** Di chuyển `if (!isOpen || currentUser?.globalRole !== 'ADMIN') return null;` xuống sau tất cả hooks, khắc phục lỗi crash khi Admin nhấn nút "Tạo Dự Án Mới".
+- **File 4:** `fe/src/components/kanban/TaskTransferInboxModal.tsx`
+  - **Hành động:** `[SỬA LỖI CONDITIONAL HOOKS ORDER]`.
+  - **Chi tiết:** Di chuyển `if (!isOpen) return null;` xuống sau các hooks, khắc phục lỗi crash khi bấm vào nút "Hộp Thư Yêu Cầu".
+- **File 5:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[ĐỒNG BỘ onToggleSubtask CHO PIPELINE VÀ KANBAN VIEW]`.
+  - **Chi tiết:** Truyền đầy đủ prop `onToggleSubtask={handleToggleSubtask}` vào `KanbanCard` trong tất cả các view (Kanban, Pipeline Stage, Focus Queue).
+- **File 6:** `fe/src/App.tsx`
+  - **Hành động:** `[BỔ SUNG GLOBAL ERROR BOUNDARY]`.
+  - **Chi tiết:** Thêm component `ErrorBoundary` bọc quanh toàn bộ `MainLayout` để bắt mọi runtime exception, ngăn chặn triệt để hiện tượng màn hình đen và hiển thị giao diện phục hồi với nút Tải Lại Trang (Reload).
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+
+
+
+
+
+
+
+
 
 
 

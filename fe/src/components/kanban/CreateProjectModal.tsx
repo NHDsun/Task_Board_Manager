@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, FolderPlus, Sparkles, UserPlus, Check } from 'lucide-react';
 import { api } from '../../services/api';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -21,7 +22,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  if (!isOpen) return null;
+  const currentUser = useAuthStore((state) => state.user);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -115,6 +116,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const handleRemoveCustomStage = (index: number) => {
     setCustomStages((prev) => prev.filter((_, i) => i !== index));
   };
+
+  if (!isOpen || currentUser?.globalRole !== 'ADMIN') return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">

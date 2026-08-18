@@ -60,14 +60,15 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
 
   const currentUser = useAuthStore((state) => state.user);
 
-  // 🔒 CHỈ CHO PHÉP CHỌN CÁC TASK THUỘC VỀ CHÍNH MÌNH BAN ĐẦU
+  // 🔒 CHỈ CHO PHÉP CHỌN CÁC TASK THUỘC VỀ CHÍNH MÌNH (Khi đã giao việc, chỉ người nhận mới có quyền bàn giao tiếp)
   const myOwnTasks = tasks.filter((t) => {
     if (currentUser?.globalRole === 'ADMIN') return true;
-    return (
-      t.assigneeId === currentUser?.id ||
-      t.assignee?.email === currentUser?.email ||
-      (t as any).createdById === currentUser?.id
-    );
+    const hasAssignee = Boolean(t.assigneeId || t.assignee?.id || t.assignee?.email);
+    return hasAssignee
+      ? (t.assigneeId === currentUser?.id ||
+         t.assignee?.id === currentUser?.id ||
+         t.assignee?.email === currentUser?.email)
+      : (t as any).createdById === currentUser?.id;
   });
 
   useEffect(() => {

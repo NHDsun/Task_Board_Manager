@@ -15,4 +15,8 @@ export class UpdateTaskStatusDto {
   @Min(0)
   @Max(100)
   progress?: number;
+
+  @IsOptional()
+  @IsString()
+  stageId?: string;
 }

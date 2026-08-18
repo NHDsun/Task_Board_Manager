@@ -39,22 +39,4 @@ export class ProfileController {
   async getStats(@Request() req: any) {
     return this.profileService.getPersonalStats(req.user.id);
   }
-
-  @Get('attendance/today')
-  async getTodayAttendance(@Request() req: any) {
-    return this.profileService.getTodayAttendance(req.user.id);
-  }
-
-  @Patch('attendance/check-in')
-  async checkIn(
-    @Request() req: any,
-    @Body() body: { type?: 'VOICE' | 'TASK_DRIVEN' | 'MANUAL'; workMode?: 'OFFICE' | 'REMOTE' },
-  ) {
-    return this.profileService.checkIn(req.user.id, body.type, body.workMode);
-  }
-
-  @Patch('attendance/check-out')
-  async checkOut(@Request() req: any) {
-    return this.profileService.checkOut(req.user.id);
-  }
 }

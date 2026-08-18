@@ -28,8 +28,6 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  if (!isOpen) return null;
-
   const currentUser = useAuthStore((state) => state.user);
 
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
@@ -91,6 +89,8 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
       setProcessingId(null);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">

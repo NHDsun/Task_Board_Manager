@@ -11,8 +11,29 @@ import {
   Copy,
   ExternalLink,
   Check,
+  ChevronDown,
+  ChevronUp,
+  ListTodo,
+  CheckSquare,
+  Square,
+  Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
+
+export interface SubtaskItem {
+  id: string;
+  title: string;
+  isDone: boolean;
+  order?: number;
+  assigneeId?: string;
+  assignee?: {
+    id: string;
+    fullName: string;
+    avatar?: string;
+  };
+  dueDate?: string;
+  createdAt?: string;
+}
 
 export interface TaskItem {
   id: string;
@@ -22,6 +43,7 @@ export interface TaskItem {
   priority: 'LOW' | 'NORMAL' | 'IMPORTANT' | 'URGENT';
   progress: number;
   dueDate?: string;
+  createdAt?: string;
   projectName?: string;
   assigneeId?: string;
   createdById?: string;
@@ -47,6 +69,7 @@ export interface TaskItem {
   tags?: Array<{ id: string; name: string; color?: string }>;
   commentsCount?: number;
   stageId?: string;
+  subtasks?: SubtaskItem[];
   attachments?: Array<{
     id: string;
     name: string;
@@ -56,12 +79,14 @@ export interface TaskItem {
     createdAt: string;
   }>;
 }
+
 interface KanbanCardProps {
   task: TaskItem;
   onStatusChange?: (taskId: string, newStatus: TaskItem['status']) => void;
   onRequestTransfer?: (task: TaskItem) => void;
   onCardClick?: (task: TaskItem) => void;
   onDeleteTask?: (task: TaskItem) => void;
+  onToggleSubtask?: (taskId: string, subtaskId: string, isDone: boolean) => void;
 }
 
 export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
@@ -69,10 +94,12 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
   onRequestTransfer,
   onCardClick,
   onDeleteTask,
+  onToggleSubtask,
 }) => {
   const currentUser = useAuthStore((state) => state.user);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isSubtasksOpen, setIsSubtasksOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isMyTask = Boolean(
@@ -251,25 +278,151 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
         {task.title}
       </h3>
 
-      {/* 📊 Task Progress Bar */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-[11px] font-mono">
-          <span className="text-slate-400 font-medium">Tiến độ</span>
-          <span className="font-bold text-amber-400">{task.progress}%</span>
-        </div>
-        <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+      {/* 📊 Task Progress & Subtasks Breakdown */}
+      {task.subtasks && task.subtasks.length > 0 ? (
+        <div className="space-y-1.5 pt-0.5">
+          {/* Subtask Accordion Trigger Header */}
           <div
-            className={`h-full rounded-full transition-all duration-300 ${
-              task.progress === 100
-                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-                : task.progress > 50
-                ? 'bg-gradient-to-r from-amber-500 to-purple-500'
-                : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
-            }`}
-            style={{ width: `${task.progress}%` }}
-          />
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsSubtasksOpen(!isSubtasksOpen);
+            }}
+            className="flex items-center justify-between text-[11px] font-mono text-slate-300 hover:text-amber-300 transition-colors cursor-pointer select-none bg-slate-900/60 hover:bg-slate-900/90 px-2 py-1 rounded-lg border border-slate-800/80"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <ListTodo className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="font-semibold text-slate-300 truncate">
+                Việc con: <strong className="text-white">{task.subtasks.filter((st) => st.isDone).length}/{task.subtasks.length}</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <span className={`font-bold text-[10px] px-1.5 py-0.2 rounded ${
+                task.progress === 100 ? 'text-emerald-300 bg-emerald-500/20' : 'text-amber-300 bg-amber-500/20'
+              }`}>
+                {task.progress}%
+              </span>
+              {isSubtasksOpen ? (
+                <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              )}
+            </div>
+          </div>
+
+          {/* Neon Mini Progress Bar */}
+          <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                task.progress === 100
+                  ? 'bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                  : 'bg-gradient-to-r from-amber-500 to-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+              }`}
+              style={{ width: `${task.progress}%` }}
+            />
+          </div>
+
+          {/* 📋 Expanded Subtasks Quick Checklist */}
+          {isSubtasksOpen && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="mt-2 space-y-1 p-2 rounded-xl bg-slate-950/80 border border-amber-500/20 shadow-inner animate-solar-warp-in text-xs"
+            >
+              {task.subtasks.map((st, idx) => {
+                const isFirstPending = !st.isDone && task.subtasks?.findIndex((s) => !s.isDone) === idx;
+                const hasAssignee = Boolean(task.assigneeId || task.assignee?.id || task.assignee?.email);
+                const isAssignee = Boolean(
+                  currentUser &&
+                    (task.assigneeId === currentUser.id ||
+                      task.assignee?.id === currentUser.id ||
+                      (task.assignee?.email && currentUser.email === task.assignee.email))
+                );
+                const isCreatorWhenUnassigned = Boolean(
+                  !hasAssignee &&
+                    currentUser &&
+                    (task.createdById === currentUser.id ||
+                      task.createdBy?.id === currentUser.id ||
+                      ((task.createdBy as any)?.email && currentUser.email === (task.createdBy as any).email))
+                );
+                const canToggleSubtask = isAssignee || isCreatorWhenUnassigned || isAdminOrManager;
+                return (
+                  <div
+                    key={st.id || idx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (canToggleSubtask) {
+                        onToggleSubtask?.(task.id, st.id, !st.isDone);
+                      }
+                    }}
+                    title={canToggleSubtask ? 'Nhấn để đánh dấu hoàn thành' : '🔒 Chỉ người được giao Task mới có quyền đánh dấu hoàn thành'}
+                    className={`flex items-start gap-2 p-1.5 rounded-lg transition-all group/st ${
+                      canToggleSubtask ? 'cursor-pointer' : 'cursor-default opacity-85'
+                    } ${
+                      st.isDone
+                        ? 'bg-slate-900/30 text-slate-500'
+                        : isFirstPending
+                        ? 'bg-amber-500/10 text-slate-200 border border-amber-500/30'
+                        : 'hover:bg-slate-900 text-slate-300'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      disabled={!canToggleSubtask}
+                      className={`mt-0.5 shrink-0 text-slate-400 transition-colors ${
+                        canToggleSubtask ? 'group-hover/st:text-amber-400 cursor-pointer' : 'cursor-default opacity-60'
+                      }`}
+                    >
+                      {st.isDone ? (
+                        <CheckSquare className="w-3.5 h-3.5 text-emerald-400 fill-emerald-500/20" />
+                      ) : (
+                        <Square className={`w-3.5 h-3.5 ${canToggleSubtask ? 'text-slate-500 group-hover/st:text-amber-400' : 'text-slate-600'}`} />
+                      )}
+                    </button>
+                    <span
+                      className={`text-[11px] leading-tight flex-1 ${
+                        st.isDone ? 'line-through text-slate-500' : 'text-slate-200'
+                      }`}
+                    >
+                      {st.title}
+                    </span>
+                    {isFirstPending && (
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-bold shrink-0">
+                        ⚡ Đang làm
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+              {task.progress === 100 && (
+                <div className="pt-1 text-center">
+                  <span className="text-[10px] font-bold text-emerald-300 flex items-center justify-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-400" /> Đã hoàn thành tất cả việc con!
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </div>
+      ) : (
+        /* Standard Single Progress Bar */
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[11px] font-mono">
+            <span className="text-slate-400 font-medium">Tiến độ</span>
+            <span className="font-bold text-amber-400">{task.progress}%</span>
+          </div>
+          <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                task.progress === 100
+                  ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                  : task.progress > 50
+                  ? 'bg-gradient-to-r from-amber-500 to-purple-500'
+                  : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+              }`}
+              style={{ width: `${task.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Footer Info */}
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 min-w-0">

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -7,11 +7,16 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 export class ProjectService {
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: string, createProjectDto: CreateProjectDto) {
+  async create(userId: string, createProjectDto: CreateProjectDto, user?: any) {
     let effectiveUserId = userId;
     if (userId === 'admin-huydat-id' || userId === 'admin-id') {
       const realAdmin = await this.prisma.user.findUnique({ where: { email: 'huydatne@gmail.com' } });
       if (realAdmin) effectiveUserId = realAdmin.id;
+    }
+
+    const currentUser = user || (await this.prisma.user.findUnique({ where: { id: effectiveUserId } }));
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+      throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền tạo dự án mới!');
     }
 
     const memberIds = Array.from(

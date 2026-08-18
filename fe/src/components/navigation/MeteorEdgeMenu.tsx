@@ -7,7 +7,6 @@ import {
   MessageSquare,
   Inbox,
   Users,
-  Clock,
   ChevronRight,
   Sparkles,
   Mic,
@@ -64,15 +63,6 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
       route: '/messages',
       icon: MessageSquare,
       trailColor: 'from-blue-500 to-cyan-300',
-    },
-    {
-      id: 'admin-attendance',
-      label: 'Giám Sát Chấm Công',
-      route: '/admin/attendance',
-      icon: Clock,
-      trailColor: 'from-amber-500 to-emerald-300',
-      badge: 'ADMIN',
-      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
     },
     {
       id: 'admin',

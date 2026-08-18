@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import { PrismaClient, Role, Profession, UserStatusSignal, TaskStatus, TaskPriority, AttendanceType, WorkMode, TaskRequestType, TaskRequestStatus } from '@prisma/client';
+import { PrismaClient, Role, Profession, UserStatusSignal, TaskStatus, TaskPriority, WorkMode, TaskRequestType, TaskRequestStatus } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
@@ -337,8 +337,69 @@ async function main() {
     },
   });
 
-  console.log('✅ Created Seed Tasks:', task1.title, task2.title, task3.title, task4.title);
-  console.log('🎉 Database Seeding completed successfully!');
+  // 6. Create Real Subtasks (Công Việc Con) in Database
+  const subtasksData = [
+    // Task 1 Subtasks
+    { id: 'sub-101-1', taskId: task1.id, title: 'Xây dựng DTO xác thực JWT và Decorator @CurrentUser()', isDone: true, order: 0, assigneeId: huyDatUser.id },
+    { id: 'sub-101-2', taskId: task1.id, title: 'Thiết kế Guards phân quyền Role-Based Access Control', isDone: true, order: 1, assigneeId: huyDatUser.id },
+    { id: 'sub-101-3', taskId: task1.id, title: 'Tích hợp mã hóa mật khẩu Bcrypt và Refresh Token Rotation', isDone: true, order: 2, assigneeId: empThanhTung.id },
+    { id: 'sub-101-4', taskId: task1.id, title: 'Viết Unit Test cho AuthController & AuthService', isDone: false, order: 3, assigneeId: empLanHuong.id },
+    { id: 'sub-101-5', taskId: task1.id, title: 'Tối ưu hóa Index PostgreSQL cho bảng users', isDone: false, order: 4, assigneeId: empThanhTung.id },
+
+    // Task 2 Subtasks
+    { id: 'sub-102-1', taskId: task2.id, title: 'Đo lường thời gian Cold Start của Vite 8', isDone: false, order: 0, assigneeId: empLanHuong.id },
+    { id: 'sub-102-2', taskId: task2.id, title: 'Kiểm tra tốc độ Hot Module Replacement (HMR) với 200+ components', isDone: false, order: 1, assigneeId: empLanHuong.id },
+    { id: 'sub-102-3', taskId: task2.id, title: 'Phân tích dung lượng Chunk gzipped của bundle production', isDone: false, order: 2, assigneeId: empLanHuong.id },
+    { id: 'sub-102-4', taskId: task2.id, title: 'Lập báo cáo benchmark so sánh với Webpack / Turbopack', isDone: false, order: 3, assigneeId: empLanHuong.id },
+
+    // Task 3 Subtasks
+    { id: 'sub-103-1', taskId: task3.id, title: 'Kiểm tra độ tương phản màu Amber/Purple trong Dark Mode', isDone: true, order: 0, assigneeId: empDuyKhang.id },
+    { id: 'sub-103-2', taskId: task3.id, title: 'Tối ưu hóa hiệu ứng kính mờ Backdrop Blur trên iOS Safari', isDone: true, order: 1, assigneeId: empDuyKhang.id },
+    { id: 'sub-103-3', taskId: task3.id, title: 'Đảm bảo khả năng vuốt chạm Touch Drag & Drop trên màn hình cảm ứng', isDone: true, order: 2, assigneeId: empDuyKhang.id },
+    { id: 'sub-103-4', taskId: task3.id, title: 'Đạt chứng chỉ nghiệm thu từ Lead Designer & QA', isDone: false, order: 3, assigneeId: empLanHuong.id },
+
+    // Task 4 Subtasks
+    { id: 'sub-104-1', taskId: task4.id, title: 'Thiết kế Schema cơ sở dữ liệu Project, Stages & Subtasks', isDone: true, order: 0, assigneeId: empThanhTung.id },
+    { id: 'sub-104-2', taskId: task4.id, title: 'Xây dựng API CRUD & WebSocket Broadcast thời gian thực', isDone: true, order: 1, assigneeId: empThanhTung.id },
+    { id: 'sub-104-3', taskId: task4.id, title: 'Tích hợp giao diện Kanban 5 chế độ xem Bento Grid', isDone: true, order: 2, assigneeId: huyDatUser.id },
+    { id: 'sub-104-4', taskId: task4.id, title: 'Hoàn tất kiểm thử E2E và triển khai production', isDone: true, order: 3, assigneeId: huyDatUser.id },
+  ];
+
+  for (const st of subtasksData) {
+    await prisma.subtask.upsert({
+      where: { id: st.id },
+      update: {
+        title: st.title,
+        isDone: st.isDone,
+        order: st.order,
+        assigneeId: st.assigneeId,
+      },
+      create: {
+        id: st.id,
+        taskId: st.taskId,
+        title: st.title,
+        isDone: st.isDone,
+        order: st.order,
+        assigneeId: st.assigneeId,
+      },
+    });
+  }
+
+  // Tự động tính toán lại % tiến độ cho từng Task cha trong Database
+  for (const taskId of [task1.id, task2.id, task3.id, task4.id]) {
+    const taskSubtasks = await prisma.subtask.findMany({ where: { taskId } });
+    if (taskSubtasks.length > 0) {
+      const completed = taskSubtasks.filter(s => s.isDone).length;
+      const progress = Math.round((completed / taskSubtasks.length) * 100);
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { progress },
+      });
+    }
+  }
+
+  console.log('✅ Created Seed Tasks & Subtasks:', task1.title, task2.title, task3.title, task4.title);
+  console.log('🎉 Database Seeding completed successfully with dynamic PostgreSQL records!');
 }
 
 main()

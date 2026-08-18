@@ -11,21 +11,21 @@ export const AudioWaveVisualizer: React.FC<AudioWaveVisualizerProps> = ({ isList
   const bars = Array.from({ length: barCount }, (_, i) => i);
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-4">
+    <div className="flex flex-col items-center justify-center gap-2.5 py-1">
       {/* 🌟 Center Glowing Orb with Dynamic Pulsing Scale */}
       <div className="relative flex items-center justify-center">
         <div
-          className={`w-20 h-20 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-purple-600 transition-transform duration-100 flex items-center justify-center shadow-2xl ${
-            isListening ? 'shadow-[0_0_40px_rgba(245,158,11,0.6)]' : 'shadow-none opacity-40'
+          className={`w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-purple-600 transition-transform duration-100 flex items-center justify-center shadow-xl ${
+            isListening ? 'shadow-[0_0_30px_rgba(245,158,11,0.6)]' : 'shadow-none opacity-40'
           }`}
           style={{
             transform: isListening
-              ? `scale(${1 + (volume / 100) * 0.4})`
+              ? `scale(${1 + (volume / 100) * 0.3})`
               : 'scale(1)',
           }}
         >
-          <div className="w-16 h-16 rounded-full bg-[#0F172A] flex items-center justify-center border border-amber-400/40">
-            <span className="text-xl animate-pulse">🎙️</span>
+          <div className="w-11 h-11 rounded-full bg-[#0F172A] flex items-center justify-center border border-amber-400/40">
+            <span className="text-base animate-pulse">🎙️</span>
           </div>
         </div>
 
@@ -39,14 +39,14 @@ export const AudioWaveVisualizer: React.FC<AudioWaveVisualizerProps> = ({ isList
       </div>
 
       {/* 📊 Futuristic Neon Equalizer Wave Bars */}
-      <div className="flex items-center gap-1.5 h-12 px-4 py-1 rounded-2xl bg-slate-950/80 border border-slate-800">
+      <div className="flex items-center gap-1.5 h-9 px-3.5 py-1 rounded-xl bg-slate-950/80 border border-slate-800">
         {bars.map((index) => {
           // Calculate dynamic height based on volume and sinusoidal wave
           const distanceToCenter = Math.abs(index - (barCount - 1) / 2);
           const factor = Math.max(0.2, 1 - distanceToCenter / (barCount / 2));
           const dynamicHeight = isListening
-            ? Math.max(6, Math.min(42, (volume * 0.45 + Math.random() * 8) * factor))
-            : 6;
+            ? Math.max(4, Math.min(28, (volume * 0.35 + Math.random() * 6) * factor))
+            : 4;
 
           return (
             <div
