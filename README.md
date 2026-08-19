@@ -1,105 +1,188 @@
-# 📋 Voice-Assisted Task Board
+# 🌌 SOLARIS - Enterprise Task Board & Workflow Management Platform
 
 <p align="center">
-  <b>A modern, multi-user Kanban Task Management Board featuring Role-Based Access Control (RBAC), Vietnamese Smart Voice Command (Speech-to-Text), Google OAuth 2.0, Real-time WebSockets, WebRTC Audio/Video Calls, and Multi-Department Collaboration.</b>
+  <b>Hệ thống Quản trị Tiến độ Công việc, Lập Kế hoạch Master Plan & Điều phối Tác nghiệp Đa Dự án chuẩn Doanh nghiệp Hiện đại.</b><br/>
+  <i>Tích hợp Phân quyền RBAC 3 cấp, Bảng Kanban 6 Trạng thái, Lịch Làm Việc 3 Chế độ Xem, Trung Tâm Thông Báo Real-time, Thùng Rác Hệ Thống 14 Ngày và Triệt Tiêu 98 Logic Conflicts & Corner Cases.</i>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS" />
-  <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
-  <img src="https://img.shields.io/badge/React%2FVite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
-  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/Socket.IO-010101?style=for-the-badge&logo=socket.io&logoColor=white" alt="Socket.IO" />
+  <img src="https://img.shields.io/badge/NestJS-11.x-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS" />
+  <img src="https://img.shields.io/badge/Prisma-7.x-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Vite-8.x-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/TailwindCSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="TailwindCSS" />
+  <img src="https://img.shields.io/badge/Socket.IO-4.x-010101?style=for-the-badge&logo=socket.io&logoColor=white" alt="Socket.IO" />
+  <img src="https://img.shields.io/badge/Logic_Conflicts-98_Resolved-10B981?style=for-the-badge" alt="Logic Conflicts" />
 </p>
 
 ---
 
-## 🚀 Project Overview
+## 🚀 1. Tổng Quan Hệ Thống (Project Overview)
 
-This project is a state-of-the-art Kanban Task Board platform designed specifically for modern enterprise office environments. Key highlights include **Role-Based Access Control (RBAC)**, **Vietnamese Smart Voice Input & Command Parsing (Web Speech API)**, **Google OAuth 2.0 Authentication**, **Real-time Collaboration via Socket.IO**, and **WebRTC Audio/Video Calling**.
+**Solaris Task Board Manager** là nền tảng quản trị dự án và điều phối công việc thế hệ mới, được thiết kế theo phong cách **Solar Glassmorphism Pro Max UI** với nền tối sâu (`#030712`), quầng sáng hổ phách (`Amber`) và hiệu ứng chuyển động mượt mà 60 FPS.
 
----
-
-## 🛠 Tech Stack
-
-- **Database:** PostgreSQL 16
-- **Backend:** NestJS 11 (Node.js) + Prisma ORM 7 + Driver Adapter (`@prisma/adapter-pg`)
-- **Frontend:** React 19 + Vite 8, Zustand, Axios, Recharts, Socket.IO Client, TailwindCSS v4
-- **Real-Time & Media:** Socket.IO, WebRTC (Audio & Video Streaming)
-- **Deployment & DevOps:** Docker & Docker Compose
+Hệ thống cung cấp giải pháp toàn diện từ khâu khảo sát, lập kế hoạch lộ trình (Roadmap), phân rã công việc thành các Task con (Subtasks/Minitasks) với người phụ trách độc lập, theo dõi hạn chót trên Lịch làm việc trực quan, quản lý thành viên dự án, đến nghiệm thu và lưu trữ dữ liệu an toàn.
 
 ---
 
-## 👥 Role-Based Access Control (RBAC) & Multi-Department
+## 🌟 2. Các Tính Năng Trọng Tâm (Core Feature Highlights)
 
-The system clearly differentiates system-wide roles (`GlobalRole`) and project-scoped permissions (`ProjectRole`):
+### 📊 A. Ma Trận Kanban 6 Cột Chuẩn Tác Nghiệp (Kanban Matrix)
+* **6 Cột Trạng Thái Nghiệp Vụ:**
+  1. `TODO` — Cần Làm (Xám Khói)
+  2. `IN_PROGRESS` — Đang Làm (Vàng Hổ Phách)
+  3. `PAUSED` — Tạm Dừng (Xanh Dương)
+  4. `BLOCKED` — Tắc Nghẽn (Đỏ Hồng)
+  5. `IN_REVIEW` — Chờ Duyệt Bài 🔒 (Tím Thạch Anh)
+  6. `DONE` — Hoàn Thành (Xanh Ngọc)
+* **Kéo thả mượt mà với `@hello-pangea/dnd` & Fixed Portal** chống chớp giật thanh cuộn.
+* **Cơ chế giữ nguyên Task DONE vĩnh viễn** ở cột DONE để dễ dàng theo dõi, đối soát và tổng kết dự án.
 
-- 🔴 **Admin:** System administrator with full access to accounts, role assignments, and all projects.
-- 🟡 **Manager:** Project manager. Creates & manages assigned projects, manages team members, delegates tasks, and views analytics.
-- 🟢 **Employee:** Team member executing tasks in assigned projects and updating delegated task statuses.
-- 🏢 **Multi-Department (`ProjectDepartment`):** Dynamic department management (e.g., `Product`, `Client`, `Dev`, `Marketing`). Supports multi-department collaboration within a single project.
+### 🌌 B. Kế Hoạch Tổng Thể & Lộ Trình Dự Án (Master Plan & Roadmap)
+* Trực quan hóa vòng đời dự án theo các **Giai đoạn Pipeline** (Khảo sát ➔ Thiết kế UI/UX ➔ Lập trình ➔ Kiểm thử QA/QC ➔ Staging ➔ Nghiệm thu).
+* **Bộ biên tập giai đoạn tại chỗ (In-Place Stage Editor)** cho phép Quản lý thêm/xóa/đổi tên giai đoạn trực tiếp.
+* **Quyền Xóa Dự Án Dành Cho Admin**: Nút xóa dự án trên Master Plan kèm Modal cảnh báo nguy hiểm, đưa toàn bộ dự án và task con vào Thùng Rác lưu giữ 14 ngày.
+
+### 📅 C. Bảng Lịch Làm Việc & Tiến Độ (Schedule & Timeline Dashboard - Pro Max UI)
+* **3 Chế Độ Xem Linh Hoạt:**
+  - 🗓️ **Lịch Tháng (Month Calendar Grid)**: Lưới 35 ô với chỉ báo màu theo trạng thái và thanh hạn chót.
+  - ⚡ **Lịch Tuần (Week Sprint Timeline)**: Trục thời gian 7 ngày với thẻ công việc chi tiết.
+  - 🎯 **Lịch Ngày (Day Focus Cockpit)**: Chế độ tập trung cao độ theo từng khung giờ trong ngày.
+* Tích hợp bộ lọc đa chiều (Dự án, Nhân sự, Độ ưu tiên) và đồng bộ Socket.IO realtime.
+
+### 🔔 D. Trung Tâm Thông Báo Cá Nhân (Personal Notification Center - Pro Max UI)
+* **Chuông thông báo phát sáng** trên thanh Topbar với huy hiệu đếm số lượng chưa đọc real-time.
+* **Flyout Drawer đa năng**: Phân loại tab *Tất Cả*, *Chưa Đọc*, *Khẩn Cấp (Urgent)*.
+* **Toast Thông Báo Bay Góc Màn Hình** xuất hiện tức thì khi có thông báo mới.
+* **1-Click Điều Hướng**: Nhấp vào thông báo sẽ mở trực tiếp Modal chi tiết công việc liên quan.
+
+### 🗄️ E. Thùng Rác Hệ Thống 14 Ngày (14-Day Retention Recycle Bin & Recovery Center)
+* **Chính sách lưu giữ an toàn 14 ngày (14-Day Retention Policy)** cho toàn bộ Dự án và Task đã xóa.
+* **Trang quản trị dành riêng cho Admin (`/admin/trash`)**:
+  - Thanh tiến độ đếm ngược thời gian thực (Xanh ngọc > 7 ngày, Vàng 3-7 ngày, Đỏ < 3 ngày).
+  - **Khôi Phục (Restore)** một chạm đưa Dự án và Task trở lại Bảng công việc.
+  - **Tự động mở lại Dự án cha** khi khôi phục một Task con mồ côi (`CC-01`).
+  - **Cơ chế tự động dọn dẹp (Auto-Purge)** các bản ghi quá hạn 14 ngày (`CC-02`).
+  - **Xóa Vĩnh Viễn & Dọn Sạch Thùng Rác** giải phóng triệt để CSDL.
+
+### 👥 F. Phân Rã Việc Con & Điều Phối Độc Lập (Subtasks & Independent Delegation)
+* Mỗi Task con (Minitask) có thể gán cho **một người thực hiện riêng biệt**, tính thời gian ước lượng và tính trọng số tiến độ (%) tự động.
+* **Cơ chế Khẩn Cấp Động (Dynamic URGENT)**: Bật cờ khẩn cấp trên việc con sẽ tự động nâng Task cha lên `URGENT` và gửi thông báo tức thì đến người nhận; khi việc con hoàn thành hoặc bị xóa, Task cha tự động hạ cờ về bình thường.
+* **Admin & Manager có quyền trực tiếp duyệt hoặc bấm hoàn thành việc con** của bất kỳ nhân sự nào.
 
 ---
 
-## ✨ Key Features
+## 🛡️ 3. Triệt Tiêu 98 Logic Conflicts & Corner Cases (`LC-01` ➔ `LC-98`)
 
-1. **Smooth Drag-and-Drop Kanban Board:**
-   - Standard 3-column workflow: _To Do_, _In Progress_, _Done_.
-   - Built with _Optimistic UI Updates_ for instant 0ms user responsiveness with automatic rollback on network failure.
-2. **Vietnamese Smart Voice Command (Voice-to-Text):**
-   - Integrates Web Speech API supporting Vietnamese natural language processing.
-   - Automatically extracts task Title, Due Date, and Priority (`URGENT`, `IMPORTANT`, etc.) from speech.
-   - Smart safety: Auto-assigns voice-created tasks to the current user with a 10-second Undo popup.
-3. **Google OAuth 2.0 & Authentication:**
-   - 1-Click Login via Google / Gmail accounts alongside traditional Email & Password authentication.
-4. **Real-time Synchronization (Socket.IO):**
-   - Instant broadcast of task moves, status updates, and comments across all team members in the project without page refresh.
-5. **Real-Time Communication (1-1 Chat & WebRTC Calls):**
-   - **Task Discussion:** Contextual comment section in each task card.
-   - **Direct Messaging (1-1):** Instant private chat between team members with read receipts.
-   - **WebRTC Audio & Video Calls:** Crystal-clear 1-1 voice and video calling with call history logging (`CallLog`).
-6. **Audit Logging & Clean Board (Archiving):**
-   - Automatically logs all data changes (Who changed what, when, old & new values snapshot).
-   - "Archive Board" feature safely hides completed tasks while retaining historical metrics for dashboards.
-7. **Analytics Dashboard & Reports:**
-   - Interactive charts using Recharts for Managers/Admins and personal productivity metrics for Employees.
+Hệ thống được thiết kế với độ tin cậy tuyệt đối, giải quyết trọn vẹn **98 xung đột logic nghiệp vụ và tình huống biên**, bao gồm:
+- 🔒 **Giao dịch nguyên tố Atomic Transactions (`prisma.$transaction`)** bảo vệ dữ liệu khi xóa/khôi phục/chuyển giao.
+- 🛡️ **Bảo vệ phòng thủ mảng đa tầng** chống lỗi giao diện (`Array.isArray` fallback).
+- ⚡ **Chống xung đột Race Condition & Idempotency** khi click thao tác liên tục.
+- 🏢 **Cách ly dữ liệu dự án (Project Isolation)**: Không rò rỉ thông báo hoặc dữ liệu cho thành viên đã rời dự án.
+- 🧹 **Tự động dọn dẹp thông báo cũ quá 30 ngày** và giới hạn phân trang tối ưu hiệu năng.
+
+> Chi tiết toàn bộ 98 quy tắc nghiệp vụ xem tại: [`docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md`](./docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md).
 
 ---
 
-## 💻 Local Development Setup
+## 🛠️ 4. Kiến Trúc Kỹ Thuật (Tech Stack & Architecture)
 
-To run and develop the project locally with Hot-Reload enabled:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    REACT 19 FRONTEND (VITE 8)               │
+│  TailwindCSS v4 │ Zustand Store │ Lucide Icons │ Recharts   │
+│  @hello-pangea/dnd Fixed Portal │ Socket.IO Client 4.x      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ REST API + WebSockets
+┌──────────────────────────────▼──────────────────────────────┐
+│                    NESTJS 11 BACKEND API                    │
+│  JWT Auth Guard │ Idempotency Interceptor │ SocketGateway    │
+│  Modules: Task, Project, Notification, Trash, Profile, User  │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ Prisma ORM 7 + Driver Adapter
+┌──────────────────────────────▼──────────────────────────────┐
+│                   POSTGRESQL 16 DATABASE                    │
+│  Tables: users, projects, project_members, tasks, subtasks, │
+│          task_requests, task_comments, notifications        │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### Step 1: Start PostgreSQL Database
-Prerequisites: Install and run [Docker Desktop](https://www.docker.com/products/docker-desktop).
-Open a terminal in the project root directory and run:
+---
+
+## 💻 5. Hướng Dẫn Cài Đặt & Chạy Cục Bộ (Quick Start)
+
+### Yêu Cầu Tiên Quyết (Prerequisites):
+- [Node.js](https://nodejs.org/) (phiên bản 18+ hoặc 20+ LTS)
+- [Docker & Docker Desktop](https://www.docker.com/) (để chạy PostgreSQL)
+
+---
+
+### Bước 1: Khởi Động Cơ Sở Dữ Liệu PostgreSQL
+Tại thư mục gốc của dự án, mở Terminal và chạy:
 ```bash
 docker-compose up -d postgres_db
 ```
 
-### Step 2: Start Backend (NestJS)
-Open a new terminal, navigate to the `be` directory, and run:
+---
+
+### Bước 2: Cài Đặt & Khởi Động Backend (NestJS)
+Mở một Terminal mới, di chuyển vào thư mục `be`:
 ```bash
 cd be
 npm install
+npx prisma db push
 npm run start:dev
 ```
-*(Backend will run at http://localhost:3000)*
+> Backend API sẽ hoạt động tại: `http://localhost:3000`
 
-### Step 3: Start Frontend (React/Vite)
-Open another terminal, navigate to the `fe` directory, and run:
+---
+
+### Bước 3: Cài Đặt & Khởi Động Frontend (React/Vite)
+Mở một Terminal mới, di chuyển vào thư mục `fe`:
 ```bash
 cd fe
 npm install
 npm run dev
 ```
-*(Frontend will run at http://localhost:5173)*
+> Frontend ứng dụng sẽ hoạt động tại: `http://localhost:5173`
 
 ---
 
-**💡 Quick Run (Run entire stack in Docker)**
-To run all services inside Docker containers without local development setup:
+### 💡 Khởi Chạy Toàn Bộ Stack Qua Docker (Tuỳ Chọn)
 ```bash
 docker-compose up -d --build
 ```
+
+---
+
+## 📚 6. Bộ Tài Liệu Kỹ Thuật Hệ Thống (Documentation Suite)
+
+Toàn bộ tài liệu thiết kế kiến trúc, an toàn bảo mật, ma trận trạng thái và nhật ký xung đột logic được lưu trữ đầy đủ ở 2 định dạng Markdown (`.md`) và Microsoft Word (`.docx`):
+
+| STT | Tên Tài Liệu | Bản Markdown | Bản Word (.docx) | Nội Dung Trọng Tâm |
+|:---:|:---|:---:|:---:|:---|
+| **01** | **Project Architecture & Master Plan** | [`01.md`](./docs/01_PROJECT_ARCHITECTURE_AND_MASTER_PLAN.md) | [`01.docx`](./docs/01_PROJECT_ARCHITECTURE_AND_MASTER_PLAN.docx) | Kiến trúc tổng thể, mô hình micro-modules, luồng nghiệp vụ. |
+| **02** | **Infrastructure & Security Audit** | [`02.md`](./docs/02_INFRASTRUCTURE_AND_SECURITY_AUDIT.md) | [`02.docx`](./docs/02_INFRASTRUCTURE_AND_SECURITY_AUDIT.docx) | Kiểm toán bảo mật RBAC, JWT, CORS, Atomic Transactions. |
+| **03** | **Development Changelog Details** | [`03.md`](./docs/03_DEVELOPMENT_CHANGELOG_DETAILS.md) | [`03.docx`](./docs/03_DEVELOPMENT_CHANGELOG_DETAILS.docx) | Nhật ký chi tiết toàn bộ các lần phát triển & nâng cấp hệ thống. |
+| **04** | **CSS Design System & Guide** | [`04.md`](./docs/04_CSS_DESIGN_SYSTEM_AND_LINE_BY_LINE_GUIDE.md) | [`04.docx`](./docs/04_CSS_DESIGN_SYSTEM_AND_LINE_BY_LINE_GUIDE.docx) | Quy chuẩn Solar Glassmorphism Dark Theme, token màu & hiệu ứng. |
+| **05** | **Logic Conflicts & Business Rules** | [`05.md`](./docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md) | [`05.docx`](./docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.docx) | **Chi tiết 98 Logic Conflicts & Corner Cases (`LC-01` ➔ `LC-98`)**. |
+| **06** | **ERD & System State Charts** | [`06.md`](./docs/06_ERD_AND_SYSTEM_STATE_CHARTS.md) | [`06.docx`](./docs/06_ERD_AND_SYSTEM_STATE_CHARTS.docx) | Sơ đồ thực thể CSDL (ERD) và biểu đồ chuyển dịch trạng thái Task. |
+| **07** | **Project Plan & Roadmap** | [`Roadmap.md`](./docs/PROJECT_PLAN_AND_ROADMAP.md) | [`Roadmap.docx`](./docs/PROJECT_PLAN_AND_ROADMAP.docx) | Lộ trình 15 giai đoạn phát triển toàn diện hệ thống. |
+
+---
+
+## 👥 7. Tài Khoản Mặc Định Thử Nghiệm (Demo Accounts)
+
+| Email | Mật Khẩu | Vai Trò (Role) | Chức Năng |
+|:---|:---:|:---:|:---|
+| `huydatne@gmail.com` | `admin123` | **ADMIN** | Toàn quyền hệ thống, Thùng rác 14 ngày, Xóa dự án, Phân quyền nhân sự |
+| `manager@solaris.io` | `manager123` | **MANAGER** | Quản lý dự án, Phê duyệt việc con, Chuyển giao Task, Điều chỉnh Master Plan |
+| `employee@solaris.io` | `employee123` | **EMPLOYEE** | Nhận Task, cập nhật tiến độ việc con, bật cờ Khẩn cấp, gửi yêu cầu |
+
+---
+
+<p align="center">
+  <b>Developed with ❤️ for High-Performance Enterprise Teams</b><br/>
+  <i>Solaris Task Board Manager © 2026. All Rights Reserved.</i>
+</p>
