@@ -92,13 +92,15 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       (isAdminOrManager || (hasAssignee ? isAssignee : isCreator))
   );
 
-  // 🔒 Quyền thêm / xóa việc con: Người tạo Task, Người được giao Task hoặc Admin/Manager
+  // 🔒 Quyền thêm việc con: CHỈ người trực tiếp đảm nhiệm Task (Assignee) hoặc Admin/Manager mới được tạo
   const canManageSubtasks = Boolean(
     currentUser &&
       (currentUser.globalRole === 'ADMIN' ||
         currentUser.globalRole === 'MANAGER' ||
+        (currentUser as any).role === 'ADMIN' ||
+        (currentUser as any).role === 'MANAGER' ||
         isAssignee ||
-        isCreator)
+        (!hasAssignee && isCreator))
   );
 
   // 🔒 Quyền TICK việc con [✓]: CHỈ người TRỰC TIẾP LÀM TASK (Assignee) mới được tick (Không phải Admin hay Creator)

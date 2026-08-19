@@ -964,8 +964,32 @@ Mỗi lỗi xung đột logic được phân loại theo 4 cấp độ nghiêm t
 * **Mức độ:** 🟡 **HIGH**
 * **Vấn đề (Root Cause):** Sự lệch múi giờ giữa máy Client và Server có thể làm phép tính `daysLeft` ra số âm hoặc hiển thị NaN.
 * **Giải pháp kỹ thuật:** Bọc `Math.max(0, msLeft)` và hiển thị huy hiệu màu đỏ nổi bật *"Đã hết hạn lưu giữ"* kèm ghi chú *"0 ngày (sắp dọn dẹp)"* trên thẻ dự án và task trong Thùng Rác.
-* **File ảnh hưởng:** `fe/src/pages/AdminTrashPage.tsx`.
-* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+### [LC-99] [CC-08..CC-27] Ma Trận 20 Trường Hợp Xử Lý Khi Thành Viên Tự Tạo Task Con (20 Member Self-Created Subtask Scenarios & Edge Cases)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Bối cảnh:** Mở quyền cho Thành viên dự án (Project Member) được chủ động tự tạo Task con (Minitask) để phân rã công việc vi mô của chính mình hoặc phân công phối hợp trong dự án.
+* **Danh sách 20 trường hợp đã được xử lý triệt để:**
+  1. **Case 01 (Tự tạo cho chính mình):** Nhân viên tạo subtask không chọn ai -> Hệ thống tự động gán `assigneeId = chính nhân viên đó`.
+  2. **Case 02 (Phân công cho đồng nghiệp trong dự án):** Nhân viên chọn gán subtask cho đồng nghiệp B trong cùng `project_members` -> Hệ thống lưu hợp lệ.
+  3. **Case 03 (Chặn gán cho người ngoài dự án):** Nhân viên cố gán subtask cho người không thuộc dự án -> Backend ném lỗi `400 Bad Request`.
+  4. **Case 04 (Chặn người ngoài dự án tạo subtask):** Người dùng không thuộc dự án cố tình gọi API tạo subtask -> Ném lỗi `403 Forbidden`.
+  5. **Case 05 (Tạo subtask khi Task cha chưa phân công):** Task cha chưa có ai nhận (`assigneeId = null`), nhân viên tạo subtask -> Hợp lệ và subtask được gán cho nhân viên.
+  6. **Case 06 (Tạo subtask khi Task cha đang DONE):** Task cha đang `DONE` (100%), khi thêm subtask mới -> Hệ thống tự động kéo Task cha về `IN_PROGRESS`, `completedAt = null`, và giảm % tiến độ theo tỷ trọng mới.
+  7. **Case 07 (Tạo subtask khi Task cha đang TODO):** Thêm subtask đầu tiên -> Tự động tính toán lại số ngày ước lượng và đường găng hạn chót.
+  8. **Case 08 (Khóa khi Task cha đang PAUSED / BLOCKED):** Task đang tạm dừng hoặc nghẽn -> Ném lỗi `400` yêu cầu mở lại trạng thái `IN_PROGRESS` trước khi thêm việc con.
+  9. **Case 9 (Khóa khi Task cha đang IN_REVIEW chờ bàn giao):** Task đang có đơn chuyển giao chờ duyệt -> Ném lỗi `400` để tránh làm thay đổi khối lượng công việc bàn giao.
+  10. **Case 10 (Khóa khi Task cha đã bị Lưu trữ/Xóa):** Task ở trạng thái `isArchived: true` hoặc `isDeleted: true` -> Khóa cứng hoàn toàn.
+  11. **Case 11 (Tự động mở rộng Ngày bắt đầu Task cha):** Subtask có `startDate` sớm hơn `task.startDate` -> Hệ thống tự động cập nhật `task.startDate = parsedSubtaskStartDate`.
+  12. **Case 12 (Tự động co giãn Hạn chót Task cha theo Đường găng):** Subtask mới có hạn chót kéo dài -> Hệ thống tự động đẩy `task.dueDate = max(subtaskDueDates)`.
+  13. **Case 13 (Tự tạo subtask và nộp nghiệm thu):** Nhân viên tự tick hoàn thành subtask -> Chuyển trạng thái `PENDING` chờ Manager duyệt (không tự ý lên 100%).
+  14. **Case 14 (Manager tự tạo subtask cho mình):** Quản lý dự án tự làm subtask của mình -> Tự động phê duyệt `APPROVED` ngay lập tức (`Self-Approval Flow`).
+  15. **Case 15 (Tự tạo subtask Khẩn cấp URGENT):** Bật cờ `isUrgent: true` -> Tự động nâng `task.priority = 'URGENT'` và gửi bình luận cảnh báo khẩn.
+  16. **Case 16 (Phân quyền xóa subtask tự tạo):** Subtask chưa duyệt (`isDone: false`) -> Nhân viên được xóa; Subtask đã duyệt (`isDone: true`) -> Chỉ Manager có quyền xóa.
+  17. **Case 17 (Ràng buộc thời lượng làm việc hợp lệ):** Nhập số ngày <= 0 hoặc số thập phân -> Tự động chuẩn hóa về số nguyên dương: `Math.max(1, Math.floor(estimatedDays))`.
+  18. **Case 18 (Cảnh báo vượt hạn chót Dự án):** Subtask mới làm tổng thời gian vượt `project.endDate` -> Cảnh báo nguy cơ trễ hạn dự án.
+  19. **Case 19 (Song song cùng ngày):** Nhân viên tạo 2 việc con cùng 1 ngày thực hiện -> Lịch trình độc lập, không bị đẩy nối đuôi.
+  20. **Case 20 (Chống Race Condition & Realtime Broadcast):** Nhiều nhân viên cùng tạo subtask đồng thời -> Xử lý trong `prisma.$transaction`, tính toán lại tiến độ và phát sóng Socket.IO `task:updated` tức thì.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`, `fe/src/components/kanban/TaskDetailModal.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100% (Build Pass Exit Code 0)**.
 
 ---
 

@@ -2144,37 +2144,67 @@ export class TaskService {
       );
     }
 
-    // 🔒 [LC-23] CHẶN THÊM TASK CON VÀO TASK ĐÃ HOÀN THÀNH
+    // 🔒 [LC-23] CHẶN THÊM TASK CON VÀO TASK ĐÃ LƯU TRỮ HOẶC ĐÃ HOÀN THÀNH KHI KHÔNG MỞ LẠI
+    if (task.isArchived) {
+      throw new BadRequestException(
+        'Task này đã được lưu trữ (Archived). Không thể thêm Task con mới!',
+      );
+    }
+
     if (task.status === 'DONE') {
       throw new BadRequestException(
         'Task đã hoàn thành (DONE). Vui lòng chuyển Task về trạng thái Đang Thực Hiện (IN_PROGRESS) trước khi thêm Task con mới.',
       );
     }
 
-    // 🔒 PHÂN QUYỀN: Admin, Manager, Người tạo Task (Creator) hoặc Người được giao Task (Assignee) đều có quyền thêm Subtask
+    // 🔒 [LC-10] KHÓA THÊM TASK CON KHI TASK ĐANG TẠM DỪNG HOẶC BỊ NGHẼN
+    if (task.status === 'PAUSED' || task.status === 'BLOCKED') {
+      throw new BadRequestException(
+        `Task đang ở trạng thái ${task.status === 'PAUSED' ? 'Tạm Dừng' : 'Bị Nghẽn'}. Vui lòng khôi phục trạng thái Đang Thực Hiện trước khi thêm Task con!`,
+      );
+    }
+
+    // 🔒 [LC-31] CHẶN THÊM TASK CON KHI TASK ĐANG TRONG QUÁ TRÌNH BÀN GIAO PENDING
+    if (task.status === 'IN_REVIEW') {
+      const pendingTransfer = await this.prisma.taskRequest.findFirst({
+        where: { taskId, type: 'TRANSFER', status: 'PENDING' },
+      });
+      if (pendingTransfer) {
+        throw new BadRequestException(
+          'Task đang trong trạng thái Chờ Duyệt Bàn Giao (IN_REVIEW). Vui lòng hoàn tất hoặc hủy bàn giao trước khi thêm Task con mới.',
+        );
+      }
+    }
+
+    // 🔒 PHÂN QUYỀN CHẶT CHẼ: CHỈ người trực tiếp đảm nhiệm Task (Assignee) hoặc Quản lý/Admin mới được tạo Task con
     if (user) {
-      const isAdminOrManager =
+      const isAdminOrManager = Boolean(
         user.role === 'ADMIN' ||
-        user.role === 'MANAGER' ||
-        user.globalRole === 'ADMIN' ||
-        user.globalRole === 'MANAGER';
+          user.role === 'MANAGER' ||
+          user.globalRole === 'ADMIN' ||
+          user.globalRole === 'MANAGER' ||
+          task.project?.managerId === user.id ||
+          task.project?.createdById === user.id,
+      );
       const isAssignee = task.assigneeId === user.id;
-      const isCreator = task.createdById === user.id;
-      if (!isAdminOrManager && !isAssignee && !isCreator) {
+      const isUnassignedAndCreator = !task.assigneeId && task.createdById === user.id;
+
+      if (!isAdminOrManager && !isAssignee && !isUnassignedAndCreator) {
         throw new ForbiddenException(
-          'Bạn không có quyền thêm Task con vào Task này',
+          'Chỉ người trực tiếp đảm nhiệm Task (Assignee) hoặc Quản lý/Admin mới có quyền tạo Task con!',
         );
       }
     }
 
     // 🔒 [LC-26] KIỂM TRA RÀNG BUỘC THÀNH VIÊN DỰ ÁN KHI GÁN TASK CON
-    if (body.assigneeId) {
+    const effectiveSubtaskAssigneeId = body.assigneeId || user?.id || task.assigneeId || undefined;
+    if (effectiveSubtaskAssigneeId) {
       const isMember = await this.prisma.projectMember.findFirst({
-        where: { projectId: task.projectId, userId: body.assigneeId },
+        where: { projectId: task.projectId, userId: effectiveSubtaskAssigneeId },
       });
       const isProjectAdminOrManager =
-        task.project?.managerId === body.assigneeId ||
-        task.project?.createdById === body.assigneeId;
+        task.project?.managerId === effectiveSubtaskAssigneeId ||
+        task.project?.createdById === effectiveSubtaskAssigneeId;
       if (!isMember && !isProjectAdminOrManager) {
         throw new BadRequestException(
           'Nhân sự được giao Task con không thuộc thành viên của dự án này.',
@@ -2184,33 +2214,27 @@ export class TaskService {
 
     const estimatedDays =
       body.estimatedDays && Number(body.estimatedDays) > 0
-        ? Number(body.estimatedDays)
+        ? Math.max(1, Math.floor(Number(body.estimatedDays)))
         : 1;
     let parsedSubtaskStartDate: Date | null = null;
     let parsedSubtaskDueDate: Date | null = null;
 
     if (body.startDate) {
       parsedSubtaskStartDate = new Date(body.startDate);
+      // Tự động mở rộng ngày bắt đầu của Task cha nếu Subtask bắt đầu sớm hơn
       if (
         task.startDate &&
         parsedSubtaskStartDate.getTime() < new Date(task.startDate).getTime()
       ) {
-        throw new BadRequestException(
-          'Ngày bắt đầu của Task con không thể trước ngày bắt đầu của Task cha!',
-        );
+        await this.prisma.task.update({
+          where: { id: taskId },
+          data: { startDate: parsedSubtaskStartDate },
+        });
       }
     }
 
     if (body.dueDate) {
       parsedSubtaskDueDate = new Date(body.dueDate);
-      if (
-        task.startDate &&
-        parsedSubtaskDueDate.getTime() < new Date(task.startDate).getTime()
-      ) {
-        throw new BadRequestException(
-          'Hạn chót của Task con không thể trước ngày bắt đầu của Task cha!',
-        );
-      }
     } else if (parsedSubtaskStartDate) {
       const calcDue = new Date(parsedSubtaskStartDate);
       calcDue.setDate(calcDue.getDate() + estimatedDays);
@@ -2222,7 +2246,7 @@ export class TaskService {
       data: {
         taskId,
         title: body.title.trim(),
-        assigneeId: body.assigneeId || undefined,
+        assigneeId: effectiveSubtaskAssigneeId,
         startDate: parsedSubtaskStartDate || undefined,
         estimatedDays,
         dueDate: parsedSubtaskDueDate || undefined,
@@ -2235,8 +2259,8 @@ export class TaskService {
     // 🔔 [LC-81] THÔNG BÁO TỰ ĐỘNG GỬI ĐẾN NGƯỜI NHẬN KHI BẬT VIỆC CON KHẨN CẤP (URGENT)
     if (body.isUrgent) {
       try {
-        const assigneeUser = body.assigneeId
-          ? await this.prisma.user.findUnique({ where: { id: body.assigneeId } })
+        const assigneeUser = effectiveSubtaskAssigneeId
+          ? await this.prisma.user.findUnique({ where: { id: effectiveSubtaskAssigneeId } })
           : null;
         await this.prisma.comment.create({
           data: {

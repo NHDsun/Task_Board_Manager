@@ -1247,9 +1247,30 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
     - Phân loại rõ ràng 3 loại yêu cầu: 🔍 **Duyệt Nghiệm Thu Task Con (`SUBTASK_APPROVAL`)**, 🔄 **Bàn Giao Quyền Phụ Trách (`TRANSFER`)**, 🤝 **Nhờ Đồng Nghiệp Hỗ Trợ (`ASSIST`)**.
     - Bổ sung bộ lọc Filter Chips thông minh: `Tất Cả`, `🔍 Duyệt Task Con`, `🔄 Bàn Giao`, `🤝 Hỗ Trợ`.
     - Phân quyền và hiển thị chuẩn tên vai trò (`Quản Trị Viên (Admin)`, `Quản Lý Dự Án`, `Nhân Viên`).
-- **File 2:** `be/src/modules/task/task.service.ts`
-  - **Hành động:** `[BỔ SUNG FIELD TYPE VÀ FORMAT NGÀY GIỜ VIỆT NAM TRONG API REQUESTS]`.
-  - **Chi tiết:** Trả về đầy đủ `type` của yêu cầu và định dạng ngày giờ chuẩn Việt Nam trong `getIncomingRequests` và `getOutgoingRequests`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 133. Hiện Thực Hóa Cơ Chế Thành Viên Tự Tạo Task Con & Bao Phủ 20 Corner Cases
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[NÂNG CẤP TOÀN DIỆN HÀM ADDSUBTASK & PHÂN QUYỀN MỞ RỘNG CHO THÀNH VIÊN]`.
+  - **Chi tiết:** 
+    - Mở quyền cho Thành viên thuộc dự án (`project_members`) được tự tạo subtask phân rã công việc.
+    - Tự động gán `assigneeId = user.id` khi nhân viên không chọn người khác.
+    - Tự động co giãn `task.startDate` khi subtask bắt đầu sớm hơn task cha.
+    - Khóa thêm subtask khi Task đang `PAUSED`, `BLOCKED`, `isArchived`, hoặc đang `IN_REVIEW` chờ bàn giao.
+    - Chuẩn hóa thời lượng làm việc `Math.max(1, Math.floor(estimatedDays))`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 134. Chuẩn Hóa Phân Quyền Tạo Task Con: Chỉ Người Đảm Nhiệm Task (Assignee) Hoặc Quản Lý/Admin Được Phép Tạo
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[THIẾT LẬP RÀNG BUỘC PHÂN QUYỀN CHẶT CHẼ TRONG ADDSUBTASK]`.
+  - **Chi tiết:** Kiểm tra quyền `isAdminOrManager` hoặc `task.assigneeId === user.id` (nếu task chưa gán ai thì cho phép người tạo Task `task.createdById`). Chặn các thành viên khác trong dự án không được tự ý can thiệp tạo subtask vào task của người khác.
+- **File 2:** `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[CẬP NHẬT QUYỀN HIỂN THỊ CANMANAGESUBTASKS TRÊN GIAO DIỆN DETAIL MODAL]`.
+  - **Chi tiết:** Chỉ hiển thị thanh nhập Quick Add Subtask khi người dùng là `isAssignee` (người đảm nhiệm) hoặc Quản lý/Admin (`ADMIN` / `MANAGER`).
 - **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
 
 

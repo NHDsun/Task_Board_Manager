@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -53,12 +53,8 @@ import {
   Lock,
   Unlock,
   Paperclip,
-  Upload,
-  FileText,
   ExternalLink,
   Trash2,
-  Link2,
-  Download,
   Bell,
 } from 'lucide-react';
 
@@ -144,8 +140,8 @@ export const BoardPage: React.FC = () => {
   } | null>(null);
 
   // ☕ / ⚡ Trạng thái Nghỉ Ngơi vs Làm Trước Việc Ngày Mai cho Task
-  const [restingTodayTasks, setRestingTodayTasks] = useState<Record<string, boolean>>({});
-  const [workingAheadTasks, setWorkingAheadTasks] = useState<Record<string, boolean>>({});
+  const [, setRestingTodayTasks] = useState<Record<string, boolean>>({});
+  const [, setWorkingAheadTasks] = useState<Record<string, boolean>>({});
 
   // Custom Solar Notification Modal State
   const [modalState, setModalState] = useState<{
@@ -167,108 +163,6 @@ export const BoardPage: React.FC = () => {
       message,
       type,
     });
-  };
-
-  // 📎 Cockpit Attachment States & Handlers
-  const cockpitFileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingCockpitAtt, setIsUploadingCockpitAtt] = useState(false);
-  const [showCockpitAddUrl, setShowCockpitAddUrl] = useState(false);
-  const [cockpitUrlInput, setCockpitUrlInput] = useState('');
-  const [cockpitUrlTitleInput, setCockpitUrlTitleInput] = useState('');
-
-  const handleCockpitFileUpload = async (taskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const file = files[0];
-    setIsUploadingCockpitAtt(true);
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const res = await api.post(`/tasks/${taskId}/attachments`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const newAtt = res.data?.data || res.data;
-      if (newAtt && newAtt.id) {
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === taskId
-              ? { ...t, attachments: [newAtt, ...(t.attachments || [])] }
-              : t
-          )
-        );
-        showNotification(`📎 Đã tải lên tài liệu "${newAtt.name}" thành công!`, 'success', 'Tải Tài Liệu');
-      }
-    } catch (err: any) {
-      console.error('Lỗi tải file:', err);
-      showNotification('Không thể tải file lên CSDL', 'warning', 'Lỗi Tải File');
-    } finally {
-      setIsUploadingCockpitAtt(false);
-      if (e.target) e.target.value = '';
-    }
-  };
-
-  const handleCockpitAddUrl = async (taskId: string, e: React.FormEvent) => {
-    e.preventDefault();
-    if (!cockpitUrlInput.trim()) return;
-    const formattedUrl = cockpitUrlInput.startsWith('http') ? cockpitUrlInput : `https://${cockpitUrlInput}`;
-    const name = cockpitUrlTitleInput.trim() || formattedUrl;
-    try {
-      const res = await api.post(`/tasks/${taskId}/attachments`, {
-        name,
-        url: formattedUrl,
-        type: 'link',
-      });
-      const newAtt = res.data?.data || res.data;
-      if (newAtt && newAtt.id) {
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === taskId
-              ? { ...t, attachments: [newAtt, ...(t.attachments || [])] }
-              : t
-          )
-        );
-        showNotification(`🔗 Đã đính kèm liên kết "${name}" thành công!`, 'success', 'Đính Kèm Link');
-      }
-      setCockpitUrlInput('');
-      setCockpitUrlTitleInput('');
-      setShowCockpitAddUrl(false);
-    } catch (err: any) {
-      console.error('Lỗi thêm liên kết:', err);
-      showNotification('Không thể thêm liên kết', 'warning', 'Lỗi Đính Kèm');
-    }
-  };
-
-  const handleCockpitDeleteAttachment = async (taskId: string, attachmentId: string) => {
-    try {
-      await api.delete(`/tasks/attachments/${attachmentId}`);
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === taskId
-            ? { ...t, attachments: (t.attachments || []).filter((a) => a.id !== attachmentId) }
-            : t
-        )
-      );
-      showNotification('Đã xóa tệp đính kèm', 'info', 'Xóa Đính Kèm');
-    } catch (err: any) {
-      console.error('Lỗi xóa file:', err);
-      showNotification('Không thể xóa tệp đính kèm', 'warning', 'Lỗi');
-    }
-  };
-
-  const handleCockpitDownloadAttachment = (att: any) => {
-    let downloadUrl = att.url;
-    if (att.url && att.url.startsWith('/uploads/')) {
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-      const backendUrl = apiBase.replace('/api', '');
-      downloadUrl = `${backendUrl}${att.url}`;
-    }
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = att.name;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   // 🗄️ Task dataset fetched straight from PostgreSQL Database
@@ -1463,7 +1357,7 @@ export const BoardPage: React.FC = () => {
         );
       })()}
 
-      {/* ☀️ VIEW 3: TODAY'S FOCUS COCKPIT (TRUNG TÂM ĐIỀU HÀNH CÔNG VIỆC HÔM NAY) */}
+      {/* ☀️ VIEW 3: TODAY'S FOCUS COCKPIT (TRUNG TÂM TẬP TRUNG TÁC NGHIỆP) */}
       {activeView === 'focus' && (() => {
         // Priority weight dictionary
         const priorityWeight = { URGENT: 1, IMPORTANT: 2, NORMAL: 3, LOW: 4 };
@@ -1489,7 +1383,7 @@ export const BoardPage: React.FC = () => {
         const allInReviewTasks = filteredTasks.filter((t) => t.status === 'IN_REVIEW');
         const allBlockedTasks = filteredTasks.filter((t) => t.status === 'BLOCKED');
 
-        // Apply Priority Filter Mode (Ưu tiên lọc theo các Task có Việc Con Gấp)
+        // Apply Priority Filter Mode
         if (focusFilterMode === 'URGENT') {
           myFocusTasks = myFocusTasks.filter(
             (t) =>
@@ -1501,7 +1395,7 @@ export const BoardPage: React.FC = () => {
           myFocusTasks = myFocusTasks.filter((t) => t.status === 'IN_PROGRESS');
         }
 
-        // Auto-sort Focus Queue: Task có việc con khẩn cấp (isUrgent) đứng đầu tiên
+        // Auto-sort Focus Queue
         myFocusTasks.sort((a, b) => {
           const aHasUrgent = a.subtasks?.some((st) => st.isUrgent && !st.isDone) ? 0 : 1;
           const bHasUrgent = b.subtasks?.some((st) => st.isUrgent && !st.isDone) ? 0 : 1;
@@ -1509,192 +1403,167 @@ export const BoardPage: React.FC = () => {
           return priorityWeight[a.priority] - priorityWeight[b.priority];
         });
 
-        // 🎯 CHỈ LẤY TASK CÓ TRẠNG THÁI IN_PROGRESS ĐƯA VÀO HERO FOCUS TASK #1
         const heroTask = myFocusTasks.find((t) => t.status === 'IN_PROGRESS');
         const queueTasks = myFocusTasks.filter((t) => t.id !== heroTask?.id);
 
         return (
           <div className="space-y-6 pb-12">
-            {/* Header & Mode Filters */}
-            <div className="solar-glass-card p-6 rounded-3xl bg-[#0F172A]/80 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-extrabold text-amber-300 flex items-center gap-2 mb-1">
-                  <Target className="w-6 h-6 text-amber-400 animate-pulse" />
-                  ☀️ Today's Focus Cockpit (Trung Tâm Điều Hành Việc Hôm Nay)
-                </h2>
-                <p className="text-xs text-slate-300">
-                  Tập trung giải quyết các Task trọng tâm hôm nay, theo dõi tiến độ Task con và gỡ bỏ tắc nghẽn tức thì.
-                </p>
+            {/* Header & Mode Filters (Tinh Gọn) */}
+            <div className="solar-glass-card p-4 md:p-5 rounded-2xl bg-[#0F172A]/90 border border-amber-500/20 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                    🎯 Focus Cockpit
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Tập Trung Cao Độ
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Không gian tập trung xử lý dứt điểm công việc trọng tâm hôm nay mà không bị xao nhãng.
+                  </p>
+                </div>
               </div>
 
               {/* Focus Filters */}
               <div className="flex items-center gap-2 overflow-x-auto shrink-0">
                 <button
                   onClick={() => setFocusFilterMode('ALL')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     focusFilterMode === 'ALL'
-                      ? 'bg-amber-500 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800'
+                      ? 'bg-amber-500 text-slate-950 shadow-md'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
                   }`}
                 >
-                  🎯 Tất Cả Hôm Nay ({myFocusTasks.length})
+                  Tất Cả ({myFocusTasks.length})
                 </button>
                 <button
                   onClick={() => setFocusFilterMode('URGENT')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     focusFilterMode === 'URGENT'
-                      ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800'
+                      ? 'bg-rose-500 text-white shadow-md'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
                   }`}
                 >
-                  🚨 Cần Gấp Hôm Nay
+                  🚨 Khẩn Cấp
                 </button>
                 <button
                   onClick={() => setFocusFilterMode('IN_PROGRESS')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                     focusFilterMode === 'IN_PROGRESS'
-                      ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
                   }`}
                 >
-                  ⚡ Đang Thực Hiện
+                  ⚡ Đang Làm
                 </button>
               </div>
             </div>
 
-            {/* 👑 MANAGEMENT PULSE STRIP (DÀNH CHO ADMIN & MANAGER) */}
+            {/* 👑 MANAGEMENT QUICK BAR (TINH GỌN 1 HÀNG DÀNH CHO ADMIN & MANAGER) */}
             {isManagement && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
-                <div className="solar-glass-card p-4 rounded-2xl bg-red-950/20 border border-red-500/40 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono text-red-300 block">CẦN XỬ LÝ GẤP</span>
-                    <span className="text-xl font-black text-red-400 font-mono">{allUrgentTasks.length}</span>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 font-bold">
-                    🚨
-                  </div>
-                </div>
-
-                <div className="solar-glass-card p-4 rounded-2xl bg-amber-950/20 border border-amber-500/40 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono text-amber-300 block">CHỜ DUYỆT BÀN GIAO</span>
-                    <span className="text-xl font-black text-amber-400 font-mono">{allInReviewTasks.length}</span>
-                  </div>
+              <div className="solar-glass-card px-4 py-2.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between flex-wrap gap-2 text-xs font-mono">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <span className="text-slate-400 flex items-center gap-1.5">
+                    <span className="text-red-400 font-bold">🚨 {allUrgentTasks.length}</span> Khẩn Cấp
+                  </span>
+                  <span className="text-slate-600">•</span>
                   <button
                     onClick={() => setIsTransferInboxOpen(true)}
-                    className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold hover:scale-105 transition-all cursor-pointer"
-                    title="Mở Hộp Thư Duyệt"
+                    className="text-amber-300 hover:text-amber-200 font-bold flex items-center gap-1.5 cursor-pointer"
                   >
-                    📬
+                    <span>📬 {allInReviewTasks.length}</span> Chờ Duyệt Bàn Giao
                   </button>
-                </div>
-
-                <div className="solar-glass-card p-4 rounded-2xl bg-rose-950/20 border border-rose-500/40 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono text-rose-300 block">BỊ TẮC NGHẼN (BLOCKED)</span>
-                    <span className="text-xl font-black text-rose-400 font-mono">{allBlockedTasks.length}</span>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 font-bold">
-                    ⚠️
-                  </div>
-                </div>
-
-                <div className="solar-glass-card p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/40 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono text-emerald-300 block">TỔNG TASK ĐANG CHẠY</span>
-                    <span className="text-xl font-black text-emerald-400 font-mono">{allPendingTasks.length}</span>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
-                    🚀
-                  </div>
+                  <span className="text-slate-600">•</span>
+                  <span className="text-slate-400 flex items-center gap-1.5">
+                    <span className="text-rose-400 font-bold">⚠️ {allBlockedTasks.length}</span> Tắc Nghẽn
+                  </span>
+                  <span className="text-slate-600">•</span>
+                  <span className="text-slate-400 flex items-center gap-1.5">
+                    <span className="text-emerald-400 font-bold">🚀 {allPendingTasks.length}</span> Tổng Đang Chạy
+                  </span>
                 </div>
               </div>
             )}
 
-            {/* 🚀 HERO FOCUS CARD #1 (CHỈ DÀNH CHO TASK ĐANG IN_PROGRESS CHÍNH) */}
+            {/* 🚀 HERO FOCUS CARD (TINH GỌN & MẠNH MẼ) */}
             {heroTask ? (
-              <div className="solar-glass-card p-6 md:p-8 rounded-3xl bg-gradient-to-br from-amber-500/15 via-[#0F172A] to-purple-600/15 border-2 border-amber-400/80 shadow-2xl relative space-y-6 animate-fade-in">
+              <div className="solar-glass-card p-6 rounded-3xl bg-gradient-to-br from-amber-500/10 via-[#0F172A] to-purple-600/10 border-2 border-amber-400/60 shadow-xl relative space-y-5 animate-fade-in">
+                {/* Top Meta Bar */}
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500 text-slate-950 flex items-center gap-1.5 shadow-lg">
-                    <Zap className="w-4 h-4 fill-current" /> HERO FOCUS TASK #1 (TASK TRỌNG TÂM HÔM NAY)
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-amber-300 font-mono font-bold">
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-lg text-xs font-mono font-black bg-amber-500 text-slate-950 flex items-center gap-1.5 shadow-sm">
+                      <Zap className="w-3.5 h-3.5 fill-current" /> HERO FOCUS #1
+                    </span>
+                    <span className="text-xs text-amber-300/90 font-mono font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
                       📁 {heroTask.projectName || 'Solaris Core'}
                     </span>
-                    <span className="text-xs text-slate-300 font-mono font-bold bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800 flex items-center gap-1.5">
-                      <span>📅 Bắt đầu: <strong className="text-amber-300">{heroTask.startDate || 'Hôm nay'}</strong></span>
-                      <span className="text-slate-500">➔</span>
-                      <span>Hạn chót: <strong className="text-emerald-300">{heroTask.dueDate || 'Chưa đặt'}</strong></span>
-                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
                     <span
-                      className={`px-2.5 py-0.5 rounded-md text-[10px] font-mono font-extrabold ${
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-black uppercase ${
                         heroTask.priority === 'URGENT'
-                          ? 'bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse'
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse'
                           : heroTask.priority === 'IMPORTANT'
                           ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          : 'bg-slate-800 text-slate-400'
+                          : 'bg-slate-800 text-slate-400 border border-slate-700'
                       }`}
                     >
-                      MỨC ƯU TIÊN: {heroTask.priority}
+                      {heroTask.priority === 'URGENT' ? '🚨 URGENT' : heroTask.priority === 'IMPORTANT' ? '⭐ IMPORTANT' : 'NORMAL'}
+                    </span>
+                    <span className="text-xs font-mono text-slate-300 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800">
+                      📅 Hạn: <strong className="text-emerald-300">{heroTask.dueDate || 'Chưa đặt'}</strong>
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight cursor-pointer hover:text-amber-300 transition-colors"
-                      onClick={() => setSelectedTaskForDetail(heroTask)}>
-                    {heroTask.title}
+                {/* Title & Description */}
+                <div className="space-y-1.5">
+                  <h2
+                    onClick={() => setSelectedTaskForDetail(heroTask)}
+                    className="text-xl md:text-2xl font-black text-white hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-2 group"
+                  >
+                    <span>{heroTask.title}</span>
+                    <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-amber-300 transition-colors" />
                   </h2>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {heroTask.description || 'Tập trung xử lý hoàn tất các Task được phân công cá nhân trong ngày hôm nay.'}
-                  </p>
+                  {heroTask.description && (
+                    <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                      {heroTask.description}
+                    </p>
+                  )}
                 </div>
 
-                {/* 🔒 TIẾN ĐỘ TỰ ĐỘNG THEO TASK CON (AUTO-CALCULATED PROGRESS) */}
-                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-2">
+                {/* Progress Bar (Tinh Gọn) */}
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-300 font-bold flex items-center gap-1.5">
-                      <Zap className="w-4 h-4 text-amber-400" /> Tiến Độ Task (Tự Động Theo Task Con):
-                    </span>
-                    <span className="text-amber-400 font-extrabold text-sm font-mono bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
-                      {heroTask.progress}% Hoàn Thành
+                    <span className="text-slate-400">Tiến độ công việc:</span>
+                    <span className="text-amber-300 font-bold">
+                      {heroTask.progress}% ({heroTask.subtasks?.filter((s) => s.isDone).length || 0}/{heroTask.subtasks?.length || 0} việc con hoàn tất)
                     </span>
                   </div>
-                  <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden p-0.5 border border-slate-800">
+                  <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
                     <div
-                      className="bg-gradient-to-r from-amber-500 to-purple-500 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                      className="bg-gradient-to-r from-amber-500 to-purple-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
                       style={{ width: `${heroTask.progress}%` }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                    <span className="flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-slate-500" />
-                      Tiến độ tính toán tự động dựa trên số Task con hoàn thành, không sửa tay.
-                    </span>
-                    <span className="font-mono text-slate-400">
-                      {heroTask.subtasks?.filter((s) => s.isDone).length || 0}/{heroTask.subtasks?.length || 0} Task Con Xong
-                    </span>
-                  </div>
                 </div>
 
-                {/* 🔘 LỘ TRÌNH MỖI NGÀY 1 TASK CON (DAILY MICRO-TASK SCHEDULE) */}
+                {/* 🎯 MỤC TIÊU VIỆC CON TIẾP THEO (NEXT ACTION ITEM) */}
                 {heroTask.subtasks && heroTask.subtasks.length > 0 && (() => {
                   const subtaskList = heroTask.subtasks;
-                  // Ưu tiên tìm Task con chưa xong của chính người dùng hiện tại
                   let firstPendingIdx = subtaskList.findIndex((s) => {
                     if (s.isDone) return false;
                     const effId = s.assigneeId || heroTask.assigneeId || (heroTask.assignee as any)?.id;
                     return Boolean(user && effId === user.id);
                   });
-                  // Nếu người dùng đã xong hết việc của mình hoặc không có việc con riêng -> lấy việc con chưa xong đầu tiên
                   if (firstPendingIdx === -1) {
                     firstPendingIdx = subtaskList.findIndex((s) => !s.isDone);
                   }
-                  const completedCount = subtaskList.filter((s) => s.isDone).length;
                   const isAllDone = subtaskList.every((s) => s.isDone);
-                  const isResting = Boolean(restingTodayTasks[heroTask.id]);
-                  const isWorkingAhead = Boolean(workingAheadTasks[heroTask.id]);
                   const activeSubtask = firstPendingIdx !== -1 ? subtaskList[firstPendingIdx] : null;
                   const effActiveAssigneeId = activeSubtask?.assigneeId || heroTask.assigneeId || (heroTask.assignee as any)?.id;
                   const isWorkerDoingHeroTask = Boolean(
@@ -1704,237 +1573,71 @@ export const BoardPage: React.FC = () => {
                         (!activeSubtask?.assigneeId && (heroTask.assignee as any)?.email && user.email === (heroTask.assignee as any).email))
                   );
 
-                  // 📅 Helper tính toán Lịch Cụ Thể (Calendar Date) & Giữ nguyên Hạn Chót Gốc
-                  const getSubtaskCalendarSchedule = (taskStartDate?: string | null, list: any[] = [], currentIndex: number = 0) => {
-                    const currentItem = list[currentIndex];
-                    const currentDays = Number(currentItem?.estimatedDays || 1);
-                    let startDate: Date;
-
-                    if (currentItem?.startDate) {
-                      startDate = new Date(currentItem.startDate);
-                      startDate.setHours(0, 0, 0, 0);
-                    } else {
-                      const base = taskStartDate ? new Date(taskStartDate) : new Date();
-                      base.setHours(0, 0, 0, 0);
-                      let startOffset = 0;
-                      for (let i = 0; i < currentIndex; i++) {
-                        startOffset += Number(list[i]?.estimatedDays || 1);
-                      }
-                      startDate = new Date(base);
-                      startDate.setDate(startDate.getDate() + startOffset);
-                    }
-
-                    const targetEndDate = new Date(startDate);
-                    targetEndDate.setDate(targetEndDate.getDate() + currentDays);
-
-                    const formatShort = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-                    const formatFull = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
-
-                    const scheduleStr = currentDays === 1 ? formatFull(startDate) : `${formatShort(startDate)} - ${formatFull(targetEndDate)}`;
-                    const scheduleShort = currentDays === 1 ? formatShort(startDate) : `${formatShort(startDate)}-${formatShort(targetEndDate)}`;
-                    const deadlineDateStr = formatFull(targetEndDate);
-
-                    return {
-                      startDate,
-                      targetEndDate,
-                      scheduleStr,
-                      scheduleShort,
-                      deadlineDateStr,
-                      estimatedDays: currentDays,
-                    };
-                  };
-
                   return (
-                    <div className="p-5 rounded-2xl bg-slate-950/90 border border-amber-500/40 shadow-inner space-y-4">
-                      <div className="flex items-center justify-between text-xs font-mono">
-                        <span className="text-amber-400 font-extrabold flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-amber-400" /> Kế Hoạch Lịch Trình:
-                        </span>
-                        <span className="text-slate-400">
-                          Đã làm xong <strong className="text-emerald-400">{completedCount}</strong>/{subtaskList.length} Task con
-                        </span>
-                      </div>
-
-                      {/* 🌟 MỤC TIÊU CẦN LÀM HIỆN TẠI (HERO SUBTASK TARGET) */}
+                    <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
                       {isAllDone ? (
-                        <div className="p-4 rounded-2xl bg-emerald-950/30 border-2 border-emerald-500/60 text-center space-y-1.5 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-solar-warp-in">
-                          <span className="text-xl">🏆</span>
-                          <h4 className="text-sm font-extrabold text-emerald-300">
-                            HOÀN TẤT 100% TẤT CẢ TASK CON!
-                          </h4>
-                          <p className="text-[11px] text-emerald-400/80">
-                            Task này đã hoàn thành xuất sắc toàn bộ quy trình công việc theo kế hoạch.
-                          </p>
+                        <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/50 flex items-center justify-center gap-2 text-emerald-300 text-xs font-bold">
+                          <span>🏆</span> Hoàn tất 100% tất cả việc con! Hãy đánh dấu hoàn thành Task.
                         </div>
-                      ) : isResting && activeSubtask ? (
-                        /* 🏖️ TRẠNG THÁI NGHỈ NGƠI HÔM NAY (ĐÃ XONG MỤC TIÊU HÔM NAY) */
-                        (() => {
-                          const sched = getSubtaskCalendarSchedule(heroTask.startDate || heroTask.createdAt, subtaskList, firstPendingIdx);
-                          return (
-                            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-cyan-950/30 to-slate-900 border-2 border-emerald-500/60 space-y-3 shadow-[0_0_20px_rgba(16,185,129,0.25)] animate-solar-warp-in">
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-black uppercase flex items-center gap-1 bg-emerald-500 text-slate-950 shadow-md">
-                                  🎉 ĐÃ HOÀN THÀNH MỤC TIÊU HÔM NAY
-                                </span>
-                                <span className="text-[10px] font-mono text-cyan-300 font-bold bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
-                                  Kế hoạch tiếp theo theo lịch: 📅 {sched.scheduleStr}
-                                </span>
-                              </div>
-
-                              <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                                Bạn đã hoàn thành xuất sắc mục tiêu hôm nay. Hãy nghỉ ngơi, hoặc nhấn <strong className="text-amber-300">[▶️ Tiếp Tục]</strong> nếu muốn hoàn thành trước kế hoạch. <span className="text-emerald-300 font-bold">Hạn chót gốc giữ nguyên: {sched.deadlineDateStr}</span>.
-                              </p>
-
-                              <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-800/80">
-                                <div className="min-w-0 flex-1">
-                                  <span className="text-[10px] font-mono text-slate-400 block">Kế hoạch tiếp theo:</span>
-                                  <h4 className="text-xs font-extrabold text-white truncate">
-                                    {activeSubtask.title}
-                                  </h4>
-                                </div>
-                                {isWorkerDoingHeroTask && (
-                                  <button
-                                    onClick={() => {
-                                      setRestingTodayTasks((prev) => ({ ...prev, [heroTask.id]: false }));
-                                      setWorkingAheadTasks((prev) => ({ ...prev, [heroTask.id]: true }));
-                                      showNotification(
-                                        `▶️ Đã tiếp tục thực hiện Task con: "${activeSubtask.title}". Hạn chót theo lịch (${sched.deadlineDateStr}) được bảo lưu 100%!`,
-                                        'success',
-                                        'Tiếp Tục Làm Việc'
-                                      );
-                                    }}
-                                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-purple-600 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-black text-xs flex items-center gap-2 cursor-pointer shadow-lg transition-all shrink-0"
-                                  >
-                                    <Play className="w-3.5 h-3.5 fill-current" /> ▶️ Tiếp Tục
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()
-                      ) : isWorkingAhead && activeSubtask ? (
-                        /* ⚡ TRẠNG THÁI ĐANG TIẾP TỤC LÀM VIỆC (VƯỢT TIẾN ĐỘ) */
-                        (() => {
-                          const sched = getSubtaskCalendarSchedule(heroTask.startDate || heroTask.createdAt, subtaskList, firstPendingIdx);
-                          return (
-                            <div className="p-4 rounded-2xl border-2 space-y-2 transition-all bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-slate-900 border-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-black uppercase flex items-center gap-1 bg-purple-500 text-white shadow-md">
-                                  ⚡ ĐANG LÀM SỚM THEO LỊCH (📅 {sched.scheduleShort})
-                                </span>
-                                <span className="text-[10px] font-mono text-purple-300 font-bold bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/30">
-                                  ⏳ Hạn chót gốc giữ nguyên: {sched.deadlineDateStr}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-3 pt-1">
-                                <h4 className="text-sm font-extrabold text-white leading-snug flex-1">
-                                  {activeSubtask.title}
-                                </h4>
-                                {!isWorkerDoingHeroTask ? (
-                                  <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0">
-                                    🔒 Chỉ người nhận task mới được tick
-                                  </span>
-                                ) : activeSubtask.approvalStatus === 'PENDING' ? (
-                                  <span className="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 animate-pulse">
-                                    ⏳ Đang chờ quản lý duyệt
-                                  </span>
-                                ) : activeSubtask.approvalStatus === 'REJECTED' ? (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[11px] font-mono text-rose-300 font-bold bg-rose-950/60 px-2.5 py-1 rounded-lg border border-rose-500/40 max-w-[200px] truncate" title={activeSubtask.rejectionReason}>
-                                      ❌ Chưa đạt: {activeSubtask.rejectionReason || 'Cần sửa'}
-                                    </span>
-                                    <button
-                                      onClick={() => handleCompleteTodaySubtask(heroTask, activeSubtask, firstPendingIdx)}
-                                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all shrink-0"
-                                    >
-                                      🔄 Gửi Duyệt Lại
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={() => handleCompleteTodaySubtask(heroTask, activeSubtask, firstPendingIdx)}
-                                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-500 to-emerald-500 hover:from-purple-400 hover:to-emerald-400 text-white font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all shrink-0"
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> ✓ Xong Task Con Này
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()
                       ) : activeSubtask ? (
-                        /* 🔥 TRẠNG THÁI MỤC TIÊU HÔM NAY (NGÀY 1 HOẶC KHI BẮT ĐẦU NGÀY MỚI) */
-                        (() => {
-                          const sched = getSubtaskCalendarSchedule(heroTask.startDate || heroTask.createdAt, subtaskList, firstPendingIdx);
-                          return (
-                            <div
-                              className={`p-4 rounded-2xl border-2 space-y-2 transition-all ${
-                                activeSubtask.isUrgent
-                                  ? 'bg-gradient-to-r from-red-950/40 via-red-900/20 to-slate-900 border-red-500 shadow-[0_0_25px_rgba(239,68,68,0.4)]'
-                                  : 'bg-gradient-to-r from-amber-500/20 via-purple-600/15 to-slate-900 border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)]'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-md text-[10px] font-mono font-black uppercase flex items-center gap-1 ${
-                                    activeSubtask.isUrgent
-                                      ? 'bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse'
-                                      : 'bg-amber-500 text-slate-950'
-                                  }`}
-                                >
-                                  {activeSubtask.isUrgent ? '🚨 TASK CON KHẨN CẤP (' : '🔥 TASK CON THEO LỊCH ('}
-                                  📅 {sched.scheduleShort})
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <span className="text-[10px] font-mono text-amber-400 uppercase font-black block">
+                              🎯 VIỆC CON TIẾP THEO CẦN LÀM:
+                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-sm font-bold text-white truncate">
+                                {activeSubtask.title}
+                              </h4>
+                              {activeSubtask.assignee && (
+                                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/30">
+                                  👤 {activeSubtask.assignee.fullName}
                                 </span>
-                                <span className="text-[10px] font-mono text-amber-300 font-bold">
-                                  Hạn chót: {sched.deadlineDateStr}
+                              )}
+                              {activeSubtask.isUrgent && (
+                                <span className="text-[9px] font-mono font-black text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/30 animate-pulse">
+                                  🚨 GẤP
                                 </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-3 pt-1">
-                                <h4 className="text-sm font-extrabold text-white leading-snug flex-1">
-                                  {activeSubtask.title}
-                                </h4>
-                                {!isWorkerDoingHeroTask ? (
-                                  <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0">
-                                    🔒 Chỉ người nhận task mới được tick
-                                  </span>
-                                ) : activeSubtask.approvalStatus === 'PENDING' ? (
-                                  <span className="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 animate-pulse">
-                                    ⏳ Đang chờ quản lý duyệt
-                                  </span>
-                                ) : activeSubtask.approvalStatus === 'REJECTED' ? (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[11px] font-mono text-rose-300 font-bold bg-rose-950/60 px-2.5 py-1 rounded-lg border border-rose-500/40 max-w-[200px] truncate" title={activeSubtask.rejectionReason}>
-                                      ❌ Chưa đạt: {activeSubtask.rejectionReason || 'Cần sửa'}
-                                    </span>
-                                    <button
-                                      onClick={() => handleCompleteTodaySubtask(heroTask, activeSubtask, firstPendingIdx)}
-                                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all shrink-0"
-                                    >
-                                      🔄 Gửi Duyệt Lại
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={() => handleCompleteTodaySubtask(heroTask, activeSubtask, firstPendingIdx)}
-                                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all shrink-0"
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> ✓ Xong Task Con Hôm Nay
-                                  </button>
-                                )}
-                              </div>
+                              )}
                             </div>
-                          );
-                        })()
+                          </div>
+
+                          <div className="shrink-0">
+                            {!isWorkerDoingHeroTask ? (
+                              <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs font-mono font-bold flex items-center gap-1.5">
+                                🔒 Chỉ người nhận mới tick được
+                              </span>
+                            ) : activeSubtask.approvalStatus === 'PENDING' ? (
+                              <span className="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold flex items-center gap-1.5 animate-pulse">
+                                ⏳ Đang chờ quản lý duyệt
+                              </span>
+                            ) : activeSubtask.approvalStatus === 'REJECTED' ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-mono text-rose-300 font-bold bg-rose-950/60 px-2 py-1 rounded-lg border border-rose-500/40">
+                                  ❌ Chưa đạt
+                                </span>
+                                <button
+                                  onClick={() => handleCompleteTodaySubtask(heroTask, activeSubtask, firstPendingIdx)}
+                                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs cursor-pointer transition-all"
+                                >
+                                  🔄 Gửi Duyệt Lại
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleCompleteTodaySubtask(heroTask, activeSubtask, firstPendingIdx)}
+                                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" /> ✓ Xong Việc Con Này
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       ) : null}
 
-                      {/* Danh sách toàn bộ các Task con theo lịch (Calendar Timeline) */}
-                      <div className="space-y-1.5 pt-1">
-                        <span className="text-[10px] font-mono text-slate-400 uppercase font-bold block">
-                          📅 Chi tiết kế hoạch theo lịch:
-                        </span>
-                        {subtaskList.map((st, idx) => {
-                          const isCurrentActive = idx === firstPendingIdx;
-                          const itemSched = getSubtaskCalendarSchedule(heroTask.startDate || heroTask.createdAt, subtaskList, idx);
+                      {/* Danh sách checklist việc con tinh gọn */}
+                      <div className="space-y-1 pt-1 border-t border-slate-800/60">
+                        {subtaskList.map((st) => {
                           const itemEffAssigneeId = st.assigneeId || heroTask.assigneeId || (heroTask.assignee as any)?.id;
                           const isWorkerForThisItem = Boolean(
                             user &&
@@ -1948,85 +1651,33 @@ export const BoardPage: React.FC = () => {
                             <div
                               key={st.id}
                               onClick={() => canToggleThis && handleToggleSubtask(heroTask.id, st.id, true)}
-                              className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                              className={`p-2 rounded-lg flex items-center justify-between gap-2 text-xs transition-all ${
                                 st.isDone
-                                  ? 'opacity-40 grayscale select-none pointer-events-none cursor-not-allowed bg-slate-950/20 border-slate-800/40 text-slate-500'
+                                  ? 'opacity-40 text-slate-500 line-through bg-slate-950/20'
                                   : canToggleThis
-                                  ? 'cursor-pointer hover:border-slate-700'
-                                  : 'cursor-not-allowed opacity-80'
-                              } ${
-                                st.isDone
-                                  ? ''
-                                  : st.isUrgent
-                                  ? 'bg-red-950/20 border-red-500/60 text-slate-100 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
-                                  : isCurrentActive
-                                  ? isResting
-                                    ? 'bg-slate-900/80 border-slate-700 text-slate-300'
-                                    : isWorkingAhead
-                                    ? 'bg-purple-950/30 border-purple-500/50 text-slate-100 font-bold'
-                                    : 'bg-amber-500/10 border-amber-500/50 text-slate-100 font-bold'
-                                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                                  ? 'hover:bg-slate-900 cursor-pointer text-slate-200'
+                                  : 'text-slate-400'
                               }`}
                             >
-                              <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                              <div className="flex items-center gap-2 min-w-0">
                                 <input
                                   type="checkbox"
                                   checked={st.isDone}
                                   disabled={!canToggleThis}
                                   onChange={() => {}}
-                                  className={`w-4 h-4 rounded text-amber-500 accent-amber-500 ${canToggleThis ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                  className={`w-3.5 h-3.5 rounded text-amber-500 accent-amber-500 ${canToggleThis ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                                 />
-                                <span className="text-[10px] font-mono text-amber-300/80 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 shrink-0">
-                                  📅 {itemSched.scheduleStr}
-                                </span>
-                                <span className={`text-xs ${st.isDone ? 'line-through text-slate-500' : 'text-slate-200'}`}>
-                                  {st.title}
-                                </span>
-                                {st.assignee && (
-                                  <span
-                                    className="text-[9px] font-mono text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/40 shrink-0"
-                                    title={`Phụ trách: ${st.assignee.fullName}`}
-                                  >
-                                    👤 {st.assignee.fullName.replace(/\s*\([^)]*\)/g, '')}
-                                  </span>
-                                )}
+                                <span className="truncate">{st.title}</span>
                               </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span
-                                  className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded ${
-                                    st.isDone
-                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                      : st.approvalStatus === 'PENDING'
-                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
-                                      : st.approvalStatus === 'REJECTED'
-                                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                                      : st.isUrgent
-                                      ? 'bg-red-500 text-white font-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]'
-                                      : isCurrentActive
-                                      ? isResting
-                                        ? 'bg-slate-800 text-amber-300 border border-amber-500/30'
-                                        : isWorkingAhead
-                                        ? 'bg-purple-500 text-white font-black animate-pulse'
-                                        : 'bg-amber-500 text-slate-950 font-black animate-pulse'
-                                      : 'bg-slate-800 text-slate-400'
-                                  }`}
-                                >
-                                  {st.isDone
-                                    ? '✓ Xong'
-                                    : st.approvalStatus === 'PENDING'
-                                    ? '⏳ Chờ Duyệt'
-                                    : st.approvalStatus === 'REJECTED'
-                                    ? `❌ Chưa đạt: ${st.rejectionReason || 'Cần sửa'}`
-                                    : st.isUrgent
-                                    ? '🚨 GẤP'
-                                    : isCurrentActive
-                                    ? isResting
-                                      ? `📅 Lịch: ${itemSched.scheduleShort}`
-                                      : isWorkingAhead
-                                      ? `⚡ Làm sớm (${itemSched.scheduleShort})`
-                                      : `🔥 Lịch: ${itemSched.scheduleShort}`
-                                    : `📅 ${itemSched.scheduleShort}`}
-                                </span>
+                              <div className="flex items-center gap-1.5 shrink-0 text-[10px] font-mono">
+                                {st.assignee && (
+                                  <span className="text-slate-400">@{st.assignee.fullName.replace(/\s*\([^)]*\)/g, '')}</span>
+                                )}
+                                {st.isDone ? (
+                                  <span className="text-emerald-400 font-bold">✓ Xong</span>
+                                ) : st.approvalStatus === 'PENDING' ? (
+                                  <span className="text-amber-400">⏳ Chờ duyệt</span>
+                                ) : null}
                               </div>
                             </div>
                           );
@@ -2036,213 +1687,106 @@ export const BoardPage: React.FC = () => {
                   );
                 })()}
 
-                {/* 📎 TÀI LIỆU & DỮ LIỆU ĐÍNH KÈM CỦA TASK ĐANG LÀM (COCKPIT ATTACHMENTS) */}
-                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Paperclip className="w-4 h-4 text-cyan-400" />
-                      <span className="text-xs font-mono font-extrabold text-cyan-300 uppercase tracking-wider">
-                        Tài Liệu & Dữ Liệu Task Đang Làm ({heroTask.attachments?.length || 0})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {/* Hidden File Input */}
-                      <input
-                        type="file"
-                        ref={cockpitFileInputRef}
-                        onChange={(e) => handleCockpitFileUpload(heroTask.id, e)}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => cockpitFileInputRef.current?.click()}
-                        disabled={isUploadingCockpitAtt}
-                        className="px-3 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        {isUploadingCockpitAtt ? 'Đang Tải...' : 'Tải Tệp Lên'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowCockpitAddUrl(!showCockpitAddUrl)}
-                        className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
-                      >
-                        <Link2 className="w-3.5 h-3.5" /> Thêm Link (Figma/Docs)
-                      </button>
-                    </div>
-                  </div>
+                {/* 🎮 ACTION BUTTONS (TINH GỌN) */}
+                <div className="flex items-center gap-2.5 pt-1 flex-wrap">
+                  <button
+                    onClick={() => setConfirmDoneTask({ taskId: heroTask.id, taskTitle: heroTask.title })}
+                    className="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Đánh Dấu Hoàn Thành
+                  </button>
 
-                  {/* Form Thêm Link Nhanh */}
-                  {showCockpitAddUrl && (
-                    <form onSubmit={(e) => handleCockpitAddUrl(heroTask.id, e)} className="p-3 rounded-xl bg-slate-900 border border-purple-500/30 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={cockpitUrlTitleInput}
-                          onChange={(e) => setCockpitUrlTitleInput(e.target.value)}
-                          placeholder="Tiêu đề tài liệu (VD: Figma UI Design, API Specs)..."
-                          className="flex-1 p-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-400"
-                        />
-                        <input
-                          type="text"
-                          value={cockpitUrlInput}
-                          onChange={(e) => setCockpitUrlInput(e.target.value)}
-                          placeholder="Dán đường dẫn URL (https://...)"
-                          className="flex-1 p-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-400 font-mono"
-                        />
-                        <button
-                          type="submit"
-                          className="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs cursor-pointer"
-                        >
-                          Đính Kèm
-                        </button>
-                      </div>
-                    </form>
-                  )}
-
-                  {/* Danh Sách Attachments Hiện Có */}
-                  {heroTask.attachments && heroTask.attachments.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
-                      {heroTask.attachments.map((att) => (
-                        <div
-                          key={att.id}
-                          className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2 hover:border-cyan-500/40 transition-all group"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-                              {att.type === 'link' ? <Link2 className="w-4 h-4 text-purple-400" /> : <FileText className="w-4 h-4 text-cyan-400" />}
-                            </div>
-                            <div className="min-w-0">
-                              <span className="text-xs text-white font-semibold truncate block">
-                                {att.name}
-                              </span>
-                              <span className="text-[10px] font-mono text-slate-400 block">
-                                {att.type === 'link' ? '🔗 Liên kết ngoài' : att.size ? `${Math.round(Number(att.size) / 1024)} KB` : '📁 Tệp đính kèm'}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {att.type === 'link' ? (
-                              <a
-                                href={att.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-slate-800 text-purple-300 hover:text-white hover:bg-purple-600 transition-all cursor-pointer"
-                                title="Mở liên kết"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleCockpitDownloadAttachment(att)}
-                                className="p-1.5 rounded-lg bg-slate-800 text-cyan-300 hover:text-white hover:bg-cyan-600 transition-all cursor-pointer"
-                                title="Tải xuống tệp"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleCockpitDeleteAttachment(heroTask.id, att.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
-                              title="Xóa đính kèm"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-3 rounded-xl bg-slate-900/40 border border-dashed border-slate-800 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
-                      <Paperclip className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Chưa có tài liệu đính kèm cho Task này. Bấm <strong>"Tải Tệp Lên"</strong> để gửi tài liệu tác nghiệp!</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* 🎮 ACTION BUTTONS */}
-                <div className="flex items-center gap-3 pt-2 flex-wrap">
-                  {heroTask.status !== 'IN_PROGRESS' && (
-                    <button
-                      onClick={() => {
-                        setTasks((prev) =>
-                          prev.map((t) => (t.id === heroTask.id ? { ...t, status: 'IN_PROGRESS' } : t))
-                        );
-                        api.patch(`/tasks/${heroTask.id}/status`, { status: 'IN_PROGRESS' });
-                        showNotification(`▶️ Đã bắt đầu thực hiện Task "${heroTask.title}"!`, 'success', 'Bắt Đầu Task');
-                      }}
-                      className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_15px_rgba(147,51,234,0.4)]"
-                    >
-                      <Play className="w-4 h-4 fill-current" /> Bắt Đầu Làm Task
-                    </button>
-                  )}
                   <button
                     onClick={() => {
                       setTasks((prev) =>
                         prev.map((t) => (t.id === heroTask.id ? { ...t, status: 'TODO' } : t))
                       );
                       api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' });
-                      showNotification(
-                        `⏸️ Đã tạm dừng Task "${heroTask.title}" và chuyển về Hàng Chờ Hôm Nay!`,
-                        'info',
-                        'Today Focus'
-                      );
+                      showNotification(`⏸️ Đã tạm dừng Task "${heroTask.title}"!`, 'info', 'Today Focus');
                     }}
-                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-md"
+                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
                   >
-                    <Pause className="w-4 h-4" /> Tạm Dừng Task
+                    <Pause className="w-3.5 h-3.5" /> Tạm Dừng
                   </button>
+
                   <button
-                    onClick={() => {
-                      setConfirmDoneTask({ taskId: heroTask.id, taskTitle: heroTask.title });
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all"
+                    onClick={() => setSelectedTaskForDetail(heroTask)}
+                    className="px-4 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
                   >
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Đánh Dấu Hoàn Thành
+                    <Paperclip className="w-3.5 h-3.5" /> Tệp & Chi Tiết
                   </button>
+
                   <button
                     onClick={() => handleQuickRequest(heroTask)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all ml-auto"
+                    className="px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all ml-auto"
                   >
-                    <Inbox className="w-4 h-4 text-amber-400" /> Xin Trợ Giúp / Bàn Giao
+                    <Inbox className="w-3.5 h-3.5" /> Bàn Giao / Trợ Giúp
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-amber-500/30 text-center space-y-3">
-                <Target className="w-12 h-12 text-amber-400 mx-auto opacity-80 animate-pulse" />
-                <h3 className="text-lg font-bold text-white">Chưa Có Task Nào Đang Thực Hiện (IN_PROGRESS)</h3>
-                <p className="text-xs text-slate-300 max-w-md mx-auto">
-                  Today's Focus Cockpit chỉ hiển thị Task bạn đang trực tiếp thực hiện (`IN_PROGRESS`). Hãy bấm chọn một Task trong Hàng chờ bên dưới và click <strong className="text-amber-300 font-mono">"▶️ Tiếp Tục Làm Task"</strong> để đưa lên Hero Focus!
+              <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-amber-500/20 text-center space-y-2">
+                <Target className="w-10 h-10 text-amber-400 mx-auto opacity-70" />
+                <h3 className="text-base font-bold text-white">Chưa Có Task Nào Đang Thực Hiện (IN_PROGRESS)</h3>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Hãy chọn một việc từ Hàng chờ hôm nay bên dưới và nhấn <strong className="text-amber-300 font-mono">"▶️ Bắt Đầu Làm"</strong> để đưa lên Hero Focus!
                 </p>
               </div>
             )}
 
-            {/* 📋 TODAY'S PRIORITY QUEUE LIST */}
+            {/* 📋 TODAY'S PRIORITY QUEUE LIST (DANH SÁCH HÀNG CHỜ TINH GỌN) */}
             {queueTasks.length > 0 && (
               <div className="space-y-3">
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" /> Hàng Chờ Task Hôm Nay Của Bạn ({queueTasks.length})
+                <h3 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Hàng Chờ Công Việc Hôm Nay ({queueTasks.length})
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {queueTasks.map((t) => (
-                    <div key={t.id} className="space-y-2">
-                      <KanbanCard
-                        task={t}
-                        onRequestTransfer={handleQuickRequest}
-                        onCardClick={(taskItem) => setSelectedTaskForDetail(taskItem)}
-                        onToggleSubtask={handleToggleSubtask}
-                      />
-                      <div className="flex items-center justify-between bg-slate-950/80 p-2.5 rounded-xl border border-slate-800">
-                        <span className="text-[11px] font-mono text-slate-400">
-                          Trạng thái: <strong className="text-amber-400 uppercase font-bold">{t.status}</strong>
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTaskForDetail(t)}
+                      className="solar-glass-card p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 transition-all cursor-pointer space-y-2.5 group"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              t.priority === 'URGENT'
+                                ? 'bg-rose-500 animate-pulse'
+                                : t.priority === 'IMPORTANT'
+                                ? 'bg-amber-400'
+                                : 'bg-slate-500'
+                            }`}
+                          />
+                          <span className="text-[11px] font-mono text-amber-300/80 truncate">
+                            📁 {t.projectName || 'Dự án'}
+                          </span>
+                        </div>
+
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800 shrink-0">
+                          📅 {t.dueDate || 'Chưa đặt'}
                         </span>
+                      </div>
+
+                      <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-1">
+                        {t.title}
+                      </h4>
+
+                      <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-800/80">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="flex-1 bg-slate-950 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-amber-500 h-full rounded-full"
+                              style={{ width: `${t.progress}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0">{t.progress}%</span>
+                        </div>
+
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            // Nếu đang có heroTask, đưa heroTask về TODO hoặc để task mới này chiếm vị trí HERO
                             setTasks((prev) =>
                               prev.map((item) => {
                                 if (item.id === t.id) return { ...item, status: 'IN_PROGRESS' };
@@ -2255,14 +1799,14 @@ export const BoardPage: React.FC = () => {
                             }
                             api.patch(`/tasks/${t.id}/status`, { status: 'IN_PROGRESS' });
                             showNotification(
-                              `🟢 Task "${t.title}" đã được đưa lên HERO FOCUS TASK #1 hôm nay!`,
+                              `🟢 Đã đưa Task "${t.title}" lên HERO FOCUS!`,
                               'success',
                               'Today Focus'
                             );
                           }}
-                          className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                          className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all shadow-sm shrink-0"
                         >
-                          <Play className="w-3.5 h-3.5 fill-current" /> ▶️ Tiếp Tục Làm Task
+                          <Play className="w-3 h-3 fill-current" /> Bắt Đầu Làm
                         </button>
                       </div>
                     </div>
