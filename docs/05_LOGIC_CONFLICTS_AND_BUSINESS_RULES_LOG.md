@@ -993,6 +993,41 @@ Mỗi lỗi xung đột logic được phân loại theo 4 cấp độ nghiêm t
 
 ---
 
+### [LC-100] Chặn Tuyệt Đối Trùng Tên Dự Án Toàn Diện & Chuẩn Hóa Loại Yêu Cầu (Universal Unique Project Name Enforcement & Simplified Request Types)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):**
+  1. Hệ thống trước đây cho phép tạo hoặc đổi tên nhiều Dự án trùng khớp nhau do chỉ kiểm tra phân biệt chữ hoa/thường (`equals`) và không xét các dự án đang hoạt động (`isDeleted: false`). Điều này gây nhầm lẫn nghiêm trọng khi phân loại công việc, lọc lịch trình, và gửi thông báo.
+  2. Tại hộp thoại chuyển giao `TaskRequestModal`, tùy chọn "Chờ Duyệt" (`REVIEW`) gây nhầm lẫn với quy trình duyệt trực tiếp của Quản lý trên từng Subtask.
+* **Giải pháp kỹ thuật:**
+  1. **Chặn trùng tên dự án không phân biệt hoa thường (`mode: 'insensitive'`)**:
+     - Trong `ProjectService.create`: Quét `this.prisma.project.findFirst({ where: { isDeleted: false, name: { equals: trimmedName, mode: 'insensitive' } } })`. Nếu trùng, trả về lỗi `400 Bad Request`.
+     - Trong `ProjectService.update`: Khi đổi tên dự án, kiểm tra trùng tên với tất cả các dự án khác (`id: { not: id }`).
+     - Trong `ProjectService.restore`: Nếu dự án trong thùng rác có tên trùng với một dự án mới tạo sau đó, hệ thống tự động đổi tên hậu tố `(Khôi phục DD/MM/YYYY)` để tránh va chạm.
+     - Phía Client `CreateProjectModal`: Thực hiện kiểm tra trùng tên tức thì trước khi gửi request.
+  2. **Tinh gọn loại yêu cầu**: Loại bỏ tùy chọn "Chờ Duyệt" khỏi `TaskRequestModal`, chỉ giữ lại 2 nghiệp vụ rõ ràng: **`🔄 Chuyển Giao (TRANSFER)`** và **`🤝 Cần Hỗ Trợ (ASSIST)`**.
+* **File ảnh hưởng:** `be/src/modules/project/project.service.ts`, `fe/src/components/kanban/CreateProjectModal.tsx`, `fe/src/components/kanban/TaskRequestModal.tsx`, `fe/src/pages/BoardPage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100% (Build Pass Exit Code 0)**.
+
+---
+
+### [LC-101] Chỉ Định Quản Lý Dự Án & Tự Động Cấp Quyền Manager Cho Nhân Viên (Project Manager Assignment & Automatic Role Elevation)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):**
+  1. Trong biểu mẫu khởi tạo dự án (`CreateProjectModal`), trước đây thiếu trường chọn Quản lý dự án (`selectedManagerId`), khiến mọi dự án mới tạo đều mặc định rơi vào Admin và không thể phân quyền linh hoạt cho các Manager khác hoặc nhân viên chủ chốt.
+  2. Khi chỉ định một Nhân viên (`role: EMPLOYEE`) làm Quản lý dự án mới, nếu không nâng cấp quyền hạn của họ trong hệ thống thì họ sẽ bị thiếu các đặc quyền quan trọng (phê duyệt việc con, chuyển giao task, cấu hình pipeline).
+* **Giải pháp kỹ thuật:**
+  1. **Thêm mục Chọn Quản Lý Dự Án trong `CreateProjectModal`**:
+     - Cho phép Admin chọn: Chính mình (`Admin`), các User đã có vai trò `MANAGER`, hoặc **bất kỳ Nhân viên nào (`EMPLOYEE`)** trong tổ chức.
+     - Tự động gán Quản lý được chọn vào danh sách thành viên dự án (`selectedMemberIds`).
+     - Hiển thị bảng mô tả đặc quyền và huy hiệu xác nhận rõ ràng.
+  2. **Tự động nâng cấp quyền hạn (`Role Elevation`) trong Backend**:
+     - Trong `ProjectService.create` & `ProjectService.update`: Khi một nhân viên (`EMPLOYEE`) được bổ nhiệm làm `managerId` của Dự án, Backend tự động cập nhật `user.role = 'MANAGER'`.
+     - Người này ngay lập tức sở hữu đầy đủ quyền hạn của Quản lý: Phê duyệt/từ chối Task con (`Subtask Approval/Reject`), điều phối tiến độ, phân công thành viên và đóng/mở giai đoạn dự án.
+* **File ảnh hưởng:** `fe/src/components/kanban/CreateProjectModal.tsx`, `be/src/modules/project/project.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100% (Build Pass Exit Code 0)**.
+
+---
+
 ## 3. DANH MỤC CÁC CONFLICT ĐANG TIẾP TỤC THEO DÕI & TỐI ƯU HÓA (BACKLOG CONFLICTS)
 
 | Mã ID | Tên Luồng Conflict | Mức Độ | Trạng Thái |

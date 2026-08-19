@@ -29,7 +29,7 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
 }) => {
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string>('');
-  const [requestType, setRequestType] = useState<'TRANSFER' | 'ASSIST' | 'REVIEW'>('TRANSFER');
+  const [requestType, setRequestType] = useState<'TRANSFER' | 'ASSIST'>('TRANSFER');
   const [selectedRecipientId, setSelectedRecipientId] = useState<string>('');
   const [requestReason, setRequestReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -208,23 +208,25 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
               <Send className="w-4 h-4 text-amber-400" />
               2. Chọn Loại Yêu Cầu (Request Type)
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'TRANSFER', label: 'Chuyển Giao' },
-                { id: 'ASSIST', label: 'Cần Hỗ Trợ' },
-                { id: 'REVIEW', label: 'Chờ Duyệt' },
+                { id: 'TRANSFER', label: '🔄 Chuyển Giao', desc: 'Bàn giao quyền phụ trách' },
+                { id: 'ASSIST', label: '🤝 Cần Hỗ Trợ', desc: 'Nhờ đồng nghiệp hỗ trợ' },
               ].map((type) => (
                 <button
                   key={type.id}
                   type="button"
                   onClick={() => setRequestType(type.id as any)}
-                  className={`p-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                  className={`p-3 rounded-xl font-bold text-xs border transition-all cursor-pointer text-left flex flex-col gap-0.5 ${
                     requestType === type.id
                       ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md'
-                      : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                      : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  {type.label}
+                  <span className="font-extrabold">{type.label}</span>
+                  <span className={`text-[10px] font-normal ${requestType === type.id ? 'text-slate-900' : 'text-slate-500'}`}>
+                    {type.desc}
+                  </span>
                 </button>
               ))}
             </div>

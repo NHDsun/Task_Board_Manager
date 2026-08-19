@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, FolderPlus, Sparkles, UserPlus, Check } from 'lucide-react';
+import { X, FolderPlus, Sparkles, UserPlus, Check, Crown, ShieldCheck } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -7,12 +7,14 @@ interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (project: any) => void;
+  existingProjects?: string[];
 }
 
 interface MemberUser {
   id: string;
   fullName: string;
   email: string;
+  role?: string;
   profession?: string;
   avatar?: string;
 }
@@ -21,6 +23,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  existingProjects = [],
 }) => {
   const currentUser = useAuthStore((state) => state.user);
 
@@ -58,8 +61,12 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
     if (isOpen) {
       fetchUsers();
+      if (currentUser?.id) {
+        setSelectedManagerId(currentUser.id);
+        setSelectedMemberIds((prev) => (prev.includes(currentUser.id) ? prev : [currentUser.id, ...prev]));
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, currentUser?.id]);
 
   const toggleMemberSelect = (userId: string) => {
     setSelectedMemberIds((prev) =>
@@ -69,8 +76,18 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
+    const trimmed = name.trim();
+    if (!trimmed) {
       setError('Vui lòng nhập tên Dự án!');
+      return;
+    }
+
+    // 🔒 [LC-99] KIỂM TRA TRÙNG TÊN CLIENT-SIDE (CASE-INSENSITIVE)
+    const isDuplicate = existingProjects.some(
+      (pName) => pName.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (isDuplicate) {
+      setError(`Dự án mang tên "${trimmed}" đã tồn tại trong hệ thống! Vui lòng chọn một tên khác.`);
       return;
     }
 
@@ -79,7 +96,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
     try {
       const res = await api.post('/projects', {
-        name,
+        name: trimmed,
         description,
         managerId: selectedManagerId,
         memberIds: selectedMemberIds,
@@ -173,6 +190,69 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               placeholder="Nhập mô tả mục tiêu, lộ trình và phạm vi của dự án..."
               className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/60"
             />
+          </div>
+
+          {/* 👑 CHỈ ĐỊNH QUẢN LÝ DỰ ÁN (PROJECT MANAGER ASSIGNMENT) */}
+          <div className="space-y-2 pt-1 border-t border-slate-800/80">
+            <label className="font-bold text-amber-300 uppercase tracking-wider block flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Crown className="w-4 h-4 text-amber-400" />
+                Chỉ Định Quản Lý Dự Án (Project Manager) <span className="text-rose-400">*</span>
+              </span>
+              <span className="text-[10px] text-amber-400/80 lowercase font-normal">(toàn quyền điều hành)</span>
+            </label>
+
+            <select
+              value={selectedManagerId}
+              onChange={(e) => {
+                const newMgrId = e.target.value;
+                setSelectedManagerId(newMgrId);
+                if (newMgrId && !selectedMemberIds.includes(newMgrId)) {
+                  setSelectedMemberIds((prev) => [...prev, newMgrId]);
+                }
+              }}
+              className="w-full p-3 rounded-xl bg-slate-900 border border-amber-500/40 text-amber-200 font-semibold focus:outline-none focus:border-amber-400 cursor-pointer shadow-inner text-xs"
+            >
+              {currentUser && (
+                <option value={currentUser.id} className="bg-slate-950 text-amber-300 font-bold py-1">
+                  👑 Chính tôi ({currentUser.fullName} - {currentUser.globalRole || (currentUser as any)?.role || 'ADMIN'})
+                </option>
+              )}
+              {availableUsers.filter((u) => u.id !== currentUser?.id && (u.role === 'MANAGER' || u.role === 'ADMIN')).length > 0 && (
+                <optgroup label="👔 Quản Lý & Admin Hệ Thống" className="bg-slate-950 text-slate-400">
+                  {availableUsers
+                    .filter((u) => u.id !== currentUser?.id && (u.role === 'MANAGER' || u.role === 'ADMIN'))
+                    .map((u) => (
+                      <option key={u.id} value={u.id} className="bg-slate-950 text-slate-100 py-1">
+                        👔 {u.fullName} ({u.role}) - {u.email}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+              {availableUsers.filter((u) => u.id !== currentUser?.id && u.role !== 'MANAGER' && u.role !== 'ADMIN').length > 0 && (
+                <optgroup label="👤 Nhân Viên (Tự động cấp toàn quyền Quản lý)" className="bg-slate-950 text-purple-400 font-bold">
+                  {availableUsers
+                    .filter((u) => u.id !== currentUser?.id && u.role !== 'MANAGER' && u.role !== 'ADMIN')
+                    .map((u) => (
+                      <option key={u.id} value={u.id} className="bg-slate-950 text-slate-200 py-1">
+                        👤 {u.fullName} ({u.profession || 'Nhân viên'}) - {u.email} ➔ Cấp quyền Manager
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+            </select>
+
+            {/* Thông báo quyền hạn tự động */}
+            {selectedManagerId && (
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2 text-[11px] text-amber-200/90 leading-relaxed">
+                <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Đặc quyền Quản lý:</strong>{' '}
+                  {availableUsers.find((u) => u.id === selectedManagerId)?.fullName || 'Người được chọn'} sẽ có{' '}
+                  <strong>toàn quyền Quản lý</strong>: Phê duyệt Task con, điều phối tiến độ, phân công thành viên và đóng/mở giai đoạn dự án.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* 🎛️ THIẾT LẬP CÁC GIAI ĐOẠN PIPELINE (CUSTOM PIPELINE STAGES) */}

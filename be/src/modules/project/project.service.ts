@@ -34,25 +34,36 @@ export class ProjectService {
       );
     }
 
-    // 🔒 [LC-48] CHẶN TRÙNG TÊN DỰ ÁN ĐANG HOẠT ĐỘNG
+    // 🔒 [LC-99] CHẶN TRÙNG TÊN DỰ ÁN TOÀN DIỆN (CASE-INSENSITIVE & EXCLUDING DELETED)
+    const trimmedName = createProjectDto.name.trim();
     const existingProject = await this.prisma.project.findFirst({
-      where: { name: createProjectDto.name.trim(), isCompleted: false },
+      where: {
+        isDeleted: false,
+        name: { equals: trimmedName, mode: 'insensitive' },
+      },
     });
     if (existingProject) {
       throw new BadRequestException(
-        `Dự án đang hoạt động mang tên "${createProjectDto.name.trim()}" đã tồn tại trong hệ thống!`,
+        `Dự án mang tên "${trimmedName}" đã tồn tại trong hệ thống! Vui lòng đặt một tên khác để tránh nhầm lẫn.`,
       );
     }
 
-    // 🔒 [LC-43] KIỂM TRA QUẢN LÝ ĐƯỢC CHỈ ĐỊNH CÓ TỒN TẠI KHÔNG
-    if (createProjectDto.managerId) {
+    // 🔒 [LC-101] TỰ ĐỘNG CẤP QUYỀN VÀ BẢO ĐẢM QUẢN LÝ DỰ ÁN CÓ ROLE MANAGER
+    const assignedManagerId = createProjectDto.managerId || effectiveUserId;
+    if (assignedManagerId) {
       const managerUser = await this.prisma.user.findUnique({
-        where: { id: createProjectDto.managerId },
+        where: { id: assignedManagerId },
       });
       if (!managerUser) {
         throw new BadRequestException(
           'Quản lý được chỉ định cho dự án không tồn tại trong hệ thống!',
         );
+      }
+      if (managerUser.role === 'EMPLOYEE') {
+        await this.prisma.user.update({
+          where: { id: assignedManagerId },
+          data: { role: 'MANAGER' },
+        });
       }
     }
 
@@ -206,7 +217,7 @@ export class ProjectService {
       }
     }
 
-    // 🔒 [LC-43] KIỂM TRA QUẢN LÝ MỚI NẾU CÓ CHỈ ĐỊNH
+    // 🔒 [LC-101] TỰ ĐỘNG CẤP QUYỀN VÀ BẢO ĐẢM QUẢN LÝ MỚI CÓ ROLE MANAGER
     if (updateProjectDto.managerId) {
       const managerUser = await this.prisma.user.findUnique({
         where: { id: updateProjectDto.managerId },
@@ -214,6 +225,38 @@ export class ProjectService {
       if (!managerUser) {
         throw new BadRequestException(
           'Quản lý được chỉ định cho dự án không tồn tại trong hệ thống!',
+        );
+      }
+      if (managerUser.role === 'EMPLOYEE') {
+        await this.prisma.user.update({
+          where: { id: updateProjectDto.managerId },
+          data: { role: 'MANAGER' },
+        });
+      }
+      // Đảm bảo Quản lý mới có trong danh sách thành viên dự án
+      const isMember = await this.prisma.projectMember.findFirst({
+        where: { projectId: id, userId: updateProjectDto.managerId },
+      });
+      if (!isMember) {
+        await this.prisma.projectMember.create({
+          data: { projectId: id, userId: updateProjectDto.managerId },
+        });
+      }
+    }
+
+    // 🔒 [LC-99] CHẶN TRÙNG TÊN DỰ ÁN KHI CẬP NHẬT / ĐỔI TÊN
+    if (updateProjectDto.name) {
+      const trimmedName = updateProjectDto.name.trim();
+      const duplicateProject = await this.prisma.project.findFirst({
+        where: {
+          id: { not: id },
+          isDeleted: false,
+          name: { equals: trimmedName, mode: 'insensitive' },
+        },
+      });
+      if (duplicateProject) {
+        throw new BadRequestException(
+          `Tên dự án "${trimmedName}" đã tồn tại trên một dự án khác trong hệ thống! Vui lòng chọn tên khác.`,
         );
       }
     }
@@ -590,10 +633,23 @@ export class ProjectService {
       };
     }
 
+    // 🔒 [LC-99] KIỂM TRA TRÙNG TÊN KHI KHÔI PHỤC DỰ ÁN TỪ THÙNG RÁC
+    const activeDuplicate = await this.prisma.project.findFirst({
+      where: {
+        id: { not: id },
+        isDeleted: false,
+        name: { equals: project.name, mode: 'insensitive' },
+      },
+    });
+    const restoredName = activeDuplicate
+      ? `${project.name} (Khôi phục ${new Date().toLocaleDateString('vi-VN')})`
+      : project.name;
+
     await this.prisma.$transaction(async (tx) => {
       await tx.project.update({
         where: { id },
         data: {
+          name: restoredName,
           isDeleted: false,
           deletedAt: null,
           deletedById: null,

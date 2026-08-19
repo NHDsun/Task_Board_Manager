@@ -1913,6 +1913,7 @@ export const BoardPage: React.FC = () => {
       <CreateProjectModal
         isOpen={isCreateProjectModalOpen}
         onClose={() => setIsCreateProjectModalOpen(false)}
+        existingProjects={dbProjects.map((p) => p.name)}
         onSuccess={() => {
           showNotification('🟢 Khởi tạo Dự Án Mới vào CSDL PostgreSQL thành công!', 'success', 'Tạo Dự Án');
           fetchTasksFromBackend();
