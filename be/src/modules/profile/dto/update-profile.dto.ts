@@ -1,6 +1,13 @@
 import { IsOptional, IsString, IsEnum } from 'class-validator';
 
-export type ProfessionType = 'DEV' | 'TESTER' | 'DESIGNER' | 'BA' | 'MARKETING' | 'DEVOPS' | 'PRODUCT_OWNER';
+export type ProfessionType =
+  | 'DEV'
+  | 'TESTER'
+  | 'DESIGNER'
+  | 'BA'
+  | 'MARKETING'
+  | 'DEVOPS'
+  | 'PRODUCT_OWNER';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -22,4 +29,12 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   profession?: ProfessionType;
+
+  @IsOptional()
+  @IsString()
+  avatar?: string;
+
+  @IsOptional()
+  @IsString()
+  coverImage?: string;
 }

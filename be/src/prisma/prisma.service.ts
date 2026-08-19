@@ -14,7 +14,10 @@ const DEFAULT_DB_URL =
   'postgresql://postgres:your_password_here@localhost:5432/task_management_db?schema=public';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private pool: Pool;
 
   constructor() {

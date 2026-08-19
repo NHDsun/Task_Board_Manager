@@ -16,4 +16,7 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsString({ message: 'Cấu hình giai đoạn Pipeline phải là chuỗi JSON' })
   stagesJson?: string;
+
+  @IsOptional()
+  isCompleted?: boolean;
 }

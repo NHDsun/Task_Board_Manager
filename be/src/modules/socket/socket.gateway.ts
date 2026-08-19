@@ -57,6 +57,41 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { status: 'error', message: 'Invalid projectId' };
   }
 
+  @SubscribeMessage('joinUser')
+  handleJoinUser(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { userId: string },
+  ) {
+    if (data?.userId) {
+      const room = `user:${data.userId}`;
+      client.join(room);
+      this.logger.log(`Client ${client.id} joined user room: ${room}`);
+      return { status: 'success', room };
+    }
+    return { status: 'error', message: 'Invalid userId' };
+  }
+
+  @SubscribeMessage('leaveUser')
+  handleLeaveUser(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { userId: string },
+  ) {
+    if (data?.userId) {
+      const room = `user:${data.userId}`;
+      client.leave(room);
+      this.logger.log(`Client ${client.id} left user room: ${room}`);
+      return { status: 'success', room };
+    }
+    return { status: 'error', message: 'Invalid userId' };
+  }
+
+  // Broadcaster function for services to call for specific user
+  sendToUser(userId: string, event: string, payload: any) {
+    const room = `user:${userId}`;
+    this.server.to(room).emit(event, payload);
+    this.logger.log(`Sent ${event} to user room ${room}`);
+  }
+
   // Broadcaster function for services to call
   broadcastToProject(projectId: string, event: string, payload: any) {
     const room = `project:${projectId}`;

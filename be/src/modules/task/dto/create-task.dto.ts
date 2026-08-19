@@ -1,4 +1,13 @@
-import { IsArray, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import { TaskPriority, TaskStatus } from '@prisma/client';
 
 export class CreateTaskDto {
@@ -51,7 +60,14 @@ export class CreateTaskDto {
 
   @IsOptional()
   @IsArray()
-  subtasks?: { title: string; isUrgent?: boolean; estimatedDays?: number }[];
+  subtasks?: {
+    title: string;
+    isUrgent?: boolean;
+    estimatedDays?: number;
+    assigneeId?: string;
+    startDate?: string;
+    dueDate?: string;
+  }[];
 
   @IsOptional()
   @IsString()

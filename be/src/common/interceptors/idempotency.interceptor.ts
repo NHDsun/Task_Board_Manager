@@ -26,7 +26,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const method = request.method?.toUpperCase();
 
     // Chỉ áp dụng Idempotency cho các request biến đổi dữ liệu (POST, PATCH, PUT, DELETE) có đính kèm Key
-    if (!idempotencyKey || !['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) {
+    if (
+      !idempotencyKey ||
+      !['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)
+    ) {
       return next.handle();
     }
 
@@ -35,7 +38,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     // 🔑 Nếu Key đã tồn tại trong Cache và chưa hết hạn -> Trả về dữ liệu cũ ngay lập tức (Skip DB execution)
     if (cached && now - cached.timestamp < this.ttlMs) {
-      this.logger.log(`🔑 [Idempotency Cache Hit] Bỏ qua thực thi CSDL cho Request trùng lặp! Key: ${idempotencyKey}`);
+      this.logger.log(
+        `🔑 [Idempotency Cache Hit] Bỏ qua thực thi CSDL cho Request trùng lặp! Key: ${idempotencyKey}`,
+      );
       return of(cached.data);
     }
 
@@ -47,8 +52,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
           data,
           timestamp: Date.now(),
         });
-        this.logger.log(`🔑 [Idempotency Cached] Đã lưu mã giao dịch Idempotency Key: ${idempotencyKey}`);
-      })
+        this.logger.log(
+          `🔑 [Idempotency Cached] Đã lưu mã giao dịch Idempotency Key: ${idempotencyKey}`,
+        );
+      }),
     );
   }
 }

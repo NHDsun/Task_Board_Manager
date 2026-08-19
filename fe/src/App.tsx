@@ -3,6 +3,8 @@ import { useAuthStore } from './store/useAuthStore';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { BoardPage } from './pages/BoardPage';
+import { SchedulePage } from './pages/SchedulePage';
+import { AdminTrashPage } from './pages/AdminTrashPage';
 import { MainLayout } from './layouts/MainLayout';
 import { Video, MessageSquare, Inbox, Users, AlertTriangle, RotateCcw } from 'lucide-react';
 
@@ -114,6 +116,8 @@ export default function App() {
         return <ProfilePage onNavigate={handleNavigate} />;
       case '/tasks':
         return <BoardPage />;
+      case '/schedule':
+        return <SchedulePage />;
       case '/remote-requests':
         return (
           <div className="p-8 max-w-7xl mx-auto space-y-6">
@@ -170,6 +174,8 @@ export default function App() {
             </div>
           </div>
         );
+      case '/admin/trash':
+        return <AdminTrashPage />;
       default:
         return <ProfilePage onNavigate={handleNavigate} />;
     }

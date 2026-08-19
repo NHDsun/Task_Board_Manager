@@ -7,6 +7,7 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   setAuth: (user: User, token: string, refreshToken?: string) => void;
+  updateUser: (partialUser: Partial<User>) => void;
   setTokens: (token: string, refreshToken?: string) => void;
   logout: () => void;
 }
@@ -32,6 +33,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.setItem('solarisRefreshToken', refreshToken);
     }
     set({ user, token, refreshToken: refreshToken || localStorage.getItem('solarisRefreshToken'), isAuthenticated: true });
+  },
+  updateUser: (partialUser) => {
+    set((state) => {
+      if (!state.user) return state;
+      const updated = { ...state.user, ...partialUser };
+      localStorage.setItem('solarisUser', JSON.stringify(updated));
+      return { user: updated };
+    });
   },
   setTokens: (token, refreshToken) => {
     localStorage.setItem('solarisToken', token);

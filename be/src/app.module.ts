@@ -8,6 +8,8 @@ import { ProjectModule } from './modules/project/project.module';
 import { TaskModule } from './modules/task/task.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { SocketModule } from './modules/socket/socket.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { TrashModule } from './modules/trash/trash.module';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
@@ -21,6 +23,8 @@ import { IdempotencyInterceptor } from './common/interceptors/idempotency.interc
     TaskModule,
     ProfileModule,
     SocketModule,
+    NotificationModule,
+    TrashModule,
   ],
   controllers: [AppController],
   providers: [

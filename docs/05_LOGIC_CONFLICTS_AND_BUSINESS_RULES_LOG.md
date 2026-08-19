@@ -531,13 +531,450 @@ Mỗi lỗi xung đột logic được phân loại theo 4 cấp độ nghiêm t
 
 ---
 
+### [LC-56] Phân Quyền Trách Nhiệm Riêng Biệt Cho Từng Task Con Trong Task Làm Chung (Subtask Ownership Isolation)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi nhiều nhân viên trong cùng một dự án cùng làm chung 1 Task cha, nếu không có cơ chế phân quyền theo từng Task con thì nhân viên A có thể tick nhầm hoặc nộp duyệt thay Task con của nhân viên B.
+* **Giải pháp kỹ thuật:** 
+  - Gán `assigneeId` riêng cho từng Task con (`Subtask`).
+  - Kiểm tra nghiêm ngặt quyền tick hoàn thành: Chỉ đúng nhân sự được gán Task con đó (`subtask.assigneeId === user.id`) mới có quyền nộp duyệt. Người khác xem sẽ bị khóa giao diện (`read-only`).
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`, `fe/src/components/kanban/TaskDetailModal.tsx`, `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/pages/BoardPage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-57] Cá Nhân Hóa Today's Focus Cockpit Cho Nhân Sự Làm Chung Task (Personalized Micro-Sprint)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Khi cả nhân viên A và B cùng mở Today's Focus Cockpit, nếu lấy Subtask đầu tiên của Task cha thì nhân viên B có thể thấy Subtask của nhân viên A làm mục tiêu hôm nay.
+* **Giải pháp kỹ thuật:** Bộ lọc Cockpit và Hero Focus Task #1 ưu tiên tìm **Task con chưa hoàn thành thuộc về chính nhân sự đang đăng nhập** làm mục tiêu ngày. Nhân viên nào hoàn thành phần việc của mình thì được nghỉ ngơi độc lập.
+* **File ảnh hưởng:** `fe/src/pages/BoardPage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-58] Tổng Hợp Danh Sách Nhân Sự Tham Gia & Avatar Stack Group Trên Bảng Kanban
+* **Mức độ:** 🟢 **MEDIUM**
+* **Vấn đề (Root Cause):** Thẻ Kanban Card trước đây chỉ hiển thị 1 avatar đơn lẻ của người nhận chính (`task.assignee`), không thể hiện được có nhiều người đang cùng phối hợp làm việc.
+* **Giải pháp kỹ thuật:** Backend tổng hợp `assignees: Array<{ id, fullName, avatar, profession }>` từ Task cha và toàn bộ các Task con. Frontend hiển thị cụm Avatar xếp chồng (`Avatar Stack Group`) và nhãn số lượng nhân sự tham gia.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`, `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/types/index.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-59] Bàn Giao Việc Cho Đồng Nghiệp Cùng Làm Khi Có Thành Viên Bị Rút Khỏi Dự Án (Collaborator-First Handover on Member Removal)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi nhân viên A bị xóa khỏi dự án, nếu hệ thống chuyển toàn bộ Task/Subtask về cho Quản lý dự án thì các Task đang phối hợp chung giữa A và B sẽ bị tước đoạt khỏi B hoặc gán về sai người.
+* **Giải pháp kỹ thuật:** Khi xóa thành viên A: Hệ thống quét các Task mà A tham gia. Nếu có đồng nghiệp B còn lại đang cùng làm task đó -> Tự động bàn giao phần việc con và đại diện Task cha cho B! Nếu task chỉ có 1 mình A làm -> Mới chuyển về cho Quản lý dự án.
+* **File ảnh hưởng:** `be/src/modules/project/project.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-60] Bộ Lọc Kanban Đa Diện Cho Task Phối Hợp Nhiều Người (Multi-Assignee Kanban Filter)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Khi lọc Kanban theo nhân sự B, nếu Task do A tạo/phụ trách chính nhưng B có việc con bên trong thì Task bị ẩn khỏi kết quả lọc của B.
+* **Giải pháp kỹ thuật:** Backend và Frontend lọc đa diện: Task hiển thị nếu B là người nhận chính HOẶC B có ít nhất 1 Task con trong task đó (`subtasks.some(st => st.assigneeId === B)`).
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`, `fe/src/pages/BoardPage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-61] Thiết Lập Ngày Bắt Đầu & Thời Gian Làm Việc Của Task Con Khi Đã Tạo Task (Subtask Schedule & Duration Persistence)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Khi Task cha đã được tạo từ trước, form thêm Task con trong `TaskDetailModal` trước đây thiếu ô nhập Ngày bắt đầu (`startDate`) và Thời gian làm việc ước lượng (`estimatedDays`), khiến các Task con phát sinh sau này không có lịch trình cụ thể và không thể tính toán lại tỷ trọng % tiến độ công bằng.
+* **Giải pháp kỹ thuật:** 
+  - Bổ sung `startDate` và `estimatedDays` vào model `Subtask` trong CSDL PostgreSQL (`prisma/schema.prisma`).
+  - Hỗ trợ nhập Ngày bắt đầu, Thời gian ước lượng (1, 2, 3... ngày), Người phụ trách riêng và Cờ khẩn cấp ngay trên thanh Quick Add của `TaskDetailModal`.
+  - Tự động tính toán lại % tiến độ của Task cha dựa trên tổng số ngày công của các Task con đã hoàn thành / Tổng số ngày công của tất cả các việc con.
+* **File ảnh hưởng:** `be/prisma/schema.prisma`, `be/src/modules/task/task.service.ts`, `be/src/modules/task/task.controller.ts`, `be/src/modules/task/dto/create-task.dto.ts`, `fe/src/types/index.ts`, `fe/src/components/kanban/TaskDetailModal.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-62] Xử Lý Các Task Con Có Cùng Ngày Thực Hiện / Làm Song Song (Parallel Same-Day Subtasks Execution)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** 
+  1. Khi có 2 Task con cùng làm trong ngày 18/08 (ví dụ: A làm Thiết kế, B làm Database), nếu hệ thống tính lịch trình nối đuôi tuần tự cũ thì Task con thứ 2 sẽ bị dời sang ngày 19/08 (sai ngày thực tế người dùng đã chọn).
+  2. Nếu hệ thống cộng dồn số ngày (`1 + 1 = 2 ngày`) để tính `task.dueDate` thì hạn chót Task cha bị đội lên ngày 20/08 thay vì kết thúc vào cuối ngày 19/08 (sai 1 ngày).
+* **Giải pháp kỹ thuật:** 
+  - **Lịch trình giao diện**: `getSubtaskCalendarSchedule` ưu tiên lấy trực tiếp `st.startDate` của Task con nếu đã được thiết lập, hiển thị chính xác ngày người dùng chọn thay vì tự động cộng dồn nối đuôi.
+  - **Hạn chót Task cha**: `recalculateTaskProgress` tính toán `task.dueDate` theo **Đường găng thời gian ($\max$ của các ngày kết thúc của Task con)** thay vì cộng dồn số học tuyến tính khi có ngày riêng.
+  - **Cockpit đa nhân sự**: Cả 2 nhân sự cùng thấy Task con của mình được gắn nhãn `🔥 HÔM NAY` trên Today's Focus Cockpit và làm việc song song độc lập.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`, `fe/src/pages/BoardPage.tsx`, `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/components/kanban/TaskDetailModal.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-63] Đồng Bộ & Lưu Trữ Dữ Liệu Hồ Sơ Cá Nhân Vào PostgreSQL (Profile Data Persistence & Media Sync)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** 
+  1. Trang `ProfilePage` trước đây khi submit form chỉ cập nhật State cục bộ trong `useAuthStore` mà không gọi API Backend, dẫn đến mất dữ liệu khi F5 tải lại trang hoặc đăng nhập thiết bị khác.
+  2. DTO `UpdateProfileDto` và `ProfileService` ở Backend trước đây thiếu trường `avatar` và `coverImage`, khiến ảnh đại diện và ảnh bìa không thể lưu trữ vào PostgreSQL.
+* **Giải pháp kỹ thuật:** 
+  - Backend: Bổ sung `@IsOptional() @IsString() avatar?: string` và `coverImage?: string` vào `UpdateProfileDto`. Cập nhật `profile.service.ts` để lưu trữ dữ liệu vào bảng `User`.
+  - Frontend: Tạo `profile.service.ts` kết nối trực tiếp `PATCH /api/profile/me`. Bổ sung action `updateUser` trong Zustand store để đồng bộ trạng thái toàn cục.
+  - Tích hợp kiểm soát dung lượng file upload (< 2.5MB cho Avatar, < 3MB cho Cover Banner) và thông báo Toast phản hồi thành công/thất bại.
+* **File ảnh hưởng:** `be/src/modules/profile/dto/update-profile.dto.ts`, `be/src/modules/profile/profile.service.ts`, `fe/src/services/profile.ts`, `fe/src/store/useAuthStore.ts`, `fe/src/pages/ProfilePage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-64] Toàn Vẹn Bảo Mật & Thu Hồi Phiên Khi Đổi Mật Khẩu (Password Change & Session Revocation Integrity)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Người dùng không có giao diện đổi mật khẩu trên trang Profile, và nếu đổi mật khẩu mà không thu hồi Refresh Token cũ thì phiên đăng nhập trên các thiết bị trước đó vẫn có thể tiếp tục truy cập trái phép.
+* **Giải pháp kỹ thuật:** 
+  - Backend: API `PATCH /api/profile/change-password` xác thực mật khẩu hiện tại bằng `bcrypt.compare`, mã hóa mật khẩu mới bằng `bcrypt.hash(..., 10)` và tự động set `refreshToken: null` để thu hồi phiên cũ.
+  - Frontend: Tích hợp Modal "Bảo Mật & Đổi Mật Khẩu" với validation khớp mật khẩu, độ dài tối thiểu 6 ký tự, nút bật/tắt hiển thị mật khẩu và hiệu ứng loading chống bấm đúp.
+* **File ảnh hưởng:** `be/src/modules/profile/profile.controller.ts`, `be/src/modules/profile/profile.service.ts`, `fe/src/services/profile.ts`, `fe/src/pages/ProfilePage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-65] Trực Quan Hóa Số Liệu Thống Kê Tác Nghiệp Cá Nhân Động (Dynamic Personal Metrics & Realtime Stats Calculation)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Khối Thống kê tác nghiệp cá nhân trên Profile trước đây bị gắn cứng (hardcoded) số ảo (42 Hoàn thành, 2 Trễ hạn, 3 Đang làm...), không phản ánh đúng tiến độ thực tế trong CSDL của từng nhân sự.
+* **Giải pháp kỹ thuật:** 
+  - Tự động gọi API `GET /api/profile/stats` khi người dùng truy cập trang Profile.
+  - Backend tính toán số lượng thực tế: `completedTasks` (Task có `status: DONE, isDeleted: false`), `inProgressTasks` (Task có `status: IN_PROGRESS`), `overdueTasks` (Task chưa DONE và có `dueDate < new Date()`), và tổng số Task được phân công.
+* **File ảnh hưởng:** `be/src/modules/profile/profile.service.ts`, `fe/src/services/profile.ts`, `fe/src/pages/ProfilePage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-66] Xác Thực Thành Viên Dự Án Khi Tạo Hàng Loạt Task Con (Bulk Subtasks Project Membership Validation)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi tạo Task mới (`POST /tasks`) kèm danh sách `subtasks: [{ title, assigneeId }]`, hàm `create` trong `task.service.ts` chỉ kiểm tra `assigneeId` của Task cha, bỏ quên kiểm tra `subtasks[i].assigneeId`.
+* **Hậu quả:** Người tạo Task có thể gán các Task con cho người bên ngoài dự án, vi phạm nghiêm trọng tính cô lập dữ liệu (Project Isolation).
+* **Giải pháp kỹ thuật:** 
+  - Truy vấn danh sách toàn bộ thành viên hợp lệ của dự án (`project.managerId`, `project.createdById`, `project.members`).
+  - Duyệt qua từng Task con và kiểm tra `st.assigneeId`. Nếu có người không thuộc danh sách thành viên dự án, lập tức ném lỗi `BadRequestException`.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-67] Cấp Quyền Điều Phối Trạng Thái Kanban Cho Quản Lý Dự Án (Project Manager Kanban Status Update Authorization)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Trong `updateStatus`, hệ thống kiểm tra `user.role !== 'ADMIN'` và chỉ cho phép người nhận việc (`task.assigneeId === user.id`) mới được thay đổi trạng thái thẻ. Quản lý dự án (`project.managerId` hoặc `MANAGER`) bị ném lỗi 403 Forbidden.
+* **Hậu quả:** Quản lý không thể kéo thả Kanban, tạm dừng (`PAUSED`), đánh dấu nghẽn (`BLOCKED`) hoặc điều phối Task do nhân viên đang giữ trong chính dự án của mình.
+* **Giải pháp kỹ thuật:** 
+  - Mở rộng phân quyền cho phép `Admin`, `Manager` toàn cục, Quản lý phụ trách dự án (`project.managerId`/`project.createdById`) và Người tạo Task (`task.createdById`) có toàn quyền cập nhật trạng thái Kanban.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-68] Bọc Giao Dịch Nguyên Tố Khi Bàn Giao & Xóa Thành Viên Dự Án (Atomic Transaction on Member Removal & Handover)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Trong `removeMember` (`project.service.ts`), 4 bước xử lý CSDL (chuyển giao subtasks, cập nhật task assignee, hủy taskRequest và xóa projectMember) được thực thi tuần tự mà không có giao dịch nguyên tố.
+* **Hậu quả:** Nếu có lỗi ngắt kết nối mạng hoặc sập nguồn ở bước cuối, dữ liệu sẽ bị phân mảnh dở dang.
+* **Giải pháp kỹ thuật:** Bọc toàn bộ các thao tác CSDL trong `this.prisma.$transaction(async (tx) => { ... })` để đảm bảo cơ chế ACID (tự động rollback an toàn nếu có lỗi ở bất kỳ bước nào).
+* **File ảnh hưởng:** `be/src/modules/project/project.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-69] Chặn Tạo Task & Task Con Vào Dự Án Đã Đóng / Hoàn Thành Nghiệm Thu (Completed Project Task Creation Freeze)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Khi Dự án đã ở trạng thái hoàn tất (`isCompleted: true`), các API `create` task và `addSubtask` không kiểm tra cờ này, cho phép tiếp tục tạo Task và Subtask mới.
+* **Hậu quả:** Làm sai lệch dữ liệu tiến độ và hồ sơ nghiệm thu đã khóa của dự án.
+* **Giải pháp kỹ thuật:** Kiểm tra `project.isCompleted` trong cả `create` và `addSubtask`, từ chối tạo mới kèm thông báo lỗi rõ ràng.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-70] Ràng Buộc Hạn Chót Task Con Không Trước Ngày Bắt Đầu Task Cha Khi Thêm Nhanh (Subtask DueDate Before Task StartDate Validation)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Khi thêm Task con trong `addSubtask` chỉ chọn `dueDate`, hệ thống kiểm tra `dueDate > task.dueDate` nhưng bỏ sót kiểm tra `dueDate >= task.startDate`.
+* **Hậu quả:** Hạn chót của việc con lại xảy ra trước khi công việc cha bắt đầu.
+* **Giải pháp kỹ thuật:** Bổ sung kiểm tra `parsedSubtaskDueDate.getTime() < new Date(task.startDate).getTime()`, chặn lưu và thông báo lỗi cho người dùng.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-71] Khóa Thao Tác Tác Nghiệp Trên Task Đã Bị Xóa Vào Thùng Rác (Trash Task Operation Lock)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi Task bị xóa mềm (`isDeleted: true`) và nằm trong Thùng rác, các hàm `addComment`, `addAttachment`, `addSubtask`, `createTaskRequest`, `updateDescription` chỉ tìm theo `where: { id }` mà không kiểm tra `isDeleted: true`.
+* **Hậu quả:** Người dùng vẫn có thể tiếp tục bình luận, tải tệp, thêm việc con hoặc gửi yêu cầu chuyển giao cho một Task đang nằm trong Thùng rác.
+* **Giải pháp kỹ thuật:** Bổ sung điều kiện kiểm tra `if (!task || task.isDeleted)` ném lỗi `NotFoundException('Task không tồn tại hoặc đã bị xóa vào thùng rác')` trên tất cả các API tương tác liên quan.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-72] Triệt Tiêu Race Condition Khi Quản Lý Phân Công Trực Tiếp (Manager Direct Assignment Race Condition & Pending Request Cleanup)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi Quản lý phân công việc trực tiếp cho nhân sự mới, nếu trước đó nhân viên cũ đã gửi 1 yêu cầu chuyển giao cho người khác đang ở trạng thái `PENDING`, yêu cầu cũ không bị hủy. Nếu người được mời cũ bấm "Chấp nhận" sau đó, Task sẽ bị cướp quyền và ghi đè quyết định của Quản lý.
+* **Giải pháp kỹ thuật:** Bọc toàn bộ quy trình gán việc của Quản lý trong `prisma.$transaction`, tự động hủy (`status = 'CANCELLED'`) toàn bộ các yêu cầu chuyển giao đang chờ phản hồi của Task/Subtask đó.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-73] Nâng Giới Hạn Dung Lượng Tệp Lên 100MB & Làm Sạch Tên File An Toàn (100MB Attachment Limit & Filename Sanitization)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Cần nâng cấp dung lượng tải tệp đính kèm phục vụ tài liệu dung lượng lớn (video demo, file thiết kế, bộ cài) đồng thời bảo vệ hệ thống khỏi tấn công Path Traversal.
+* **Giải pháp kỹ thuật:** 
+  - Nâng giới hạn dung lượng tải tệp lên **100MB** (`100 * 1024 * 1024` bytes).
+  - Tự động làm sạch tên file `file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')` và gắn timestamp duy nhất trước khi lưu vào thư mục `uploads/`.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-74] Chuyển Giao Theo Cấp Độ Minitask (Subtask Transfer Architecture & Instant State Recovery)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Trước đây cơ chế chuyển giao chỉ hỗ trợ đổi toàn bộ Task cha (`task.assigneeId`), không cho phép chia nhỏ và bàn giao độc lập từng Task con (Minitask) cụ thể cho các thành viên khác nhau trong dự án.
+* **Giải pháp kỹ thuật:** 
+  - Bổ sung trường `subtaskId` vào API `createTaskRequest`.
+  - Frontend cho phép chọn chính xác Minitask cần bàn giao.
+  - Khi người nhận bấm **Chấp Nhận (APPROVED)**, hệ thống cập nhật `subtask.assigneeId = receiverId`, tự động khôi phục Task cha về `IN_PROGRESS` và phát sóng Socket.IO realtime.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`, `fe/src/components/kanban/TaskRequestModal.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-75] Chuẩn Hóa Nội Dung Bình Luận & Chặn Bình Luận Rỗng (Comment Content Sanitization & Empty Rejection)
+* **Mức độ:** 🟢 **MEDIUM**
+* **Vấn đề (Root Cause):** Người dùng có thể gửi bình luận chỉ gồm dấu cách trắng (`"   "`), tạo ra các bong bóng bình luận rỗng trên giao diện thẻ Task.
+* **Giải pháp kỹ thuật:** Trim nội dung bình luận `(dto.content || dto.text || '').trim()`, nếu rỗng thì ném lỗi `BadRequestException('Nội dung bình luận không được để trống!')`.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-76] Tự Động Xử Lý & Khử Trùng Lặp Thẻ Nhãn (Tag Normalization & Case-Insensitive Matching)
+* **Mức độ:** 🟢 **MEDIUM**
+* **Vấn đề (Root Cause):** Khi tạo Task mới kèm danh sách thẻ `tagNames`, nếu các tên thẻ có khoảng trắng thừa hoặc trùng tên khác chữ hoa/thường (ví dụ `FE` và `fe`), hệ thống có thể tạo ra nhiều bản ghi Tag trùng lặp hoặc không gán vào bảng `task_tags`.
+* **Giải pháp kỹ thuật:** Trim tên thẻ, tìm kiếm Tag theo tên không phân biệt hoa thường (`mode: 'insensitive'`) trong cùng dự án, tự động tạo mới nếu chưa có và liên kết an toàn qua `this.prisma.taskTag.upsert`.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-77] Khóa Toàn Diện Thao Tác Kéo Thả / Cập Nhật Trạng Thái Trên Task Đã Lưu Trữ (Archived Task Immutability)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Task đã được đưa vào kho lưu trữ (`isArchived: true`) vẫn có thể bị gọi API `updateStatus` để kéo thả hoặc thay đổi trạng thái tiến độ trên bảng Kanban.
+* **Hậu quả:** Làm xáo trộn dữ liệu lịch sử của các công việc đã đóng băng lưu trữ.
+* **Giải pháp kỹ thuật:** Bổ sung kiểm tra `if (task.isArchived)` trong `updateStatus`, ném lỗi `BadRequestException('Task đã được lưu trữ vào kho (Archived). Không thể thay đổi trạng thái!')`.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-78] Chặn Khôi Phục Task Vào Dự Án Đã Hoàn Thành / Đóng Nghiệm Thu (Restore Task To Completed Project Guard)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** API `restoreTask` chỉ kiểm tra Task có tồn tại trong thùng rác hay không, cho phép người dùng khôi phục một Task đã xóa vào trong một Dự án đã hoàn tất nghiệm thu và đóng cửa (`isCompleted: true`).
+* **Hậu quả:** Gây sai lệch báo cáo tiến độ và vi phạm tính đóng băng của dự án đã nghiệm thu.
+* **Giải pháp kỹ thuật:** Kiểm tra `if (task.project?.isCompleted)` trong `restoreTask`, từ chối khôi phục và thông báo rõ ràng cho Quản lý.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-79] Khóa Cập Nhật Task Con Khi Task Đã Nằm Trong Thùng Rác Hoặc Dự Án Đã Đóng (Subtask Mutation On Deleted Task / Closed Project Guard)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Trong `updateSubtask`, hệ thống không kiểm tra `subtask.task.isDeleted` và `subtask.task.project.isCompleted`, cho phép sửa đổi nội dung việc con của Task đã bị xóa hoặc của dự án đã đóng.
+* **Giải pháp kỹ thuật:** Bổ sung kiểm tra `subtask.task.isDeleted` (ném `NotFoundException`) và `subtask.task.project.isCompleted` (ném `BadRequestException`).
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-80] Tự Động Dọn Dẹp TaskRequest Treo Khi Đóng / Nghiệm Thu Toàn Bộ Dự Án (Project Closure Pending Request Auto-Cleanup)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi Quản lý cập nhật dự án sang hoàn thành (`isCompleted: true`), các yêu cầu chuyển giao (`TaskRequest: PENDING`) còn sót lại không được giải phóng, gây nghẽn trạng thái `IN_REVIEW` mồ côi.
+* **Giải pháp kỹ thuật:** Bọc cập nhật dự án trong `prisma.$transaction`, tự động hủy (`status = 'CANCELLED'`) toàn bộ các `TaskRequest` đang ở trạng thái `PENDING` của toàn bộ các Task trong dự án đó.
+* **File ảnh hưởng:** `be/src/modules/project/project.service.ts`, `be/src/modules/project/dto/update-project.dto.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-81] Cơ Chế URGENT Động Duy Nhất Theo Việc Con & Thông Báo Tức Thì (Single Dynamic Urgent Mechanism & Subtask Notifications)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Hệ thống có các mức độ ưu tiên phức tạp gây rối rắm. Khi việc con bật khẩn cấp, Task cha không tự động cập nhật, người nhận việc con không nhận được thông báo, và khi đã hoàn thành việc con khẩn cấp thì Task cha vẫn bị kẹt ở URGENT.
+* **Giải pháp kỹ thuật:**
+  - Bỏ toàn bộ cơ chế đánh giá mức độ ưu tiên phức tạp khác, chỉ giữ lại duy nhất cơ chế URGENT theo Việc con.
+  - Khi bất kỳ việc con nào bật `isUrgent: true` (lúc tạo hoặc cập nhật), Task cha tự động chuyển `priority = 'URGENT'`, đồng thời hệ thống tự động tạo thông báo gửi đến người nhận việc con (`🔥 [THÔNG BÁO KHẨN CẤP] Việc con "..." đã được gắn cờ KHẨN CẤP. Người phụ trách: @... cần ưu tiên xử lý ngay!`).
+  - Trong `recalculateTaskProgress`, khi tất cả các việc con khẩn cấp đã hoàn thành (`isDone: true`) hoặc bị xóa, hệ thống tự động TẮT `URGENT` và chuyển Task cha về `NORMAL`.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-82] Quyền Nghiệm Thu Hoàn Thành Trực Tiếp Task Con Dành Cho Admin & Quản Lý (Admin & Manager Direct Subtask Completion Authority)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi Admin hoặc Quản lý dự án nhấn hoàn thành một Task con được giao cho nhân viên khác, hệ thống lại chuyển Task con sang trạng thái `PENDING` chờ duyệt, tạo ra một vòng lặp chờ duyệt phi lý đối với chính cấp Quản lý cao nhất.
+* **Giải pháp kỹ thuật:** Kiểm tra `isAdminOrManager`. Khi Admin hoặc Manager dự án đánh dấu hoàn thành Task con của bất kỳ ai, hệ thống trực tiếp xác nhận `isDone = true`, `approvalStatus = 'APPROVED'`, đồng thời tự động cập nhật toàn bộ `TaskRequest` chờ duyệt liên quan sang `ACCEPTED` với ghi chú rõ ràng.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-83] Chặn Tự Gửi Thông Báo Cho Chính Mình (Self-Notification Elimination)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi một thành viên tự tạo task và tự giao cho mình, hoặc tự bình luận vào task do mình phụ trách, hệ thống lại tạo thông báo và bắn chuông cho chính người đó, gây rối mắt và spam thông báo vô nghĩa.
+* **Giải pháp kỹ thuật:** Trong `NotificationService.sendNotification`, kiểm tra điều kiện `if (dto.actorId && dto.userId && dto.actorId === dto.userId) return null;` ➔ Chặn hoàn toàn việc tạo bản ghi DB và phát sóng Socket.IO khi tác nhân thực hiện trùng với người nhận.
+* **File ảnh hưởng:** `be/src/modules/notification/notification.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-84] Cô Lập Quyền Thành Viên Dự Án Khỏi Rò Rỉ Thông Báo (Project Membership Isolation & Notification Guard)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi một nhân sự bị xóa khỏi dự án (nhưng vẫn còn tài khoản công ty), nếu các thành viên khác tiếp tục bình luận hoặc thao tác trên các Task cũ trong dự án đó, nhân sự cũ này vẫn có thể nhận thông báo, gây rò rỉ dữ liệu bảo mật dự án.
+* **Giải pháp kỹ thuật:** Khi gửi thông báo có `projectId`, hệ thống truy vấn CSDL kiểm tra xem `userId` người nhận có còn nằm trong danh sách thành viên hợp lệ (`project.members`, `managerId`, `createdById` hoặc `Role.ADMIN`) hay không. Nếu không còn quyền ➔ Hủy thông báo ngay lập tức.
+* **File ảnh hưởng:** `be/src/modules/notification/notification.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-85] Đồng Bộ Đa Tab & Đa Thiết Bị Tránh Lệch Bộ Đếm Chưa Đọc (Multi-Device / Multi-Tab Unread Sync)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Người dùng mở nhiều tab trình duyệt hoặc đăng nhập song song trên điện thoại và máy tính. Khi đọc thông báo ở Tab A, Tab B vẫn hiển thị chấm đỏ chưa đọc gây hiểu lầm.
+* **Giải pháp kỹ thuật:** Mỗi khi thực hiện `markAsRead` hoặc `markAllAsRead`, Backend tự động đếm lại `unreadCount` thực tế và phát sóng sự kiện Socket.IO `notification:read` / `notification:read-all` tới room cá nhân `user:${userId}`. Toàn bộ các client đang kết nối của người dùng đó sẽ đồng bộ số đếm tức thì 0ms.
+* **File ảnh hưởng:** `be/src/modules/notification/notification.service.ts`, `fe/src/components/navigation/NotificationCenter.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-86] Toàn Vẹn Khóa Ngoại Khi Xóa Dữ Liệu Gốc (Cascade FK Constraint Protection for Notifications)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi xóa vĩnh viễn một Task hoặc một User bị xóa khỏi hệ thống, các bản ghi con trong bảng `notifications` sẽ gây lỗi ràng buộc khóa ngoại (Foreign Key Constraint Violation) làm sập API xóa.
+* **Giải pháp kỹ thuật:** Cấu hình quan hệ trong `schema.prisma`:
+  - `user User @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)`
+  - `task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)`
+  - `actor User? @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: SetNull)`
+* **File ảnh hưởng:** `be/prisma/schema.prisma`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-87] Chống Spam Bật/Tắt Cờ Khẩn Cấp (Idempotent Urgent Notification Guard)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Nếu người dùng liên tục bật tắt checkbox khẩn cấp trong vài giây, hệ thống có thể tạo hàng loạt thông báo trùng lặp làm nghẽn chuông của người nhận.
+* **Giải pháp kỹ thuật:** Chỉ kích hoạt thông báo và bình luận khẩn cấp khi có sự chuyển đổi trạng thái thực sự từ `isUrgent: false` sang `isUrgent: true` (`if (body.isUrgent === true && !subtask.isUrgent)`).
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-88] Phòng Thủ Mảng Đa Tầng Tránh Crash Giao Diện Chuông Thông Báo (Array Guard & Defect-Free Notification Center)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi API trả về cấu trúc bọc `{ data: [...] }` hoặc khi gặp lỗi mạng trả về đối tượng không phải mảng, việc gọi hàm `.filter()` trên biến state làm sập toàn bộ giao diện React (`notifications.filter is not a function`).
+* **Giải pháp kỹ thuật:** Bóc tách an toàn đa tầng `Array.isArray(rawData) ? rawData : (Array.isArray(rawData?.data) ? rawData.data : [])`, gán giá trị mặc định mảng rỗng trong `catch`, và bọc `safeNotifications = Array.isArray(notifications) ? notifications : []` trước mọi thao tác mảng.
+* **File ảnh hưởng:** `fe/src/components/navigation/NotificationCenter.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-89] Giữ Nguyên Task DONE Vĩnh Viễn Trên Bảng Kanban & Tinh Gọn Bỏ Audit Log (Permanent DONE Column Retention & Audit Log Deprecation)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Cơ chế cũ tự động ẩn các Task đã hoàn thành sau 2 ngày (`twoDaysAgo`) khiến nhân viên và Quản lý không thể theo dõi tiến độ tổng thể của các công việc đã xong trực tiếp trên bảng Kanban. Đồng thời bảng `AuditLog` tạo thêm chi phí truy vấn dư thừa không cần thiết.
+* **Giải pháp kỹ thuật:** 
+  - Xóa bỏ hoàn toàn bộ lọc thời gian 2 ngày trong `TaskService.findAll`. Toàn bộ Task ở trạng thái `DONE` sẽ được giữ nguyên hiển thị vĩnh viễn ở cột DONE trên bảng Kanban cho đến khi người dùng chủ động xóa vào thùng rác hoặc lưu trữ.
+  - Loại bỏ hoàn toàn bảng `AuditLog` khỏi CSDL PostgreSQL và Prisma Schema để tinh gọn hệ thống.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`, `be/prisma/schema.prisma`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-90] Quyền Xóa Dự Án Dành Cho Admin & Bàn Giao Thùng Rác (Admin-Only Project Deletion & 14-Day Trash Handoff)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Trước đây hệ thống chưa có tính năng cho phép Admin xóa dự án ở mục Master Plan; nếu xóa cứng sẽ làm mất toàn bộ lịch sử công việc và tệp đính kèm không thể cứu vãn.
+* **Giải pháp kỹ thuật:**
+  - Cung cấp nút **"Xóa Dự Án"** kèm Modal xác nhận nguy hiểm trên thẻ thông tin Master Plan chỉ hiển thị cho tài khoản `Role.ADMIN`.
+  - Khi Admin xác nhận xóa, hệ thống kích hoạt giao dịch nguyên tố `prisma.$transaction`: đánh dấu `project.isDeleted = true`, `project.deletedAt = new Date()`, đồng thời đánh dấu `task.isDeleted = true` cho toàn bộ các Task con trong dự án và tự động hủy các `TaskRequest` đang treo.
+  - Phát sóng Socket.IO `project:deleted` để các client cập nhật ngay lập tức.
+* **File ảnh hưởng:** `be/src/modules/project/project.service.ts`, `be/src/modules/project/project.controller.ts`, `fe/src/pages/BoardPage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-91] Chuẩn Hóa Chính Sách Lưu Giữ 14 Ngày & Trung Tâm Thùng Rác Hệ Thống (Universal 14-Day Retention Policy & Admin Trash Center)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi xóa dữ liệu (Dự án, Task), nhân sự có nguy cơ xóa nhầm hoặc muốn phục hồi lại sau đó nhưng không có nơi tập trung để quản lý vòng đời dữ liệu đã xóa, dẫn đến mất mát dữ liệu vĩnh viễn.
+* **Giải pháp kỹ thuật:**
+  - Áp dụng **Chính sách lưu giữ an toàn 14 ngày (14-Day Retention Policy)**: Bất kỳ dữ liệu nào khi bị xóa đều chuyển sang trạng thái xóa mềm với dấu thời gian `deletedAt`. Dữ liệu được bảo toàn nguyên vẹn trong 14 ngày.
+  - Xây dựng **Trung Tâm Thùng Rác Hệ Thống (Admin System Recycle Bin)** tại route `/admin/trash` chuẩn UI Pro Max:
+    - Hiển thị danh sách Dự Án đã xóa và Task đã xóa với thanh tiến độ đếm ngược thời gian còn lại (14 ngày).
+    - Hỗ trợ **Khôi Phục (Restore)** một chạm đưa Dự án / Task quay lại hoạt động bình thường.
+    - Hỗ trợ **Xóa Vĩnh Viễn (Permanent Delete)** và **Dọn Sạch Thùng Rác (Empty All)** khi Admin muốn dọn dẹp CSDL triệt để.
+* **File ảnh hưởng:** `be/src/modules/trash/trash.service.ts`, `be/src/modules/trash/trash.controller.ts`, `fe/src/pages/AdminTrashPage.tsx`, `fe/src/components/navigation/MeteorEdgeMenu.tsx`, `fe/src/App.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-92] [CC-01] Tự Động Khôi Phục Dự Án Cha Khi Khôi Phục Task Mồ Côi Từ Thùng Rác (Orphaned Task Auto-Project Restoral)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Khi một Dự án bị xóa mềm, toàn bộ Task con bị kéo theo vào Thùng Rác. Nếu Admin hoặc Quản lý chỉ nhấn "Khôi phục" trên 1 Task con, Task đó trở về `isDeleted: false` nhưng Dự án cha vẫn `isDeleted: true`, khiến Task bị mồ côi và không hiển thị trên Bảng Kanban.
+* **Giải pháp kỹ thuật:** Trong `TaskService.restoreTask`, kiểm tra nếu `task.project.isDeleted === true`, hệ thống tự động khôi phục cả Dự án cha (`isDeleted: false, deletedAt: null`) trong một `prisma.$transaction`, phát sự kiện `project:restored` và thông báo rõ cho người dùng: *"Đã khôi phục Task và tự động mở lại Dự án liên quan!"*.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-93] [CC-02] Tự Động Hủy Dữ Liệu Quá Hạn 14 Ngày Lưu Giữ (Auto-Purge 14-Day Expired Trash)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Nếu Admin không chủ động nhấn "Dọn Sạch Thùng Rác", các bản ghi bị xóa mềm có thể tồn đọng mãi trong CSDL vượt quá thời hạn cam kết 14 ngày.
+* **Giải pháp kỹ thuật:** Tích hợp hàm `autoPurgeExpiredTrash()` trong `TrashService`, tự động quét và xóa vĩnh viễn tất cả Task và Dự án có `deletedAt <= Date.now() - 14 ngày` trước mỗi lần tổng hợp báo cáo Thùng Rác.
+* **File ảnh hưởng:** `be/src/modules/trash/trash.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-94] [CC-03] Tự Động Hạ Cờ URGENT Của Task Cha Khi Xóa / Hoàn Thành Task Con Khẩn Cấp (Urgent Flag Lifecycle Sync)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Task cha được nâng lên `priority = 'URGENT'` khi có việc con khẩn cấp. Nếu việc con đó bị xóa hoặc hoàn thành, Task cha có nguy cơ bị treo ở mức `URGENT` vô thời hạn.
+* **Giải pháp kỹ thuật:** Trong `recalculateTaskProgress`, quét toàn bộ Subtasks còn lại: `const hasUnfinishedUrgentSubtasks = subtasks.some((st) => st.isUrgent && !st.isDone); updateTaskData.priority = hasUnfinishedUrgentSubtasks ? 'URGENT' : 'NORMAL';`. Cả `deleteSubtask` và `updateSubtask` đều kích hoạt hàm này để đảm bảo đồng bộ 100%.
+* **File ảnh hưởng:** `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-95] [CC-04] Phòng Thủ Not-Found & Điều Hướng An Toàn Khi Nhấp Vào Thông Báo Task Bị Xóa (Safe Notification Task Open)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Người dùng nhấp vào thông báo của Task vừa bị chuyển vào Thùng Rác hoặc thuộc Dự án họ vừa bị xóa quyền, gây lỗi trắng trang hoặc modal không phản hồi.
+* **Giải pháp kỹ thuật:** Trong `NotificationCenter` và `BoardPage.tsx`, bọc `try/catch` an toàn khi tải Task theo ID từ notification. Nếu không tìm thấy, hệ thống hiển thị thông báo Toast: *"Công việc này đã bị chuyển vào Thùng Rác hoặc bạn không còn quyền truy cập!"*.
+* **File ảnh hưởng:** `fe/src/pages/BoardPage.tsx`, `fe/src/components/navigation/NotificationCenter.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-96] [CC-05] Chống Xung Đột Race Condition & Idempotent Guard Khi Xóa / Khôi Phục Nhanh (Idempotent State Protection)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Nhấn đúp (Double click) nút Xóa hoặc Khôi phục dự án / Task có thể gửi nhiều request đồng thời, gây ra xung đột ghi dữ liệu và phát Socket event lặp lại.
+* **Giải pháp kỹ thuật:** Thêm Idempotent guards trong `ProjectService` và `TaskService`: `if (project.isDeleted) return { success: true, message: 'Dự án đã nằm trong Thùng Rác' }` và `if (!project.isDeleted) return { success: true, message: 'Dự án đã ở trạng thái hoạt động' }`.
+* **File ảnh hưởng:** `be/src/modules/project/project.service.ts`, `be/src/modules/task/task.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-97] [CC-06] Phân Trang Thông Báo & Tự Động Dọn Dẹp Sau 30 Ngày (Notification Take Limit & 30-Day Auto Purge)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Người dùng có nhiều thông báo tích lũy theo năm tháng làm chậm truy vấn CSDL và tăng kích thước payload truyền qua mạng.
+* **Giải pháp kỹ thuật:** Cố định `take: 50` mặc định trong `NotificationService.findAll` và tự động dọn dẹp các thông báo đã đọc có tuổi thọ trên 30 ngày (`createdAt <= Date.now() - 30 ngày`).
+* **File ảnh hưởng:** `be/src/modules/notification/notification.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
+### [LC-98] [CC-07] Phòng Thủ Thời Gian Âm & Xử Lý Trực Quan Mục Quá Hạn Thùng Rác (Defensive Time Display & Expired Badge)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Sự lệch múi giờ giữa máy Client và Server có thể làm phép tính `daysLeft` ra số âm hoặc hiển thị NaN.
+* **Giải pháp kỹ thuật:** Bọc `Math.max(0, msLeft)` và hiển thị huy hiệu màu đỏ nổi bật *"Đã hết hạn lưu giữ"* kèm ghi chú *"0 ngày (sắp dọn dẹp)"* trên thẻ dự án và task trong Thùng Rác.
+* **File ảnh hưởng:** `fe/src/pages/AdminTrashPage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
 ## 3. DANH MỤC CÁC CONFLICT ĐANG TIẾP TỤC THEO DÕI & TỐI ƯU HÓA (BACKLOG CONFLICTS)
 
 | Mã ID | Tên Luồng Conflict | Mức Độ | Trạng Thái |
 |:---:|:---|:---:|:---:|
 | **LC-18** | Khóa sửa đổi ngày bắt đầu (`startDate`) khi đã có việc con hoàn thành | 🔴 CRITICAL | 📋 Đang theo dõi |
 | **LC-19** | Cảnh báo hạn chót của Task vượt quá thời hạn kết thúc của Dự án (`project.endDate`) | 🟡 HIGH | 📋 Đang theo dõi |
-| **LC-56** | Khóa đảo lộn thứ tự việc con đối với các việc con đang `PENDING` hoặc `APPROVED` | 🟡 HIGH | 📋 Đang theo dõi |
 
 ---
 

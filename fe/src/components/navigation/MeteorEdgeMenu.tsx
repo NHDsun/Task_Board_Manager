@@ -3,13 +3,15 @@ import { useAuthStore } from '../../store/useAuthStore';
 import {
   User,
   Kanban,
+  Calendar,
   MessageSquare,
   Inbox,
   Users,
   ChevronRight,
   Sparkles,
   Mic,
-  LogOut
+  LogOut,
+  Trash2,
 } from 'lucide-react';
 
 interface MeteorEdgeMenuProps {
@@ -21,6 +23,9 @@ interface MeteorEdgeMenuProps {
 export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, onNavigate, onOpenVoiceCommand }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const logout = useAuthStore((state) => state.logout);
+  const currentUser = useAuthStore((state) => state.user);
+
+  const isAdmin = currentUser?.globalRole === 'ADMIN';
 
   const menuItems = [
     {
@@ -38,6 +43,15 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
       icon: Kanban,
       trailColor: 'from-amber-400 to-amber-500',
       badge: 'CORE',
+    },
+    {
+      id: 'schedule',
+      label: 'Lịch Làm Việc',
+      route: '/schedule',
+      icon: Calendar,
+      trailColor: 'from-amber-400 via-orange-400 to-amber-300',
+      badge: 'PLAN',
+      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
     },
     {
       id: 'remote-requests',
@@ -62,6 +76,19 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
       icon: Users,
       trailColor: 'from-rose-500 to-amber-300',
     },
+    ...(isAdmin
+      ? [
+          {
+            id: 'trash',
+            label: 'Thùng Rác Hệ Thống',
+            route: '/admin/trash',
+            icon: Trash2,
+            trailColor: 'from-rose-500 via-amber-500 to-rose-400',
+            badge: '14D',
+            badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+          },
+        ]
+      : []),
   ];
 
   return (

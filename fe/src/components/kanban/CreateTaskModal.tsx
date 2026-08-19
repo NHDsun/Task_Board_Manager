@@ -24,6 +24,7 @@ interface SubtaskDraft {
   title: string;
   days: number;
   isUrgent: boolean;
+  assigneeId?: string;
 }
 
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
@@ -44,6 +45,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [subtaskInputTitle, setSubtaskInputTitle] = useState('');
   const [subtaskInputDays, setSubtaskInputDays] = useState(1);
   const [subtaskInputIsUrgent, setSubtaskInputIsUrgent] = useState(false);
+  const [subtaskInputAssigneeId, setSubtaskInputAssigneeId] = useState('');
 
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -80,7 +82,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
         const userList = Array.isArray(userRes.data) ? userRes.data : userRes.data?.data || [];
         setDbUsers(userList);
-        if (userList.length > 0) setAssigneeId(currentUser?.id || userList[0].id);
+        if (userList.length > 0) {
+          setAssigneeId(currentUser?.id || userList[0].id);
+          setSubtaskInputAssigneeId(currentUser?.id || userList[0].id);
+        }
       } catch {
         // Fallback
       }
@@ -99,6 +104,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         title: subtaskInputTitle.trim(),
         days: subtaskInputDays,
         isUrgent: subtaskInputIsUrgent,
+        assigneeId: subtaskInputAssigneeId || assigneeId || undefined,
       },
     ]);
     setSubtaskInputTitle('');
@@ -140,6 +146,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           title: st.title,
           isUrgent: st.isUrgent,
           estimatedDays: st.days,
+          assigneeId: st.assigneeId,
         })),
       });
 
@@ -276,37 +283,45 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             {/* Draft list */}
             {subtasksDraft.length > 0 && (
               <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
-                {subtasksDraft.map((st, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[10px] font-mono text-purple-400 font-bold bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
-                        Ngày #{idx + 1}
-                      </span>
-                      <span className="text-xs text-white truncate font-medium">{st.title}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-mono text-slate-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                        ⏳ {st.days} ngày
-                      </span>
-                      {st.isUrgent && (
-                        <span className="text-[10px] font-mono text-red-300 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/40 font-bold animate-pulse">
-                          🚨 GẤP
+                {subtasksDraft.map((st, idx) => {
+                  const assignedUser = dbUsers.find((u) => u.id === st.assigneeId);
+                  return (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[10px] font-mono text-purple-400 font-bold bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                          Ngày #{idx + 1}
                         </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDraftSubtask(idx)}
-                        className="text-slate-500 hover:text-rose-400 cursor-pointer p-1"
-                        title="Xóa Task con này"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                        <span className="text-xs text-white truncate font-medium">{st.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {assignedUser && (
+                          <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/40">
+                            👤 {assignedUser.fullName.replace(/\s*\([^)]*\)/g, '')}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-mono text-slate-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                          ⏳ {st.days} ngày
+                        </span>
+                        {st.isUrgent && (
+                          <span className="text-[10px] font-mono text-red-300 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/40 font-bold animate-pulse">
+                            🚨 GẤP
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDraftSubtask(idx)}
+                          className="text-slate-500 hover:text-rose-400 cursor-pointer p-1"
+                          title="Xóa Task con này"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -323,8 +338,20 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   }
                 }}
                 placeholder="Nhập tên Task con (VD: Thiết kế cơ sở dữ liệu)..."
-                className="flex-1 min-w-[200px] p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-purple-400 text-xs"
+                className="flex-1 min-w-[180px] p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-purple-400 text-xs"
               />
+              <select
+                value={subtaskInputAssigneeId}
+                onChange={(e) => setSubtaskInputAssigneeId(e.target.value)}
+                className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono text-xs focus:outline-none focus:border-purple-400 cursor-pointer max-w-[150px] truncate"
+                title="Chọn nhân sự phụ trách riêng cho Task con này"
+              >
+                {dbUsers.map((u) => (
+                  <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200">
+                    👤 {u.fullName}
+                  </option>
+                ))}
+              </select>
               <select
                 value={subtaskInputDays}
                 onChange={(e) => setSubtaskInputDays(Number(e.target.value))}

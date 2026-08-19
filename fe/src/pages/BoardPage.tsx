@@ -29,6 +29,7 @@ import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
 import { CreateProjectModal } from '../components/kanban/CreateProjectModal';
 import { CreateTaskModal } from '../components/kanban/CreateTaskModal';
 import { ProjectMembersModal } from '../components/kanban/ProjectMembersModal';
+import { NotificationCenter } from '../components/navigation/NotificationCenter';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import {
   Inbox,
@@ -51,8 +52,6 @@ import {
   Folder,
   Lock,
   Unlock,
-  Archive,
-  History,
   Paperclip,
   Upload,
   FileText,
@@ -69,7 +68,7 @@ import { DeleteTaskConfirmModal } from '../components/kanban/DeleteTaskConfirmMo
 export const BoardPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
-  const [activeView, setActiveView] = useState<'kanban' | 'pipeline' | 'focus' | 'audit'>('kanban');
+  const [activeView, setActiveView] = useState<'kanban' | 'pipeline' | 'focus'>('kanban');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isTransferInboxOpen, setIsTransferInboxOpen] = useState(false);
   const [pendingNotificationCount, setPendingNotificationCount] = useState<number>(0);
@@ -93,13 +92,12 @@ export const BoardPage: React.FC = () => {
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<TaskItem | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<string | null>(null);
   const [isProjectMembersModalOpen, setIsProjectMembersModalOpen] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [archivedTasks, setArchivedTasks] = useState<Array<any>>([]);
-  const [isLoadingArchived, setIsLoadingArchived] = useState(false);
 
   // Dynamic Metadata States (Read from PostgreSQL DB)
   const [dbProjects, setDbProjects] = useState<Array<any>>([]);
@@ -294,29 +292,6 @@ export const BoardPage: React.FC = () => {
       setIsLoading(false);
     }
   };
-
-  const fetchArchivedTasks = async () => {
-    setIsLoadingArchived(true);
-    try {
-      const res = await api.get('/tasks/archived');
-      const data = Array.isArray(res.data)
-        ? res.data
-        : Array.isArray(res.data?.data)
-        ? res.data.data
-        : [];
-      setArchivedTasks(data);
-    } catch {
-      // Fallback
-    } finally {
-      setIsLoadingArchived(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeView === 'audit') {
-      fetchArchivedTasks();
-    }
-  }, [activeView]);
 
   const fetchNotificationCount = async () => {
     try {
@@ -687,7 +662,7 @@ export const BoardPage: React.FC = () => {
     try {
       await api.delete(`/tasks/${taskToDelete.id}`);
 
-      showNotification(`🟢 Solaris: Đã xóa vĩnh viễn Task "${taskToDelete.title}" khỏi CSDL!`, 'success', 'Xóa Task Thành Công');
+      showNotification(`🟢 Solaris: Đã xóa Task "${taskToDelete.title}" (Chuyển vào Thùng Rác 14 ngày)!`, 'success', 'Xóa Task Thành Công');
       setIsDeleteModalOpen(false);
       setSelectedTaskForDetail(null);
       setTaskToDelete(null);
@@ -695,6 +670,25 @@ export const BoardPage: React.FC = () => {
     } catch (err: any) {
       const errMsg = err.response?.data?.message || err.message || 'Không thể xóa Task';
       showNotification(`❌ Lỗi: ${errMsg}`, 'warning', 'Xóa Task Thất Bại');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // 🗑️ Hàm thực thi Xóa Dự Án (Chuyển vào Thùng Rác 14 ngày) dành cho Admin
+  const handleConfirmDeleteProject = async () => {
+    if (!projectToDelete) return;
+    setIsDeleting(true);
+
+    try {
+      await api.delete(`/projects/${projectToDelete.id}`);
+      showNotification(`🟢 Đã chuyển dự án "${projectToDelete.name}" vào Thùng Rác (Lưu giữ 14 ngày)!`, 'success', 'Xóa Dự Án');
+      setProjectToDelete(null);
+      setSelectedPipelineProject('ALL');
+      fetchTasksFromBackend();
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Không thể xóa dự án';
+      showNotification(`❌ Lỗi: ${errMsg}`, 'warning', 'Xóa Dự Án Thất Bại');
     } finally {
       setIsDeleting(false);
     }
@@ -813,6 +807,29 @@ export const BoardPage: React.FC = () => {
             />
           </div>
 
+          {/* 🔔 TRUNG TÂM THÔNG BÁO CÁ NHÂN */}
+          <NotificationCenter
+            onSelectTaskId={async (id) => {
+              const target = tasks.find((t) => t.id === id);
+              if (target) {
+                setSelectedTaskForDetail(target);
+              } else {
+                try {
+                  const res = await api.get(`/tasks/${id}`);
+                  if (res.data) {
+                    setSelectedTaskForDetail(res.data);
+                  }
+                } catch {
+                  showNotification(
+                    'Công việc này đã bị chuyển vào Thùng Rác hoặc bạn không còn quyền truy cập!',
+                    'warning',
+                    'Không Thể Mở Task'
+                  );
+                }
+              }
+            }}
+          />
+
           {/* 🔔 NÚT HIỂN THỊ THÔNG BÁO & PHÊ DUYỆT */}
           <button
             onClick={() => {
@@ -869,18 +886,6 @@ export const BoardPage: React.FC = () => {
               shadow: 'shadow-[0_0_20px_rgba(37,99,235,0.4)]',
               activeText: 'text-white font-bold',
             },
-            ...(user?.globalRole === 'ADMIN'
-              ? [
-                  {
-                    id: 'audit',
-                    label: '🗄️ Audit Log',
-                    icon: Archive,
-                    color: 'from-cyan-500 to-blue-600',
-                    shadow: 'shadow-[0_0_20px_rgba(6,182,212,0.4)]',
-                    activeText: 'text-slate-950 font-bold',
-                  },
-                ]
-              : []),
           ];
 
           const activeIndex = Math.max(0, tabs.findIndex((t) => t.id === activeView));
@@ -1173,9 +1178,26 @@ export const BoardPage: React.FC = () => {
                       <Folder className="w-5 h-5 text-purple-400" />
                       Dự Án: {selectedPipelineProject}
                     </h3>
-                    <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                      🔒 Dự Án Đang Hoạt Động (Active Roadmap)
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                        🔒 Dự Án Đang Hoạt Động (Active Roadmap)
+                      </span>
+                      {user?.globalRole === 'ADMIN' && currentProj && (
+                        <button
+                          onClick={() =>
+                            setProjectToDelete({
+                              id: currentProj.id,
+                              name: currentProj.name,
+                            })
+                          }
+                          className="px-3 py-1 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                          title="Xóa Dự Án (Lưu vào Thùng Rác 14 ngày)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Xóa Dự Án</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
                     {currentProj?.description || 'Dự án trọng điểm phát triển hệ thống quản trị công việc và quy trình tác nghiệp.'}
@@ -1453,7 +1475,8 @@ export const BoardPage: React.FC = () => {
           return (
             t.assigneeId === user.id ||
             t.assignee?.id === user.id ||
-            t.assignee?.email === user.email
+            t.assignee?.email === user.email ||
+            t.subtasks?.some((st) => st.assigneeId === user.id || (st.assignee as any)?.id === user.id)
           );
         });
 
@@ -1658,36 +1681,51 @@ export const BoardPage: React.FC = () => {
                 {/* 🔘 LỘ TRÌNH MỖI NGÀY 1 TASK CON (DAILY MICRO-TASK SCHEDULE) */}
                 {heroTask.subtasks && heroTask.subtasks.length > 0 && (() => {
                   const subtaskList = heroTask.subtasks;
-                  const firstPendingIdx = subtaskList.findIndex((s) => !s.isDone);
+                  // Ưu tiên tìm Task con chưa xong của chính người dùng hiện tại
+                  let firstPendingIdx = subtaskList.findIndex((s) => {
+                    if (s.isDone) return false;
+                    const effId = s.assigneeId || heroTask.assigneeId || (heroTask.assignee as any)?.id;
+                    return Boolean(user && effId === user.id);
+                  });
+                  // Nếu người dùng đã xong hết việc của mình hoặc không có việc con riêng -> lấy việc con chưa xong đầu tiên
+                  if (firstPendingIdx === -1) {
+                    firstPendingIdx = subtaskList.findIndex((s) => !s.isDone);
+                  }
                   const completedCount = subtaskList.filter((s) => s.isDone).length;
-                  const isAllDone = firstPendingIdx === -1;
+                  const isAllDone = subtaskList.every((s) => s.isDone);
                   const isResting = Boolean(restingTodayTasks[heroTask.id]);
                   const isWorkingAhead = Boolean(workingAheadTasks[heroTask.id]);
                   const activeSubtask = firstPendingIdx !== -1 ? subtaskList[firstPendingIdx] : null;
+                  const effActiveAssigneeId = activeSubtask?.assigneeId || heroTask.assigneeId || (heroTask.assignee as any)?.id;
                   const isWorkerDoingHeroTask = Boolean(
                     user &&
-                      (heroTask.assigneeId === user.id ||
-                        (heroTask.assignee as any)?.id === user.id ||
-                        ((heroTask.assignee as any)?.email && user.email === (heroTask.assignee as any).email))
+                      (effActiveAssigneeId === user.id ||
+                        (!activeSubtask?.assigneeId && (heroTask.assignee as any)?.id === user.id) ||
+                        (!activeSubtask?.assigneeId && (heroTask.assignee as any)?.email && user.email === (heroTask.assignee as any).email))
                   );
 
                   // 📅 Helper tính toán Lịch Cụ Thể (Calendar Date) & Giữ nguyên Hạn Chót Gốc
                   const getSubtaskCalendarSchedule = (taskStartDate?: string | null, list: any[] = [], currentIndex: number = 0) => {
-                    const base = taskStartDate ? new Date(taskStartDate) : new Date();
-                    base.setHours(0, 0, 0, 0);
+                    const currentItem = list[currentIndex];
+                    const currentDays = Number(currentItem?.estimatedDays || 1);
+                    let startDate: Date;
 
-                    let startOffset = 0;
-                    for (let i = 0; i < currentIndex; i++) {
-                      startOffset += Number(list[i]?.estimatedDays || 1);
+                    if (currentItem?.startDate) {
+                      startDate = new Date(currentItem.startDate);
+                      startDate.setHours(0, 0, 0, 0);
+                    } else {
+                      const base = taskStartDate ? new Date(taskStartDate) : new Date();
+                      base.setHours(0, 0, 0, 0);
+                      let startOffset = 0;
+                      for (let i = 0; i < currentIndex; i++) {
+                        startOffset += Number(list[i]?.estimatedDays || 1);
+                      }
+                      startDate = new Date(base);
+                      startDate.setDate(startDate.getDate() + startOffset);
                     }
-                    const currentDays = Number(list[currentIndex]?.estimatedDays || 1);
-                    const endOffset = startOffset + currentDays;
 
-                    const startDate = new Date(base);
-                    startDate.setDate(startDate.getDate() + startOffset);
-
-                    const targetEndDate = new Date(base);
-                    targetEndDate.setDate(targetEndDate.getDate() + endOffset);
+                    const targetEndDate = new Date(startDate);
+                    targetEndDate.setDate(targetEndDate.getDate() + currentDays);
 
                     const formatShort = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
                     const formatFull = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
@@ -1897,7 +1935,14 @@ export const BoardPage: React.FC = () => {
                         {subtaskList.map((st, idx) => {
                           const isCurrentActive = idx === firstPendingIdx;
                           const itemSched = getSubtaskCalendarSchedule(heroTask.startDate || heroTask.createdAt, subtaskList, idx);
-                          const canToggleThis = isWorkerDoingHeroTask && !st.isDone && st.approvalStatus !== 'PENDING';
+                          const itemEffAssigneeId = st.assigneeId || heroTask.assigneeId || (heroTask.assignee as any)?.id;
+                          const isWorkerForThisItem = Boolean(
+                            user &&
+                              (itemEffAssigneeId === user.id ||
+                                (!st.assigneeId && (heroTask.assignee as any)?.id === user.id) ||
+                                (!st.assigneeId && (heroTask.assignee as any)?.email && user.email === (heroTask.assignee as any).email))
+                          );
+                          const canToggleThis = isWorkerForThisItem && !st.isDone && st.approvalStatus !== 'PENDING';
 
                           return (
                             <div
@@ -1923,7 +1968,7 @@ export const BoardPage: React.FC = () => {
                                   : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
                               }`}
                             >
-                              <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
                                 <input
                                   type="checkbox"
                                   checked={st.isDone}
@@ -1937,6 +1982,14 @@ export const BoardPage: React.FC = () => {
                                 <span className={`text-xs ${st.isDone ? 'line-through text-slate-500' : 'text-slate-200'}`}>
                                   {st.title}
                                 </span>
+                                {st.assignee && (
+                                  <span
+                                    className="text-[9px] font-mono text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/40 shrink-0"
+                                    title={`Phụ trách: ${st.assignee.fullName}`}
+                                  >
+                                    👤 {st.assignee.fullName.replace(/\s*\([^)]*\)/g, '')}
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <span
@@ -2221,96 +2274,6 @@ export const BoardPage: React.FC = () => {
         );
       })()}
 
-      {/* 📜 VIEW 4: AUDIT LOG & LƯU TRỮ HỆ THỐNG (TỰ ĐỘNG LƯU TASK HOÀN THÀNH > 2 NGÀY & TASK ĐÃ XÓA) */}
-      {activeView === 'audit' && (() => {
-        return (
-          <div className="space-y-6 animate-fade-in">
-            {/* Header Bento Box */}
-            <div className="solar-glass-card p-6 rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-950 to-cyan-950/40 border border-cyan-500/40 shadow-xl flex flex-wrap items-center justify-between gap-4">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                    <History className="w-5 h-5" />
-                  </span>
-                  <h2 className="text-xl font-black text-white tracking-wide">
-                    AUDIT LOG & LƯU TRỮ VĨNH VIỄN (TASK ARCHIVES)
-                  </h2>
-                </div>
-                <p className="text-xs text-slate-400 font-mono">
-                  Hệ thống tự động lưu trữ các Task hoàn thành sau 2 ngày và các Task đã di chuyển vào Thùng rác để phục vụ kiểm toán (Audit Trail).
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={fetchArchivedTasks}
-                  disabled={isLoadingArchived}
-                  className="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingArchived ? 'animate-spin' : ''}`} />
-                  Làm Mới Audit Log
-                </button>
-              </div>
-            </div>
-
-            {/* Content List */}
-            {isLoadingArchived ? (
-              <div className="h-64 flex items-center justify-center text-cyan-400 font-mono text-xs gap-3">
-                <RefreshCw className="w-5 h-5 animate-spin" />
-                Đang tải dữ liệu Audit Log từ PostgreSQL Database...
-              </div>
-            ) : archivedTasks.length === 0 ? (
-              <div className="h-64 solar-glass-card rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col items-center justify-center gap-3 text-slate-500">
-                <Archive className="w-8 h-8 opacity-40 text-cyan-400" />
-                <span className="text-xs font-mono">Hiện chưa có Task nào được chuyển về Audit Log</span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {archivedTasks.map((t) => (
-                  <div
-                    key={t.id}
-                    onClick={() => setSelectedTaskForDetail(t)}
-                    className="solar-glass-card p-5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer space-y-3 group"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="px-2.5 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-400 truncate max-w-[150px]">
-                        📁 {t.projectName}
-                      </span>
-                      {t.isDeleted ? (
-                        <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold font-mono">
-                          🗑️ ĐÃ XÓA
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold font-mono">
-                          📜 LƯU TRỮ SAU 2 NGÀY
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className="font-extrabold text-white text-sm group-hover:text-cyan-300 transition-colors line-clamp-2">
-                      {t.title}
-                    </h4>
-
-                    <p className="text-slate-400 text-xs line-clamp-2 font-normal">
-                      {t.description || 'Không có mô tả chi tiết'}
-                    </p>
-
-                    <div className="pt-2 border-t border-slate-900 flex items-center justify-between text-[11px] font-mono text-slate-400">
-                      <div className="flex items-center gap-2">
-                        <span>👤 {t.assignee?.fullName || 'Chưa phân công'}</span>
-                      </div>
-                      <span className="text-slate-400">
-                        {t.dueDate ? `Hạn: ${t.dueDate}` : 'Hoàn tất'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
       {/* 🌌 TASK DETAIL MINISITE MODAL */}
       <TaskDetailModal
         isOpen={!!selectedTaskForDetail}
@@ -2338,6 +2301,47 @@ export const BoardPage: React.FC = () => {
         taskTitle={taskToDelete?.title || ''}
         isSubmitting={isDeleting}
       />
+
+      {/* 🗑️ DELETE PROJECT CONFIRMATION MODAL */}
+      {projectToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-[#0F172A] border border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.3)] space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                <Trash2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Xác Nhận Xóa Dự Án</h3>
+                <span className="text-[10px] text-rose-400/90 font-mono font-bold uppercase tracking-wider">
+                  CHUYỂN VÀO THÙNG RÁC (LƯU GIỮ 14 NGÀY)
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800">
+              Bạn có chắc chắn muốn xóa dự án <span className="text-white font-bold">"{projectToDelete.name}"</span>? Dự án và toàn bộ các task thuộc dự án sẽ được chuyển vào <span className="text-amber-400 font-bold">Thùng Rác Hệ Thống</span> và lưu giữ an toàn trong 14 ngày.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                disabled={isDeleting}
+                onClick={() => setProjectToDelete(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                disabled={isDeleting}
+                onClick={handleConfirmDeleteProject}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-xs font-black shadow-lg shadow-rose-500/30 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeleting ? 'Đang Xử Lý...' : 'Xác Nhận Xóa'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 📬 TASK REQUEST MODAL */}
       <TaskRequestModal

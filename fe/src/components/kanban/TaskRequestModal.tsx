@@ -28,6 +28,7 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
   onSubmitSuccess,
 }) => {
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const [selectedSubtaskId, setSelectedSubtaskId] = useState<string>('');
   const [requestType, setRequestType] = useState<'TRANSFER' | 'ASSIST' | 'REVIEW'>('TRANSFER');
   const [selectedRecipientId, setSelectedRecipientId] = useState<string>('');
   const [requestReason, setRequestReason] = useState('');
@@ -79,6 +80,9 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
     }
   }, [initialTask, tasks, currentUser?.id]);
 
+  const currentSelectedTask = tasks.find((t) => t.id === selectedTaskId);
+  const availableSubtasks = currentSelectedTask?.subtasks?.filter((st) => !st.isDone) || [];
+
   if (!isOpen) return null;
 
   const handleSendRequest = async () => {
@@ -92,16 +96,19 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
     try {
       await api.post('/tasks/requests', {
         taskId: selectedTaskId,
+        subtaskId: selectedSubtaskId || undefined,
         receiverId: selectedRecipientId,
         type: requestType,
         note: requestReason,
       });
 
+      const targetSubtaskName = availableSubtasks.find((st) => st.id === selectedSubtaskId)?.title;
       onSubmitSuccess(
-        `🟢 Đã gửi yêu cầu ${requestType} tới ${recipient?.fullName || 'đồng nghiệp'}! Task "${targetTask?.title || 'được chọn'}" đã tự động chuyển sang trạng thái CHỜ DUYỆT (IN_REVIEW) 🔒!`
+        `🟢 Đã gửi yêu cầu ${requestType} tới ${recipient?.fullName || 'đồng nghiệp'}! ${targetSubtaskName ? `Minitask "${targetSubtaskName}"` : `Task "${targetTask?.title || 'được chọn'}"`} đã tự động chuyển sang trạng thái CHỜ DUYỆT (IN_REVIEW) 🔒!`
       );
       onClose();
       setRequestReason('');
+      setSelectedSubtaskId('');
     } catch (err: any) {
       const errMsg = err.response?.data?.message || err.message || 'Không thể gửi yêu cầu chuyển giao';
       alert(errMsg);
@@ -146,7 +153,10 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
             </label>
             <select
               value={selectedTaskId}
-              onChange={(e) => setSelectedTaskId(e.target.value)}
+              onChange={(e) => {
+                setSelectedTaskId(e.target.value);
+                setSelectedSubtaskId('');
+              }}
               className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 font-medium focus:outline-none focus:border-amber-500 cursor-pointer shadow-inner"
             >
               {myOwnTasks.length === 0 ? (
@@ -162,6 +172,35 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
               )}
             </select>
           </div>
+
+          {/* Mục 1.1: Chọn Minitask (Task Con) Cụ Thể Cần Chuyển Giao */}
+          {availableSubtasks.length > 0 && (
+            <div className="space-y-2 animate-fade-in">
+              <label className="text-xs font-extrabold text-amber-400 flex items-center justify-between uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-amber-400" />
+                  Chọn Minitask (Task Con) Cần Bàn Giao
+                </span>
+                <span className="text-[10px] text-amber-500 font-medium lowercase">
+                  ({availableSubtasks.length} minitask khả dụng)
+                </span>
+              </label>
+              <select
+                value={selectedSubtaskId}
+                onChange={(e) => setSelectedSubtaskId(e.target.value)}
+                className="w-full p-3 rounded-xl bg-slate-950 border border-amber-500/30 text-xs text-amber-200 font-medium focus:outline-none focus:border-amber-400 cursor-pointer shadow-inner"
+              >
+                <option value="" className="bg-[#0F172A] text-slate-300 py-1 font-semibold">
+                  ⚡ Chuyển giao toàn bộ Task (hoặc phân công chung)
+                </option>
+                {availableSubtasks.map((st) => (
+                  <option key={st.id} value={st.id} className="bg-[#0F172A] text-amber-300 py-1">
+                    🔹 Minitask: {st.title} {st.assignee ? `(Đang gán: ${st.assignee.fullName})` : '(Chưa gán)'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Mục 2: Loại Yêu Cầu */}
           <div className="space-y-2">

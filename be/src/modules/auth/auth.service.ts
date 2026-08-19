@@ -12,16 +12,16 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  private async computeEffectiveRole(user: { id: string; role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE' }): Promise<'ADMIN' | 'MANAGER' | 'EMPLOYEE'> {
+  private async computeEffectiveRole(user: {
+    id: string;
+    role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+  }): Promise<'ADMIN' | 'MANAGER' | 'EMPLOYEE'> {
     if (user.role === 'ADMIN') return 'ADMIN';
     if (user.role === 'MANAGER') return 'MANAGER';
 
     const activeManagedProject = await this.prisma.project.findFirst({
       where: {
-        OR: [
-          { managerId: user.id },
-          { createdById: user.id },
-        ],
+        OR: [{ managerId: user.id }, { createdById: user.id }],
         isCompleted: false,
       },
     });
@@ -32,8 +32,10 @@ export class AuthService {
   private async generateTokens(userId: string, email: string, role: string) {
     const payload = { sub: userId, email, role };
 
-    const accessTokenSecret = process.env.JWT_SECRET || 'secretKeySuperSecret123';
-    const refreshTokenSecret = process.env.JWT_REFRESH_SECRET || 'refreshSecretKeySuperSecret456';
+    const accessTokenSecret =
+      process.env.JWT_SECRET || 'secretKeySuperSecret123';
+    const refreshTokenSecret =
+      process.env.JWT_REFRESH_SECRET || 'refreshSecretKeySuperSecret456';
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
@@ -66,13 +68,20 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password || '');
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.password || '',
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
     const effectiveRole = await this.computeEffectiveRole(user);
-    const tokens = await this.generateTokens(user.id, user.email, effectiveRole);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      effectiveRole,
+    );
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
 
     return {
@@ -98,12 +107,15 @@ export class AuthService {
   async refreshTokens(refreshToken: string) {
     let payload: any;
     try {
-      const refreshTokenSecret = process.env.JWT_REFRESH_SECRET || 'refreshSecretKeySuperSecret456';
+      const refreshTokenSecret =
+        process.env.JWT_REFRESH_SECRET || 'refreshSecretKeySuperSecret456';
       payload = await this.jwtService.verifyAsync(refreshToken, {
         secret: refreshTokenSecret,
       });
     } catch {
-      throw new UnauthorizedException('Refresh Token không hợp lệ hoặc đã hết hạn');
+      throw new UnauthorizedException(
+        'Refresh Token không hợp lệ hoặc đã hết hạn',
+      );
     }
 
     const user = await this.prisma.user.findUnique({
@@ -111,16 +123,27 @@ export class AuthService {
     });
 
     if (!user || !user.refreshToken) {
-      throw new UnauthorizedException('Truy cập bị từ chối. Token không khả thi.');
+      throw new UnauthorizedException(
+        'Truy cập bị từ chối. Token không khả thi.',
+      );
     }
 
-    const refreshTokenMatches = await bcrypt.compare(refreshToken, user.refreshToken);
+    const refreshTokenMatches = await bcrypt.compare(
+      refreshToken,
+      user.refreshToken,
+    );
     if (!refreshTokenMatches) {
-      throw new UnauthorizedException('Refresh Token đã bị vô hiệu hóa hoặc không chính xác');
+      throw new UnauthorizedException(
+        'Refresh Token đã bị vô hiệu hóa hoặc không chính xác',
+      );
     }
 
     const effectiveRole = await this.computeEffectiveRole(user);
-    const tokens = await this.generateTokens(user.id, user.email, effectiveRole);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      effectiveRole,
+    );
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
 
     return {
@@ -182,18 +205,27 @@ export class AuthService {
     let googleUser: { email: string; name: string; picture: string };
 
     try {
-      const response = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
-        headers: { Authorization: `Bearer ${googleAuthDto.googleToken}` },
-      });
+      const response = await fetch(
+        `https://www.googleapis.com/oauth2/v3/userinfo`,
+        {
+          headers: { Authorization: `Bearer ${googleAuthDto.googleToken}` },
+        },
+      );
 
       if (!response.ok) {
         throw new UnauthorizedException('Xác thực Token Google không hợp lệ');
       }
 
-      googleUser = (await response.json()) as { email: string; name: string; picture: string };
+      googleUser = (await response.json()) as {
+        email: string;
+        name: string;
+        picture: string;
+      };
     } catch (err: any) {
       if (err instanceof UnauthorizedException) throw err;
-      throw new UnauthorizedException('Không thể xác thực thông tin tài khoản với Google');
+      throw new UnauthorizedException(
+        'Không thể xác thực thông tin tài khoản với Google',
+      );
     }
 
     const user = await this.prisma.user.findUnique({
@@ -201,11 +233,17 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Gmail này không hợp lệ hoặc chưa được cấp quyền truy cập hệ thống');
+      throw new UnauthorizedException(
+        'Gmail này không hợp lệ hoặc chưa được cấp quyền truy cập hệ thống',
+      );
     }
 
     const effectiveRole = await this.computeEffectiveRole(user);
-    const tokens = await this.generateTokens(user.id, user.email, effectiveRole);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      effectiveRole,
+    );
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
 
     return {

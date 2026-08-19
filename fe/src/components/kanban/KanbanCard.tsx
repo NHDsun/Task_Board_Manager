@@ -36,6 +36,7 @@ export interface SubtaskItem {
     fullName: string;
     avatar?: string;
   };
+  startDate?: string;
   dueDate?: string;
   createdAt?: string;
 }
@@ -51,6 +52,7 @@ export interface TaskItem {
   dueDate?: string;
   createdAt?: string;
   projectName?: string;
+  projectId?: string;
   assigneeId?: string;
   createdById?: string;
   assignee?: {
@@ -60,6 +62,13 @@ export interface TaskItem {
     avatar?: string;
     profession?: string;
   };
+  assignees?: Array<{
+    id: string;
+    fullName: string;
+    email?: string;
+    avatar?: string;
+    profession?: string;
+  }>;
   createdBy?: {
     id: string;
     fullName: string;
@@ -376,19 +385,26 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                 const canToggleSubtask = isWorkerDoingTask && !st.isDone && st.approvalStatus !== 'PENDING' && !isTaskPausedOrBlocked;
 
                 const sched = (() => {
-                  const base = task.startDate ? new Date(task.startDate) : new Date(task.createdAt || Date.now());
-                  base.setHours(0, 0, 0, 0);
-                  let startOffset = 0;
-                  const list = task.subtasks || [];
-                  for (let i = 0; i < idx; i++) {
-                    startOffset += Number(list[i]?.estimatedDays || 1);
-                  }
                   const currentDays = Number(st.estimatedDays || 1);
-                  const endOffset = startOffset + currentDays;
-                  const sDate = new Date(base);
-                  sDate.setDate(sDate.getDate() + startOffset);
-                  const eDate = new Date(base);
-                  eDate.setDate(eDate.getDate() + endOffset);
+                  let sDate: Date;
+
+                  if (st.startDate) {
+                    sDate = new Date(st.startDate);
+                    sDate.setHours(0, 0, 0, 0);
+                  } else {
+                    const base = task.startDate ? new Date(task.startDate) : new Date(task.createdAt || Date.now());
+                    base.setHours(0, 0, 0, 0);
+                    let startOffset = 0;
+                    const list = task.subtasks || [];
+                    for (let i = 0; i < idx; i++) {
+                      startOffset += Number(list[i]?.estimatedDays || 1);
+                    }
+                    sDate = new Date(base);
+                    sDate.setDate(sDate.getDate() + startOffset);
+                  }
+
+                  const eDate = new Date(sDate);
+                  eDate.setDate(eDate.getDate() + currentDays);
                   const fmt = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
                   return currentDays === 1 ? fmt(sDate) : `${fmt(sDate)}-${fmt(eDate)}`;
                 })();
@@ -450,6 +466,14 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                         >
                           {st.title}
                         </span>
+                        {st.assignee && (
+                          <span
+                            className="text-[9px] font-mono text-cyan-300 bg-cyan-950/60 px-1 py-0.2 rounded border border-cyan-500/40"
+                            title={`Phụ trách: ${st.assignee.fullName}`}
+                          >
+                            👤 {st.assignee.fullName.replace(/\s*\([^)]*\)/g, '')}
+                          </span>
+                        )}
                       </div>
                     </div>
                     {/* ⏳ Trạng thái Chờ Quản Lý Duyệt (Pending) */}
@@ -560,19 +584,48 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
       {/* Footer Info */}
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          {/* Assignee Avatar */}
-          <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[9px] text-amber-300 overflow-hidden shrink-0">
-            {task.assignee?.avatar ? (
-              <img src={task.assignee.avatar} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <span>{task.assignee?.fullName ? task.assignee.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'UA'}</span>
-            )}
-          </div>
+          {/* Avatar Stack Group */}
+          {task.assignees && task.assignees.length > 1 ? (
+            <div className="flex items-center -space-x-1.5 overflow-hidden shrink-0">
+              {task.assignees.slice(0, 3).map((u, i) => (
+                <div
+                  key={u.id || i}
+                  className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[8px] text-cyan-300 overflow-hidden shadow-sm"
+                  title={u.fullName}
+                >
+                  {u.avatar ? (
+                    <img src={u.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{u.fullName ? u.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : 'UA'}</span>
+                  )}
+                </div>
+              ))}
+              {task.assignees.length > 3 && (
+                <div className="w-6 h-6 rounded-full bg-cyan-950 border border-slate-700 flex items-center justify-center font-bold text-[8px] text-cyan-300">
+                  +{task.assignees.length - 3}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[9px] text-amber-300 overflow-hidden shrink-0">
+              {task.assignee?.avatar ? (
+                <img src={task.assignee.avatar} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span>{task.assignee?.fullName ? task.assignee.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'UA'}</span>
+              )}
+            </div>
+          )}
           <span
             className="truncate font-medium text-slate-300 max-w-[105px]"
-            title={task.assignee?.fullName || 'Chưa phân công'}
+            title={
+              task.assignees && task.assignees.length > 1
+                ? task.assignees.map((u) => u.fullName).join(', ')
+                : task.assignee?.fullName || 'Chưa phân công'
+            }
           >
-            {task.assignee?.fullName?.replace(/\s*\([^)]*\)/g, '') || 'Chưa phân công'}
+            {task.assignees && task.assignees.length > 1
+              ? `${task.assignees.length} người làm`
+              : task.assignee?.fullName?.replace(/\s*\([^)]*\)/g, '') || 'Chưa phân công'}
           </span>
         </div>
 

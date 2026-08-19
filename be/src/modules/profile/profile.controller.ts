@@ -1,4 +1,11 @@
-import { Controller, Get, Patch, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ProfileService } from './profile.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -26,7 +33,10 @@ export class ProfileController {
   }
 
   @Patch('status')
-  async updateStatusSignal(@Request() req: any, @Body() dto: UpdateStatusSignalDto) {
+  async updateStatusSignal(
+    @Request() req: any,
+    @Body() dto: UpdateStatusSignalDto,
+  ) {
     return this.profileService.updateStatusSignal(req.user.id, dto);
   }
 

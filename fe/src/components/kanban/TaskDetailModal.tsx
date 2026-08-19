@@ -118,6 +118,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [subtasks, setSubtasks] = useState<SubtaskItem[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newSubtaskIsUrgent, setNewSubtaskIsUrgent] = useState(false);
+  const [newSubtaskAssigneeId, setNewSubtaskAssigneeId] = useState('');
+  const [newSubtaskDays, setNewSubtaskDays] = useState(1);
+  const [newSubtaskStartDate, setNewSubtaskStartDate] = useState('');
+  const [dbUsers, setDbUsers] = useState<any[]>([]);
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   const [newComment, setNewComment] = useState('');
@@ -138,8 +142,20 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       fetchComments();
       setAttachments(task.attachments || []);
       setSubtasks(task.subtasks || []);
+      setNewSubtaskAssigneeId(task.assigneeId || (task.assignee as any)?.id || '');
+      setNewSubtaskStartDate(task.startDate || new Date().toISOString().slice(0, 10));
+
+      api.get('/profile/users')
+        .then((res) => {
+          const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
+          setDbUsers(list);
+          if (list.length > 0 && !task.assigneeId && !newSubtaskAssigneeId) {
+            setNewSubtaskAssigneeId(list[0].id);
+          }
+        })
+        .catch(() => {});
     }
-  }, [isOpen, task?.id, task?.description, task?.attachments, task?.subtasks]);
+  }, [isOpen, task?.id, task?.description, task?.attachments, task?.subtasks, task?.assigneeId, task?.startDate]);
 
   // ➕ Thêm Task con mới
   const handleAddSubtask = async (e?: React.FormEvent) => {
@@ -153,6 +169,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       const res = await api.post(`/tasks/${task.id}/subtasks`, {
         title,
         isUrgent: newSubtaskIsUrgent,
+        assigneeId: newSubtaskAssigneeId || undefined,
+        startDate: newSubtaskStartDate || undefined,
+        estimatedDays: newSubtaskDays,
       });
       const updatedTask = res.data?.data || res.data;
       if (updatedTask && updatedTask.id) {
@@ -163,6 +182,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       }
       setNewSubtaskTitle('');
       setNewSubtaskIsUrgent(false);
+      setNewSubtaskDays(1);
     } catch (err: any) {
       console.error('Lỗi thêm Task con:', err);
       const serverMsg = err.response?.data?.message || err.message || 'Không thể thêm Task con';
@@ -918,19 +938,26 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   >
                     {(() => {
                       const schedStr = (() => {
-                        const base = task.startDate ? new Date(task.startDate) : new Date(task.createdAt || Date.now());
-                        base.setHours(0, 0, 0, 0);
-                        let startOffset = 0;
-                        const list = task.subtasks || [];
-                        for (let i = 0; i < idx; i++) {
-                          startOffset += Number((list[i] as any)?.estimatedDays || 1);
-                        }
                         const currentDays = Number((st as any).estimatedDays || 1);
-                        const endOffset = startOffset + currentDays;
-                        const sDate = new Date(base);
-                        sDate.setDate(sDate.getDate() + startOffset);
-                        const eDate = new Date(base);
-                        eDate.setDate(eDate.getDate() + endOffset);
+                        let sDate: Date;
+
+                        if ((st as any).startDate) {
+                          sDate = new Date((st as any).startDate);
+                          sDate.setHours(0, 0, 0, 0);
+                        } else {
+                          const base = task.startDate ? new Date(task.startDate) : new Date(task.createdAt || Date.now());
+                          base.setHours(0, 0, 0, 0);
+                          let startOffset = 0;
+                          const list = task.subtasks || [];
+                          for (let i = 0; i < idx; i++) {
+                            startOffset += Number((list[i] as any)?.estimatedDays || 1);
+                          }
+                          sDate = new Date(base);
+                          sDate.setDate(sDate.getDate() + startOffset);
+                        }
+
+                        const eDate = new Date(sDate);
+                        eDate.setDate(eDate.getDate() + currentDays);
                         const fmt = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
                         return currentDays === 1 ? fmt(sDate) : `${fmt(sDate)} - ${fmt(eDate)}`;
                       })();
@@ -964,6 +991,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                                 <span className="text-[10px] font-mono text-amber-300/80 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 font-bold">
                                   📅 {schedStr}
                                 </span>
+                                <span className="text-[10px] font-mono text-purple-300/80 bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-500/30">
+                                  ⏳ {st.estimatedDays || 1} ngày
+                                </span>
                                 <span
                                   className={`text-xs font-medium leading-relaxed ${
                                     st.isDone ? 'line-through text-slate-500' : 'text-slate-200'
@@ -977,6 +1007,15 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
                           {/* Actions & Assignee Badge */}
                           <div className="flex items-center gap-2 shrink-0">
+                            {st.assignee && (
+                              <span
+                                className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/40 flex items-center gap-1"
+                                title={`Phụ trách: ${st.assignee.fullName}`}
+                              >
+                                👤 {st.assignee.fullName.replace(/\s*\([^)]*\)/g, '')}
+                              </span>
+                            )}
+
                             {/* 🚨 Nút Bật/Tắt Khẩn Cấp (Urgent) Cho Task Con */}
                             {canManageSubtasks && !st.isDone && (
                               <button
@@ -1116,7 +1155,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             {/* Quick Add Subtask Input Form */}
             {canManageSubtasks && (
               <form onSubmit={handleAddSubtask} className="flex items-center gap-2 pt-1 flex-wrap">
-                <div className="relative flex-1 min-w-[200px]">
+                <div className="relative flex-1 min-w-[180px]">
                   <input
                     type="text"
                     value={newSubtaskTitle}
@@ -1125,6 +1164,37 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     className="w-full p-2.5 pl-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-amber-500/40 focus:border-amber-500 text-white placeholder-slate-500 focus:outline-none text-xs font-medium transition-all"
                   />
                 </div>
+                <select
+                  value={newSubtaskAssigneeId}
+                  onChange={(e) => setNewSubtaskAssigneeId(e.target.value)}
+                  className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono text-xs focus:outline-none focus:border-amber-500 cursor-pointer max-w-[140px] truncate"
+                  title="Chỉ định nhân sự thực hiện Task con này"
+                >
+                  {dbUsers.map((u) => (
+                    <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200">
+                      👤 {u.fullName}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={newSubtaskStartDate}
+                  onChange={(e) => setNewSubtaskStartDate(e.target.value)}
+                  className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-amber-300 font-mono text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+                  title="Ngày bắt đầu Task con"
+                />
+                <select
+                  value={newSubtaskDays}
+                  onChange={(e) => setNewSubtaskDays(Number(e.target.value))}
+                  className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 font-mono text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+                  title="Thời gian làm việc ước lượng (ngày)"
+                >
+                  <option value={1}>1 ngày</option>
+                  <option value={2}>2 ngày</option>
+                  <option value={3}>3 ngày</option>
+                  <option value={4}>4 ngày</option>
+                  <option value={5}>5 ngày</option>
+                </select>
                 <button
                   type="button"
                   onClick={() => setNewSubtaskIsUrgent(!newSubtaskIsUrgent)}
@@ -1283,7 +1353,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           </div>
 
-          {/* 💬 Activity Audit & Comments Section */}
+          {/* 💬 Comments Section */}
           <div className="solar-glass-card p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
             <h3 className="font-bold text-white text-sm flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-amber-400" />

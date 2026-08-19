@@ -1187,6 +1187,71 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
   - **Hành động:** `[CẬP NHẬT TÀI LIỆU QUẢN LÝ CONFLICT]`.
 - **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
 
+---
+
+## 129. Cơ Chế Nhiều Nhân Viên Trong Cùng Dự Án Cùng Làm 1 Task Cha (Task Con Bắt Buộc Riêng Biệt & Bàn Giao Cho Đồng Nghiệp Cùng Làm)
+- **File 1:** `be/src/modules/project/project.service.ts`
+  - **Hành động:** `[CẬP NHẬT REMOVE MEMBER - ƯU TIÊN BÀN GIAO CHO ĐỒNG NGHIỆP CÒN LẠI CỦA TASK]`.
+  - **Chi tiết:**
+    - **LC-59**: Khi xóa thành viên A khỏi dự án, hệ thống quét các Task mà A tham gia. Nếu có đồng nghiệp B còn lại đang cùng làm task đó -> Tự động bàn giao các Task con của A và chuyển quyền đại diện Task cha cho B! Chỉ khi task không còn ai khác mới chuyển về cho Quản lý dự án.
+- **File 2:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[BỔ SUNG MAP ASSIGNEES ĐA NHÂN SỰ, BỘ LỌC FINDALL ĐA DIỆN & PHÂN QUYỀN SUBTASK TẬP TRUNG]`.
+  - **Chi tiết:**
+    - **LC-56**: Phân quyền trách nhiệm riêng biệt cho từng Task con (`Subtask`), chỉ nhân sự được gán riêng mới có quyền nộp duyệt.
+    - **LC-58**: `mapTaskResponse` tổng hợp toàn bộ danh sách `assignees` tham gia vào Task cha và các Task con.
+    - **LC-60**: Bộ lọc `findAll` theo `assigneeId` tìm kiếm cả Task có `assigneeId` hoặc có `subtasks.some(st => st.assigneeId === query.assigneeId)`.
+- **File 3:** `fe/src/types/index.ts`, `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/components/kanban/CreateTaskModal.tsx`, `fe/src/components/kanban/TaskDetailModal.tsx`, `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[CẬP NHẬT GIAO DIỆN PHÂN CÔNG ĐA NHÂN SỰ, AVATAR STACK GROUP & CÁ NHÂN HÓA COCKPIT]`.
+  - **Chi tiết:**
+    - `CreateTaskModal` & `TaskDetailModal`: Cho phép chọn nhân sự phụ trách riêng biệt cho từng Task con từ danh sách thành viên dự án.
+    - `KanbanCard`: Hiển thị Avatar Stack Group các nhân sự cùng tham gia và hiển thị tag `👤 [Tên nhân sự]` trên từng dòng Task con.
+    - `BoardPage`: Cá nhân hóa Today's Focus Cockpit, ưu tiên lấy Task con của chính nhân sự đang đăng nhập làm mục tiêu micro-sprint trong ngày.
+- **File 4:** `docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md`
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 130. Bổ Sung Thiết Lập Ngày Bắt Đầu & Thời Gian Làm Việc Ước Lượng Cho Task Con Sau Khi Đã Tạo Task
+- **File 1:** `be/prisma/schema.prisma`
+  - **Hành động:** `[BỔ SUNG FIELD START_DATE VÀ ESTIMATED_DAYS VÀO MODEL SUBTASK]`.
+  - **Chi tiết:** Thêm `startDate DateTime? @map("start_date")` và `estimatedDays Int @default(1) @map("estimated_days")`. Đã đồng bộ qua `npx prisma db push` và `npx prisma generate`.
+- **File 2:** `be/src/modules/task/task.service.ts` & `task.controller.ts` & `dto/create-task.dto.ts`
+  - **Hành động:** `[HỖ TRỢ START_DATE VÀ ESTIMATED_DAYS TRONG API TẠO VÀ CẬP NHẬT SUBTASK]`.
+  - **Chi tiết:** 
+    - `addSubtask` & `updateSubtask`: Hỗ trợ lưu trữ `startDate`, `estimatedDays` (ngày công) và tính hạn chót `dueDate`.
+    - `recalculateTaskProgress`: Tự động tính toán lại % tiến độ dựa trên tổng số ngày công của các Task con đã hoàn thành / Tổng số ngày công của tất cả Task con.
+    - `mapTaskResponse`: Trả về `startDate`, `estimatedDays` trong từng phần tử subtasks.
+- **File 3:** `fe/src/types/index.ts` & `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[TÍCH HỢP Ô CHỌN NGÀY BẮT ĐẦU VÀ THỜI LƯỢNG (NGÀY) TRÊN THANH QUICK ADD SUBTASK]`.
+  - **Chi tiết:** Cho phép người dùng nhập ngày bắt đầu và chọn thời lượng (1, 2, 3, 4, 5 ngày) ngay trong modal chi tiết Task; hiển thị huy hiệu `⏳ X ngày` trên từng dòng Task con.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 131. Cơ Chế Xử Lý Các Task Con Cùng Ngày Thực Hiện / Làm Song Song (Parallel Critical Path Scheduling)
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[TÍNH TOÁN HẠN CHÓT TASK CHA THEO ĐƯỜNG GĂNG THỜI GIAN KHI LÀM SONG SONG]`.
+  - **Chi tiết:** Trong `recalculateTaskProgress`, khi các Task con có thiết lập `startDate`/`dueDate` riêng, `task.dueDate` được tính theo **mốc kết thúc lớn nhất ($\max$)** của các việc con thay vì cộng dồn số học, tránh bị đội hạn chót vô lý.
+- **File 2:** `fe/src/pages/BoardPage.tsx`, `fe/src/components/kanban/KanbanCard.tsx`, `fe/src/components/kanban/TaskDetailModal.tsx`
+  - **Hành động:** `[CẬP NHẬT THUẬT TOÁN TÍNH LỊCH TRÌNH SUBTASK ƯU TIÊN START_DATE ĐỘC LẬP]`.
+  - **Chi tiết:** Hiển thị chính xác ngày lịch người dùng đã chọn cho từng việc con (kể cả khi 2 việc con có cùng ngày bắt đầu); không tự động đẩy việc con thứ 2 sang ngày hôm sau.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 132. Nâng Cấp Hộp Thư Thông Báo Thành Trung Tâm Thông Báo & Yêu Cầu Tổng Hợp Của Tài Khoản
+- **File 1:** `fe/src/components/kanban/TaskTransferInboxModal.tsx`
+  - **Hành động:** `[NÂNG CẤP TOÀN DIỆN MODAL TRUNG TÂM THÔNG BÁO & YÊU CẦU TỔNG HỢP]`.
+  - **Chi tiết:** 
+    - Đổi tiêu đề: **"Trung Tâm Thông Báo & Yêu Cầu Tổng Hợp"**.
+    - Phân loại rõ ràng 3 loại yêu cầu: 🔍 **Duyệt Nghiệm Thu Task Con (`SUBTASK_APPROVAL`)**, 🔄 **Bàn Giao Quyền Phụ Trách (`TRANSFER`)**, 🤝 **Nhờ Đồng Nghiệp Hỗ Trợ (`ASSIST`)**.
+    - Bổ sung bộ lọc Filter Chips thông minh: `Tất Cả`, `🔍 Duyệt Task Con`, `🔄 Bàn Giao`, `🤝 Hỗ Trợ`.
+    - Phân quyền và hiển thị chuẩn tên vai trò (`Quản Trị Viên (Admin)`, `Quản Lý Dự Án`, `Nhân Viên`).
+- **File 2:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[BỔ SUNG FIELD TYPE VÀ FORMAT NGÀY GIỜ VIỆT NAM TRONG API REQUESTS]`.
+  - **Chi tiết:** Trả về đầy đủ `type` của yêu cầu và định dạng ngày giờ chuẩn Việt Nam trong `getIncomingRequests` và `getOutgoingRequests`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
 
 
 

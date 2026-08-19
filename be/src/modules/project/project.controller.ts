@@ -24,7 +24,9 @@ export class ProjectController {
   private extractUserId(req: any): string {
     const userId = req.user?.id || req.user?.sub || req.user?.userId;
     if (!userId) {
-      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ hoặc đã hết hạn');
+      throw new UnauthorizedException(
+        'Phiên đăng nhập không hợp lệ hoặc đã hết hạn',
+      );
     }
     return userId;
   }
@@ -32,9 +34,15 @@ export class ProjectController {
   @Post()
   create(@Request() req: any, @Body() createProjectDto: CreateProjectDto) {
     if (req.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền tạo dự án mới!');
+      throw new ForbiddenException(
+        'Chỉ Quản trị viên (Admin) mới có quyền tạo dự án mới!',
+      );
     }
-    return this.projectService.create(this.extractUserId(req), createProjectDto, req.user);
+    return this.projectService.create(
+      this.extractUserId(req),
+      createProjectDto,
+      req.user,
+    );
   }
 
   @Get()
@@ -57,11 +65,30 @@ export class ProjectController {
   }
 
   @Delete(':id')
-  remove(@Request() req: any, @Param('id') id: string) {
-    if (req.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền xóa dự án!');
-    }
-    return this.projectService.remove(id);
+  softDelete(@Request() req: any, @Param('id') id: string) {
+    return this.projectService.softDelete(
+      id,
+      this.extractUserId(req),
+      req.user,
+    );
+  }
+
+  @Post(':id/restore')
+  restore(@Request() req: any, @Param('id') id: string) {
+    return this.projectService.restore(
+      id,
+      this.extractUserId(req),
+      req.user,
+    );
+  }
+
+  @Delete(':id/permanent')
+  hardDelete(@Request() req: any, @Param('id') id: string) {
+    return this.projectService.hardDelete(
+      id,
+      this.extractUserId(req),
+      req.user,
+    );
   }
 
   @Get(':id/members')
@@ -87,4 +114,3 @@ export class ProjectController {
     return this.projectService.removeMember(id, userId, req.user);
   }
 }
-

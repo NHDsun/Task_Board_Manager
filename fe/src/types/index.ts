@@ -25,12 +25,19 @@ export interface User {
 export interface Subtask {
   id: string;
   title: string;
-  isCompleted: boolean;
+  isCompleted?: boolean;
+  isDone?: boolean;
   isUrgent?: boolean;
   estimatedDays?: number;
   approvalStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason?: string;
   taskId: string;
+  order?: number;
+  assigneeId?: string | null;
+  assignee?: User | null;
+  startDate?: string | null;
+  dueDate?: string | null;
+  createdAt?: string;
 }
 
 export interface Tag {
@@ -54,6 +61,7 @@ export interface Task {
   assigneeId?: string | null;
   creator?: User;
   assignee?: User | null;
+  assignees?: User[];
   subtasks?: Subtask[];
   tags?: Tag[];
   createdAt: string;

@@ -30,7 +30,9 @@ export class TaskController {
   private extractUserId(req: any): string {
     const userId = req.user?.id || req.user?.sub || req.user?.userId;
     if (!userId) {
-      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ hoặc đã hết hạn');
+      throw new UnauthorizedException(
+        'Phiên đăng nhập không hợp lệ hoặc đã hết hạn',
+      );
     }
     return userId;
   }
@@ -69,11 +71,7 @@ export class TaskController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Request() req: any,
-    @Body() body: any,
-  ) {
+  update(@Param('id') id: string, @Request() req: any, @Body() body: any) {
     if (body.description !== undefined) {
       return this.taskService.updateDescription(id, body.description, req.user);
     }
@@ -97,7 +95,13 @@ export class TaskController {
   @Post('requests')
   createTaskRequest(
     @Request() req: any,
-    @Body() dto: { taskId: string; receiverId: string; type?: 'TRANSFER' | 'ASSIST' | 'REVIEW'; note?: string },
+    @Body()
+    dto: {
+      taskId: string;
+      receiverId: string;
+      type?: 'TRANSFER' | 'ASSIST' | 'REVIEW';
+      note?: string;
+    },
   ) {
     return this.taskService.createTaskRequest(this.extractUserId(req), dto);
   }
@@ -113,10 +117,7 @@ export class TaskController {
   }
 
   @Patch('requests/:id/cancel')
-  cancelTaskRequest(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  cancelTaskRequest(@Param('id') id: string, @Request() req: any) {
     return this.taskService.cancelTaskRequest(id, this.extractUserId(req));
   }
 
@@ -126,7 +127,11 @@ export class TaskController {
     @Request() req: any,
     @Body() body: { action: 'APPROVED' | 'REJECTED' },
   ) {
-    return this.taskService.respondToRequest(id, this.extractUserId(req), body.action);
+    return this.taskService.respondToRequest(
+      id,
+      this.extractUserId(req),
+      body.action,
+    );
   }
 
   @Get('archived')
@@ -140,10 +145,7 @@ export class TaskController {
   }
 
   @Delete(':id')
-  delete(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  delete(@Param('id') id: string, @Request() req: any) {
     return this.taskService.deleteTask(id, this.extractUserId(req));
   }
 
@@ -170,7 +172,15 @@ export class TaskController {
   addSubtask(
     @Param('id') id: string,
     @Request() req: any,
-    @Body() body: { title: string; assigneeId?: string; dueDate?: string; isUrgent?: boolean },
+    @Body()
+    body: {
+      title: string;
+      assigneeId?: string;
+      startDate?: string;
+      estimatedDays?: number;
+      dueDate?: string;
+      isUrgent?: boolean;
+    },
   ) {
     return this.taskService.addSubtask(id, body, req.user);
   }
@@ -179,7 +189,16 @@ export class TaskController {
   updateSubtask(
     @Param('subtaskId') subtaskId: string,
     @Request() req: any,
-    @Body() body: { isDone?: boolean; title?: string; assigneeId?: string; dueDate?: string; isUrgent?: boolean },
+    @Body()
+    body: {
+      isDone?: boolean;
+      title?: string;
+      assigneeId?: string;
+      startDate?: string;
+      estimatedDays?: number;
+      dueDate?: string;
+      isUrgent?: boolean;
+    },
   ) {
     return this.taskService.updateSubtask(subtaskId, body, req.user);
   }
@@ -194,10 +213,7 @@ export class TaskController {
   }
 
   @Delete('subtasks/:subtaskId')
-  deleteSubtask(
-    @Param('subtaskId') subtaskId: string,
-    @Request() req: any,
-  ) {
+  deleteSubtask(@Param('subtaskId') subtaskId: string, @Request() req: any) {
     return this.taskService.deleteSubtask(subtaskId, req.user);
   }
 }

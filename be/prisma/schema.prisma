@@ -78,6 +78,20 @@ enum TaskRequestStatus {
   CANCELLED
 }
 
+enum NotificationType {
+  TASK_ASSIGNED
+  SUBTASK_URGENT
+  SUBTASK_APPROVAL_REQUEST
+  SUBTASK_APPROVED
+  SUBTASK_REJECTED
+  TASK_TRANSFER_REQUEST
+  TASK_TRANSFER_ACCEPTED
+  TASK_TRANSFER_REJECTED
+  TASK_COMMENT
+  MENTION
+  SYSTEM
+}
+
 model Department {
   id          String   @id @default(uuid())
   name        String   @unique
@@ -119,7 +133,6 @@ model User {
   assignedTasks          Task[]          @relation("TaskAssignee")
   createdTasks           Task[]          @relation("TaskCreator")
   comments               Comment[]
-  auditLogs              AuditLog[]
   sentDirectMessages     DirectMessage[] @relation("SentMessages")
   receivedDirectMessages DirectMessage[] @relation("ReceivedMessages")
   sentCalls              CallLog[]       @relation("SentCalls")
@@ -127,6 +140,8 @@ model User {
   sentTaskRequests       TaskRequest[]   @relation("SentTaskRequests")
   receivedTaskRequests   TaskRequest[]   @relation("ReceivedTaskRequests")
   assignedSubtasks       Subtask[]       @relation("SubtaskAssignee")
+  notifications          Notification[]  @relation("UserNotifications")
+  actorNotifications     Notification[]  @relation("ActorNotifications")
 
   @@map("users")
 }
@@ -136,6 +151,9 @@ model Project {
   name        String
   description String?
   isCompleted Boolean  @default(false) @map("is_completed")
+  isDeleted   Boolean  @default(false) @map("is_deleted")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedById String?  @map("deleted_by_id")
   managerId   String?  @map("manager_id")
   createdById String   @map("created_by_id")
   stagesJson  String?  @map("stages_json")
@@ -149,6 +167,7 @@ model Project {
   tasks       Task[]
   tags        Tag[]
 
+  @@index([isDeleted])
   @@map("projects")
 }
 
@@ -204,6 +223,7 @@ model Task {
   comments     Comment[]
   taskRequests TaskRequest[]
   attachments  Attachment[]
+  notifications Notification[]
 
   @@index([projectId, status])
   @@index([assigneeId, status])
@@ -224,6 +244,8 @@ model Subtask {
   rejectionReason String?   @map("rejection_reason")
   order           Int       @default(0)
   assigneeId      String?   @map("assignee_id")
+  startDate       DateTime? @map("start_date")
+  estimatedDays   Int       @default(1) @map("estimated_days")
   dueDate         DateTime? @map("due_date")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
@@ -273,21 +295,6 @@ model Comment {
   @@index([taskId, createdAt])
 
   @@map("comments")
-}
-
-model AuditLog {
-  id         String   @id @default(uuid())
-  action     String
-  entityName String   @map("entity_name")
-  entityId   String   @map("entity_id")
-  oldValues  Json?    @map("old_values")
-  newValues  Json?    @map("new_values")
-  userId     String?  @map("user_id")
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@map("audit_logs")
 }
 
 model DirectMessage {
@@ -356,4 +363,26 @@ model Attachment {
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@map("attachments")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  actorId   String?          @map("actor_id")
+  title     String
+  content   String
+  type      NotificationType @default(SYSTEM)
+  taskId    String?          @map("task_id")
+  subtaskId String?          @map("subtask_id")
+  projectId String?          @map("project_id")
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User?            @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: SetNull)
+  task      Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
