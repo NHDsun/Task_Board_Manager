@@ -19,6 +19,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    mem_limit: 1024m
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
 
   # 2. Backend NestJS 11
   backend_api:
@@ -34,6 +39,11 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
+    mem_limit: 2048m
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
 
   # 3. Frontend React 19 + Vite 8
   frontend_web:
@@ -45,9 +55,14 @@ services:
     container_name: app_frontend
     restart: always
     ports:
-      - '8000:5173'
+      - '8000:80'
     depends_on:
       - backend_api
+    mem_limit: 1024m
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
 
 volumes:
   pgdata:
