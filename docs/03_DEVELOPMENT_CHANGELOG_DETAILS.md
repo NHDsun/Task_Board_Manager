@@ -1273,6 +1273,106 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
   - **Chi tiết:** Chỉ hiển thị thanh nhập Quick Add Subtask khi người dùng là `isAssignee` (người đảm nhiệm) hoặc Quản lý/Admin (`ADMIN` / `MANAGER`).
 - **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
 
+---
+
+## 135. Nạp Bộ Dữ Liệu Thực Nghiệm Toàn Diện (Full-Feature Dynamic Seed) Cho Toàn Bộ Chức Năng
+- **File 1:** `be/prisma/seed.ts`
+  - **Hành động:** `[THIẾT LẬP SEED DỮ LIỆU ĐỘNG TOÀN DIỆN 100% CÁC BẢNG TRONG HỆ THỐNG]`.
+  - **Chi tiết:** 
+    - **Phòng ban & Dự án:** 3 Phòng ban (`Product Engineering`, `Client Solutions`, `AI Innovation Lab`) và 3 Dự án (`Solaris Task Board Core`, `Solaris UI/UX Bento Design`, `AI Voice Command & Biometrics Engine`).
+    - **Tài khoản nhân sự đầy đủ chức danh:** Admin, Manager, Dev, UI/UX Designer, QA Tester, Backend Specialist.
+    - **Bao phủ 6 cột Trạng Thái Kanban & 6 Giai Đoạn Pipeline:** `TODO`, `IN_PROGRESS`, `PAUSED`, `BLOCKED`, `IN_REVIEW`, `DONE`.
+    - **Subtasks & Lịch trình:** Đầy đủ Task con kèm cờ khẩn cấp (`isUrgent`), thời gian ước lượng (`estimatedDays`) và phân công nhân sự tương ứng.
+    - **Lịch sử trao đổi & Đính kèm:** Bình luận trao đổi (`comments`), đường dẫn Figma & File PDF kiến trúc (`attachments`).
+    - **Yêu cầu & Thông báo:** Yêu cầu chuyển giao nhiệm vụ (`task_requests`), thông báo hệ thống (`notifications`), tin nhắn nội bộ (`direct_messages`) và nhật ký cuộc gọi thoại (`call_logs`).
+- **Kết quả kiểm tra:** CSDL PostgreSQL đã đồng bộ và nạp thành công 100% (Tasks: 9, Subtasks: 20, Comments: 2, Requests: 2, Attachments: 2, Notifications: 2, Messages: 2).
+
+---
+
+## 136. Cho Phép Admin/Manager/Assignee Thêm Task Con Vào Task Đã Hoàn Thành & Tự Động Tái Kích Hoạt (Auto-Reopen)
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[LINH HOẠT HÓA RÀNG BUỘC ADDSUBTASK TRÊN TASK DONE & TỰ ĐỘNG CHUYỂN VỀ IN_PROGRESS]`.
+  - **Chi tiết:** 
+    - Loại bỏ mã lỗi cứng `400 BadRequestException` khi Admin/Manager hoặc chính chủ Task muốn thêm công việc con phát sinh vào một Task đã hoàn tất trước đó.
+    - Trong `recalculateTaskProgress`, khi phát hiện Task đang ở trạng thái `DONE` nhưng có thêm Task con mới chưa làm (khiến tiến độ `< 100%`), hệ thống **tự động chuyển trạng thái Task cha về `IN_PROGRESS`** và đặt `completedAt = null` một cách mượt mà và logic.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 137. Mở Quyền Hiển Thị Yêu Cầu Chờ Xử Lý Toàn Hệ Thống Cho Quản Trị Viên (Admin Global Inbox Visibility)
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[CHO PHÉP TÀI KHOẢN ADMIN XEM TOÀN BỘ YÊU CẦU BÀN GIAO & DUYỆT BÀI TRONG HỆ THỐNG]`.
+  - **Chi tiết:** 
+    - Trước đây, `getIncomingRequests` chỉ lọc theo `receiverId = currentUserId`, dẫn đến việc các Task chuyển giao gửi cho Manager (như `Minh Anh`) sẽ không xuất hiện khi đăng nhập bằng tài khoản `Huy Dat (Admin)`.
+    - Cập nhật logic: Nếu tài khoản đăng nhập là **`ADMIN`**, hệ thống tự động hiển thị **toàn bộ các yêu cầu đang PENDING** trong toàn hệ thống, giúp Admin nắm bắt mọi yêu cầu bàn giao, duyệt bài và có thể trực tiếp can thiệp/phê duyệt thay cho Quản lý dự án.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 138. Khắc Phục Cảnh Báo Type-Safety TypeScript ts(2339) Trong Notification Service
+- **File 1:** `be/src/modules/notification/notification.service.ts`
+  - **Hành động:** `[ÉP KIỂU AN TOÀN TRONG KHỐI CATCH (ERR: ANY)]`.
+  - **Chi tiết:** Trong khối `catch (err)` khi ghi log lỗi gửi thông báo qua Socket.IO, TypeScript mặc định coi `err` là kiểu `unknown` khiến IDE báo lỗi `Property 'stack' does not exist on type 'unknown'. ts(2339)`. Đã định kiểu tường minh `catch (err: any)` và truy xuất an toàn `err?.stack`, `err?.message` giúp triệt tiêu hoàn toàn cảnh báo.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 139. Khắc Phục Danh Sách Thêm Nhân Sự Bị Trống Trong Modal Quản Lý Thành Viên Dự Án
+- **File 1:** `fe/src/components/kanban/ProjectMembersModal.tsx`
+  - **Hành động:** `[ĐỒNG BỘ ĐÚNG ENDPOINT LẤY DANH SÁCH TẤT CẢ USER /PROFILE/USERS]`.
+  - **Chi tiết:** 
+    - Trước đây, `ProjectMembersModal` gọi API `api.get('/users')` (endpoint không tồn tại trên Backend), khiến danh sách `allUsers` luôn trả về rỗng `[]` và ô chọn dropdown `-- Chọn nhân sự để thêm vào dự án --` không hiển thị nhân sự nào.
+    - Cập nhật gọi chuẩn xác endpoint `api.get('/profile/users')` của `ProfileController`.
+    - Bây giờ, danh sách các nhân viên chưa thuộc dự án (Dev, QA, Designer, Manager) sẽ hiển thị đầy đủ kèm chức danh, email và chuyên môn để Quản lý dễ dàng chọn và bấm `[+ Thêm Vào Dự Án]`.
+- **Kết quả kiểm tra:** Cả Backend (`be`) và Frontend (`fe`) build đạt 100% (Exit Code 0).
+
+---
+
+## 140. Khắc Phục Lỗi Nginx Encoding UTF-16LE / UTF-8 BOM & Thiết Lập Giới Hạn Tài Nguyên Docker Desktop
+- **File 1:** `fe/nginx.conf`
+  - **Hành động:** `[CHUẨN HÓA ENCODING UTF-8 KHÔNG BOM CHO CẤU HÌNH NGINX]`.
+  - **Chi tiết:** Trước đây, lệnh `Set-Content` của PowerShell vô tình lưu file `nginx.conf` với mã hóa UTF-16 LE, khiến Nginx trong Docker container bị lỗi cú pháp `[emerg] unknown directive` khi khởi động. Đã ghi lại file hoàn toàn bằng chuẩn UTF-8 no-BOM.
+- **File 2:** `docker-compose.yml`
+  - **Hành động:** `[CẤU HÌNH GIỚI HẠN RAM (MEM_LIMIT) CHO TOÀN BỘ SERVICES DOCKER]`.
+  - **Chi tiết:** Bổ sung `mem_limit` và `deploy.resources.limits.memory` (Backend: 2048M, Postgres: 1024M, Frontend: 1024M) nhằm ngăn chặn hiện tượng tràn bộ nhớ (Memory Leak) làm treo Docker Desktop trên Windows.
+- **Kết quả kiểm tra:** Toàn bộ các container khởi động mượt mà, RAM hệ thống ổn định dưới 2GB.
+
+---
+
+## 141. Thiết Lập Tự Động Đồng Bộ Lược Đồ CSDL (Prisma DB Push) Khi Khởi Động Backend Container
+- **File 1:** `docker-compose.yml`
+  - **Hành động:** `[BỔ SUNG LỆNH AUTO-MIGRATION VÀO BACKEND STARTUP COMMAND]`.
+  - **Chi tiết:** Bổ sung `command: sh -c "npx prisma db push --accept-data-loss && node dist/main"` cho `backend_api` trong `docker-compose.yml`. Điều này đảm bảo khi clone dự án về máy mới, cơ sở dữ liệu PostgreSQL sẽ tự động tạo bảng và đồng bộ cấu trúc ngay lúc khởi chạy container mà không cần chạy lệnh thủ công từ bên ngoài.
+- **Kết quả kiểm tra:** Clone sang môi trường mới chạy `docker-compose up` nhận diện đầy đủ 100% bảng CSDL.
+
+---
+
+## 142. Khắc Phục Lỗi Thiếu Cấu Hình Prisma 7 Trong Docker Stage-1 & Đồng Bộ Cổng Frontend 5173
+- **File 1:** `be/Dockerfile`
+  - **Hành động:** `[COPY TỆP PRISMA.CONFIG.TS VÀO RUNTIME STAGE]`.
+  - **Chi tiết:** Phiên bản Prisma v7.9.1 yêu cầu tệp `prisma.config.ts` để đọc chuỗi kết nối CSDL khi thực thi `npx prisma db push`. Trong Docker multi-stage build cũ, tệp này nằm ở thư mục gốc của Backend nhưng chưa được sao chép vào tầng thực thi (`stage-1`), gây lỗi `The datasource.url property is required in your Prisma config file`. Đã bổ sung `COPY prisma.config.ts ./` vào `be/Dockerfile`.
+- **File 2:** `docker-compose.yml`
+  - **Hành động:** `[ÁNH XẠ CỔNG FRONTEND VỀ 5173 (5173:80)]`.
+  - **Chi tiết:** Chuyển đổi cổng truy cập Frontend từ `8000:80` sang `5173:80` để giữ đúng thói quen truy cập `http://localhost:5173` của người dùng và nhà phát triển.
+- **Kết quả kiểm tra:** Backend kết nối CSDL thành công, khởi động NestJS trơn tru; Frontend truy cập chuẩn tại `http://localhost:5173`.
+
+---
+
+## 143. Đồng Bộ Tiền Tố /api Cho VITE_API_URL & Mã Hóa Chuẩn Bcrypt Toàn Diện Cho Toàn Bộ Tài Khoản
+- **File 1:** `.env`
+  - **Hành động:** `[ĐỒNG BỘ ĐÚNG TIỀN TỐ BASE URL API /API TRONG FILE ENV GỐC]`.
+  - **Chi tiết:** Trước đây, biến `VITE_API_URL=http://localhost:3000` thiếu hậu tố `/api`, khiến Frontend khi build gửi nhầm request đăng nhập tới `POST http://localhost:3000/auth/login` (Backend trả về 404 Not Found). Đã chuẩn hóa thành `VITE_API_URL=http://localhost:3000/api` và rebuild lại `frontend_web`.
+- **File 2:** `PostgreSQL Database (users table)`
+  - **Hành động:** `[ĐỒNG BỘ HASH BCRYPT MẬT KHẨU CHO CÁC TÀI KHOẢN ADMIN/MANAGER/DEV]`.
+  - **Chi tiết:** Cập nhật lại mật khẩu tài khoản `admin@taskboard.com` và các tài khoản mẫu sang chuẩn chuỗi băm `bcrypt` thay vì lưu chuỗi thô (plain text), giải quyết triệt để lỗi đăng nhập thất bại 401 Unauthorized.
+- **Kết quả kiểm tra:** Đăng nhập thành công 100% với toàn bộ các tài khoản mẫu (`huydatne@gmail.com`, `admin@taskboard.com`, `manager@taskboard.com`, `employee@taskboard.com`...) trả về HTTP 201 và JWT AccessToken hợp lệ.
+
+
+
+
+
+
+
 
 
 

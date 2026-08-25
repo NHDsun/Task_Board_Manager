@@ -9,53 +9,26 @@ Tài liệu này tổng hợp toàn bộ **Bản Kế hoạch Tổng thể Hiệ
 > [!IMPORTANT]
 > **Trạng thái:** Tài liệu kế hoạch phê duyệt. Tạm thời **CHƯA CAN THIỆP MÃ NGUỒN CODE**.
 
-12. ### 1. 7 Giá Trị Cốt Lõi Độc Nhất Của Dự Án (Unique Value Propositions)
-13: 
-14: 1. **Nhập liệu & Điều khiển Giọng nói Tiếng Việt (Smart Voice Input):** Tích hợp Web Speech API tự động trích xuất Tiêu đề, Hạn chót, Độ ưu tiên (`URGENT`), tự gán chính chủ kèm Popup Undo 10 giây.
-15: 2. **Cơ chế Tiến trình Dự án Giai đoạn (Process Pipeline Stage):** Chia dự án thành các Giai đoạn/Tiến trình tuần tự (Giai đoạn 1 ➡️ Giai đoạn 2 ➡️ Giai đoạn 3). Tiến trình trước xong mới mở khóa (`UNLOCKED`) cho các phòng ban ở Tiến trình sau làm tiếp.
-16: 3. **Hàng chờ Công việc Cá nhân (My Focus Queue & URGENT Auto-Insert):** Nhân viên tập trung 100% vào 1 Task đang làm (`IN_PROGRESS`) và 1 Hàng chờ Pending (`TODO`). Khi có Task `URGENT` bắn về ➡️ Tự động nhảy lên vị trí **#1 hàng chờ Pending**.
-17: 4. **Liên phòng ban & Phân quyền RBAC (Multi-Department Collaboration):** Cho phép một Dự án được gán cho nhiều Phòng ban (`Product`, `Client`, `Dev`, `Tester`...) cùng phối hợp thực hiện.
-18: 5. **Phân biệt Độc lập giữa Phòng ban (`Department`) và Nghiệp vụ Chuyên môn (`Profession`):**
-19:    - **Phòng ban (`Department`):** Nơi quản lý tổ chức (VD: `Khối Product`, `Khối Client`, `Chi nhánh 1`...).
-20:    - **Nghiệp vụ Chuyên môn (`Profession`):** Tay nghề thực tế của nhân viên (`DEV`, `TESTER`, `MARKETING`, `DESIGNER`, `BA`...).
-21:    - **Ví dụ minh họa:** Nhân viên A thuộc *Phòng ban Khối Client* nhưng có *Nghiệp vụ là Dev*; Nhân viên B thuộc *Phòng ban Khối Product* nhưng có *Nghiệp vụ là Tester*.
-22:    - **Ứng dụng:** Khi giao việc ở từng Tiến trình Giai đoạn, Manager lọc danh sách theo đúng **Nghiệp vụ chuyên môn** của nhân viên để giao task chính xác tuyệt đối.
-23: 6. **Truyền thông Real-time & Cuộc gọi WebRTC (Chat & Video Call):** Chat riêng 1-1 (`DirectMessage`), Bình luận Task và Cuộc gọi thoại/Gọi Video sắc nét trực tiếp trên trình duyệt.
-24: 7. **Cơ chế Chấm công & Điểm danh Thông minh (Solaris Smart Attendance System):** Tích hợp Chấm công giọng nói (*"Solaris, tôi bắt đầu ca làm việc"*), Tự động Check-in khi đụng vào Task đầu tiên trong ngày (Task-Driven Check-In), Điểm danh vùng IP/Geofencing (`OFFICE` vs `REMOTE`), và Hệ thống Huy hiệu Uy tín Đúng giờ (Solar Streak Badges) - **Được tích hợp trực tiếp trên Header Trang Bảng Task (`/tasks`)**.
-25: 8. **Trang Theo Dõi & Giám Sát Chấm Công Dành Cho Admin (`/admin/attendance`):** Dành riêng cho tài khoản Admin/Manager theo dõi toàn bộ nhật ký điểm danh ca làm việc của toàn thể nhân sự công ty, lọc theo ngày/tuần/tháng, phòng ban và chế độ làm việc (`OFFICE`/`REMOTE`).
-26: 9. **Cơ chế Gửi Yêu Cầu & Chuyển Giao Task Liên Nhân Viên (Inter-User Task Request System):** Cho phép nhân viên tạo Yêu cầu Chuyển giao Task (`TRANSFER`), Nhờ hỗ trợ (`ASSIST`), hoặc Gửi duyệt bài (`REVIEW`). Mặc định ở trạng thái `PENDING` (Chờ phản hồi) dưới dạng Hộp Thư Floating Drawer bên cạnh Bảng Kanban.
-27: 10. **Tùy Chọn Tạo Dự Án Mới Cho Admin & Badge Tên Dự Án Trên Thẻ Task:** Admin/Manager có thêm nút **"+ Tạo Dự Án Mới"** (`+ Create Project`) tại Header Bảng Task. Mỗi thẻ Bento Task (`KanbanCard`) được hiển thị rõ **Badge Tên Dự Án** giúp nhận diện dự án tức thì.
-28: 11. **Thanh Menu Sao Băng Trượt Rìa Màn Hình (Meteor Shower Sliding Edge Menu):** Thiết kế Menu ẩn nấp dọc rìa màn hình duy trì trên mọi trang.
-29: 12. **Cơ chế Gửi Yêu Cầu Làm Việc Từ Xa (Remote Work Request System):** Cho phép nhân viên tạo Yêu cầu Làm từ xa (`/remote-requests`) chọn thời gian, lý do & kế hoạch công việc. Trạng thái tự động ở `PENDING` chờ Manager/Admin duyệt (`APPROVED` ➡️ Tự động cập nhật `workMode = REMOTE` trong CSDL Chấm công / `REJECTED` ➡️ Trả về kèm lý do).
-30: 13. **Cơ chế Tự Động Đăng Xuất An Toàn 5 Phút & Quy Tắc Miễn Trừ Thông Minh:** Đếm ngược 30s khi không thao tác 4m30s, tạm dừng khi ở Phòng họp WebRTC (`/meetings`) hoặc tab sang công cụ AI (`🟣 AI RESEARCH`).
-31: 14. **Trợ Lý AI Doanh Nghiệp Bảo Mật Bảo An (Solaris Enterprise Secure AI Assistant):** Trợ lý AI ảo hỗ trợ trả lời câu hỏi quy trình, thực thi tác vụ, tuân thủ nghiêm ngặt Lọc quyền RBAC 100% và Zero Public Training Policy.
-32: 
-33: ---
+### 1. 14 Giá Trị Cốt Lõi Độc Nhất Của Dự Án (Unique Value Propositions)
 
-
-
-
-
-
-66: 
-67:   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-68: 
-69:   @@map("attendance_logs")
-70: }
-71: 
-72: enum AttendanceType {
-73:   VOICE
-74:   TASK_DRIVEN
-75:   MANUAL
-76: }
-77: 
-78: enum WorkMode {
-79:   OFFICE
-80:   REMOTE
-81: }
-82: ```
-
-- **Bảng `Task` bổ sung:** Cột `stageId String? @map("stage_id")` liên kết Task thuộc Tiến trình nào.
+1. **Nhập liệu & Điều khiển Giọng nói Tiếng Việt (Smart Voice Input):** Tích hợp Web Speech API tự động trích xuất Tiêu đề, Hạn chót, Độ ưu tiên (`URGENT`), tự gán chính chủ kèm Popup Undo 10 giây.
+2. **Cơ chế Tiến trình Dự án Giai đoạn (Process Pipeline Stage):** Chia dự án thành các Giai đoạn/Tiến trình tuần tự (Giai đoạn 1 ➡️ Giai đoạn 2 ➡️ Giai đoạn 3). Tiến trình trước xong mới mở khóa (`UNLOCKED`) cho các phòng ban ở Tiến trình sau làm tiếp.
+3. **Hàng chờ Công việc Cá nhân (My Focus Queue & URGENT Auto-Insert):** Nhân viên tập trung 100% vào 1 Task đang làm (`IN_PROGRESS`) và 1 Hàng chờ Pending (`TODO`). Khi có Task `URGENT` bắn về ➡️ Tự động nhảy lên vị trí **#1 hàng chờ Pending**.
+4. **Liên phòng ban & Phân quyền RBAC (Multi-Department Collaboration):** Cho phép một Dự án được gán cho nhiều Phòng ban (`Product`, `Client`, `Dev`, `Tester`...) cùng phối hợp thực hiện.
+5. **Phân biệt Độc lập giữa Phòng ban (`Department`) và Nghiệp vụ Chuyên môn (`Profession`):**
+   - **Phòng ban (`Department`):** Nơi quản lý tổ chức (VD: `Khối Product`, `Khối Client`, `Chi nhánh 1`...).
+   - **Nghiệp vụ Chuyên môn (`Profession`):** Tay nghề thực tế của nhân viên (`DEV`, `TESTER`, `MARKETING`, `DESIGNER`, `BA`...).
+   - **Ví dụ minh họa:** Nhân viên A thuộc *Phòng ban Khối Client* nhưng có *Nghiệp vụ là Dev*; Nhân viên B thuộc *Phòng ban Khối Product* nhưng có *Nghiệp vụ là Tester*.
+   - **Ứng dụng:** Khi giao việc ở từng Tiến trình Giai đoạn, Manager lọc danh sách theo đúng **Nghiệp vụ chuyên môn** của nhân viên để giao task chính xác tuyệt đối.
+6. **Truyền thông Real-time & Cuộc gọi WebRTC (Chat & Video Call):** Chat riêng 1-1 (`DirectMessage`), Bình luận Task và Cuộc gọi thoại/Gọi Video sắc nét trực tiếp trên trình duyệt.
+7. **Cơ chế Chấm công & Điểm danh Thông minh (Solaris Smart Attendance System):** Tích hợp Chấm công giọng nói (*"Solaris, tôi bắt đầu ca làm việc"*), Tự động Check-in khi đụng vào Task đầu tiên trong ngày (Task-Driven Check-In), Điểm danh vùng IP/Geofencing (`OFFICE` vs `REMOTE`), và Hệ thống Huy hiệu Uy tín Đúng giờ (Solar Streak Badges) - **Được tích hợp trực tiếp trên Header Trang Bảng Task (`/tasks`)**.
+8. **Trang Theo Dõi & Giám Sát Chấm Công Dành Cho Admin (`/admin/attendance`):** Dành riêng cho tài khoản Admin/Manager theo dõi toàn bộ nhật ký điểm danh ca làm việc của toàn thể nhân sự công ty, lọc theo ngày/tuần/tháng, phòng ban và chế độ làm việc (`OFFICE`/`REMOTE`).
+9. **Cơ chế Gửi Yêu Cầu & Chuyển Giao Task Liên Nhân Viên (Inter-User Task Request System):** Cho phép nhân viên tạo Yêu cầu Chuyển giao Task (`TRANSFER`), Nhờ hỗ trợ (`ASSIST`), hoặc Gửi duyệt bài (`REVIEW`). Mặc định ở trạng thái `PENDING` (Chờ phản hồi) dưới dạng Hộp Thư Floating Drawer bên cạnh Bảng Kanban.
+10. **Tùy Chọn Tạo Dự Án Mới Cho Admin & Badge Tên Dự Án Trên Thẻ Task:** Admin/Manager có thêm nút **"+ Tạo Dự Án Mới"** (`+ Create Project`) tại Header Bảng Task. Mỗi thẻ Bento Task (`KanbanCard`) được hiển thị rõ **Badge Tên Dự Án** giúp nhận diện dự án tức thì.
+11. **Thanh Menu Sao Băng Trượt Rìa Màn Hình (Meteor Shower Sliding Edge Menu):** Thiết kế Menu ẩn nấp dọc rìa màn hình duy trì trên mọi trang.
+12. **Cơ chế Gửi Yêu Cầu Làm Việc Từ Xa (Remote Work Request System):** Cho phép nhân viên tạo Yêu cầu Làm từ xa (`/remote-requests`) chọn thời gian, lý do & kế hoạch công việc. Trạng thái tự động ở `PENDING` chờ Manager/Admin duyệt (`APPROVED` ➡️ Tự động cập nhật `workMode = REMOTE` trong CSDL Chấm công / `REJECTED` ➡️ Trả về kèm lý do).
+13. **Cơ chế Tự Động Đăng Xuất An Toàn 5 Phút & Quy Tắc Miễn Trừ Thông Minh:** Đếm ngược 30s khi không thao tác 4m30s, tạm dừng khi ở Phòng họp WebRTC (`/meetings`) hoặc tab sang công cụ AI (`🟣 AI RESEARCH`).
+14. **Trợ Lý AI Doanh Nghiệp Bảo Mật Bảo An (Solaris Enterprise Secure AI Assistant):** Trợ lý AI ảo hỗ trợ trả lời câu hỏi quy trình, thực thi tác vụ, tuân thủ nghiêm ngặt Lọc quyền RBAC 100% và Zero Public Training Policy.
 
 ---
 

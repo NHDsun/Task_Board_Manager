@@ -79,8 +79,8 @@ export class NotificationService {
       );
 
       return notification;
-    } catch (err) {
-      this.logger.error(`Lỗi khi tạo và gửi thông báo: ${err.message}`, err.stack);
+    } catch (err: any) {
+      this.logger.error(`Lỗi khi tạo và gửi thông báo: ${err?.message || err}`, err?.stack);
       return null;
     }
   }

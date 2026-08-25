@@ -169,6 +169,7 @@ Toàn bộ tài liệu thiết kế kiến trúc, an toàn bảo mật, ma trậ
 | **05** | **Logic Conflicts & Business Rules** | [`05.md`](./docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md) | [`05.docx`](./docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.docx) | **Chi tiết 98 Logic Conflicts & Corner Cases (`LC-01` ➔ `LC-98`)**. |
 | **06** | **ERD & System State Charts** | [`06.md`](./docs/06_ERD_AND_SYSTEM_STATE_CHARTS.md) | [`06.docx`](./docs/06_ERD_AND_SYSTEM_STATE_CHARTS.docx) | Sơ đồ thực thể CSDL (ERD) và biểu đồ chuyển dịch trạng thái Task. |
 | **07** | **Project Plan & Roadmap** | [`Roadmap.md`](./docs/PROJECT_PLAN_AND_ROADMAP.md) | [`Roadmap.docx`](./docs/PROJECT_PLAN_AND_ROADMAP.docx) | Lộ trình 15 giai đoạn phát triển toàn diện hệ thống. |
+| **08** | **High-to-Low Architecture & Guide** | [`08.md`](./docs/08_HIGH_TO_LOW_ARCHITECTURE_AND_IMPLEMENTATION.md) | [`08.docx`](./docs/08_HIGH_TO_LOW_ARCHITECTURE_AND_IMPLEMENTATION.docx) | **Kiến trúc & Phương pháp triển khai từ Bậc cao đến Bậc thấp**. |
 
 ---
 

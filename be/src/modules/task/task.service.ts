@@ -1318,7 +1318,7 @@ export class TaskService {
     });
   }
 
-  // 📬 Get incoming task transfer requests targeted strictly to the logged-in user
+  // 📬 Get incoming task transfer requests targeted to user (Admin can view all system requests)
   async getIncomingRequests(userId: string) {
     let effectiveUserId = userId;
     if (userId === 'admin-huydat-id' || userId === 'admin-id') {
@@ -1328,15 +1328,30 @@ export class TaskService {
       if (realAdmin) effectiveUserId = realAdmin.id;
     }
 
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: effectiveUserId },
+      select: { id: true, role: true },
+    });
+
+    const isAdmin = currentUser?.role === 'ADMIN';
+
+    const whereCondition: any = {
+      status: 'PENDING',
+      task: { isDeleted: false },
+    };
+
+    if (!isAdmin) {
+      whereCondition.receiverId = effectiveUserId;
+    }
+
     const requests = await this.prisma.taskRequest.findMany({
-      where: {
-        receiverId: effectiveUserId,
-        status: 'PENDING',
-        task: { isDeleted: false },
-      },
+      where: whereCondition,
       include: {
         task: { select: { id: true, title: true, priority: true } },
         sender: {
+          select: { id: true, fullName: true, avatar: true, email: true },
+        },
+        receiver: {
           select: { id: true, fullName: true, avatar: true, email: true },
         },
       },
@@ -2151,9 +2166,21 @@ export class TaskService {
       );
     }
 
-    if (task.status === 'DONE') {
+    // 👑 [LC-85] NẾU TASK ĐÃ DONE VÀ ADMIN/MANAGER/ASSIGNEE THÊM TASK CON MỚI -> HỆ THỐNG CHO PHÉP VÀ TỰ ĐỘNG MỞ LẠI TASK SANG IN_PROGRESS
+    const isAdminOrManagerUser = Boolean(
+      user &&
+        (user.role === 'ADMIN' ||
+          user.role === 'MANAGER' ||
+          user.globalRole === 'ADMIN' ||
+          user.globalRole === 'MANAGER' ||
+          task.project?.managerId === user.id ||
+          task.project?.createdById === user.id),
+    );
+    const isTaskAssignee = user && task.assigneeId === user.id;
+
+    if (task.status === 'DONE' && !isAdminOrManagerUser && !isTaskAssignee) {
       throw new BadRequestException(
-        'Task đã hoàn thành (DONE). Vui lòng chuyển Task về trạng thái Đang Thực Hiện (IN_PROGRESS) trước khi thêm Task con mới.',
+        'Task đã hoàn thành (DONE). Chỉ Quản lý/Admin hoặc người đảm nhiệm mới có quyền thêm Task con để mở lại nhiệm vụ.',
       );
     }
 

@@ -73,7 +73,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
     try {
       const [memRes, usersRes, projRes] = await Promise.all([
         api.get(`/projects/${pId}/members`),
-        api.get('/users').catch(() => ({ data: [] })),
+        api.get('/profile/users').catch(() => ({ data: [] })),
         api.get('/projects').catch(() => ({ data: [] })),
       ]);
 
