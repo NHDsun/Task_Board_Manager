@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+   url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -57,7 +58,6 @@ enum CallStatus {
   REJECTED
   BUSY
 }
-
 
 enum WorkMode {
   OFFICE
@@ -147,18 +147,18 @@ model User {
 }
 
 model Project {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
   description String?
-  isCompleted Boolean  @default(false) @map("is_completed")
-  isDeleted   Boolean  @default(false) @map("is_deleted")
+  isCompleted Boolean   @default(false) @map("is_completed")
+  isDeleted   Boolean   @default(false) @map("is_deleted")
   deletedAt   DateTime? @map("deleted_at")
-  deletedById String?  @map("deleted_by_id")
-  managerId   String?  @map("manager_id")
-  createdById String   @map("created_by_id")
-  stagesJson  String?  @map("stages_json")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedById String?   @map("deleted_by_id")
+  managerId   String?   @map("manager_id")
+  createdById String    @map("created_by_id")
+  stagesJson  String?   @map("stages_json")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   createdBy   User                @relation("ProjectOwner", fields: [createdById], references: [id], onDelete: Cascade)
   manager     User?               @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
@@ -215,14 +215,14 @@ model Task {
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assignee     User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  createdBy    User          @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  subtasks     Subtask[]
-  tags         TaskTag[]
-  comments     Comment[]
-  taskRequests TaskRequest[]
-  attachments  Attachment[]
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee      User?          @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy     User           @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  subtasks      Subtask[]
+  tags          TaskTag[]
+  comments      Comment[]
+  taskRequests  TaskRequest[]
+  attachments   Attachment[]
   notifications Notification[]
 
   @@index([projectId, status])
@@ -230,7 +230,6 @@ model Task {
   @@index([createdById])
   @@index([status])
   @@index([isArchived])
-
   @@map("tasks")
 }
 
@@ -293,7 +292,6 @@ model Comment {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([taskId, createdAt])
-
   @@map("comments")
 }
 
@@ -327,7 +325,6 @@ model CallLog {
   @@map("call_logs")
 }
 
-
 model TaskRequest {
   id           String            @id @default(uuid())
   taskId       String            @map("task_id")
@@ -347,7 +344,6 @@ model TaskRequest {
   @@index([receiverId, status])
   @@index([senderId, status])
   @@index([taskId, status])
-
   @@map("task_requests")
 }
 
@@ -355,12 +351,12 @@ model Attachment {
   id        String   @id @default(uuid())
   name      String
   url       String
-  type      String   // 'file' or 'link'
+  type      String // 'file' or 'link'
   size      String?
   taskId    String   @map("task_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@map("attachments")
 }
@@ -378,9 +374,9 @@ model Notification {
   isRead    Boolean          @default(false) @map("is_read")
   createdAt DateTime         @default(now()) @map("created_at")
 
-  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  actor     User?            @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: SetNull)
-  task      Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user  User  @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: SetNull)
+  task  Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
