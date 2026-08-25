@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
     container_name: app_backend
     restart: always
-    command: sh -c "npx prisma db push --accept-data-loss && node dist/main"
+    command: sh -c "npx prisma db push && node dist/main"
     ports:
       - '3000:3000'
     environment:

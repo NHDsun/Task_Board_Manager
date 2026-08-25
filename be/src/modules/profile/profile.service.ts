@@ -60,6 +60,7 @@ export class ProfileService {
 
     return {
       ...user,
+      avatar: user.avatar || '',
       globalRole: user.role,
       avatarUrl: user.avatar || '',
     };
@@ -92,6 +93,7 @@ export class ProfileService {
       id: updatedUser.id,
       email: updatedUser.email,
       fullName: updatedUser.fullName,
+      avatar: updatedUser.avatar || '',
       avatarUrl: updatedUser.avatar || '',
       coverImage: updatedUser.coverImage,
       globalRole: updatedUser.role,
