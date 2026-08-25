@@ -25,6 +25,8 @@ import {
 import type { TaskItem, SubtaskItem } from './KanbanCard';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
+import { UserProfileModal, type UserProfileData } from '../common/UserProfileModal';
+import { getAvatarUrl } from '../../utils/avatar';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -60,6 +62,23 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onUpdateTask,
 }) => {
   const currentUser = useAuthStore((state) => state.user);
+  const [profileUser, setProfileUser] = useState<UserProfileData | null>(null);
+
+  const handleOpenProfile = (userObj?: any, roleFallback: string = 'EMPLOYEE') => {
+    if (!userObj) return;
+    setProfileUser({
+      id: userObj.id || 'u-member',
+      fullName: userObj.fullName || userObj.name || 'Thành viên Solaris',
+      email: userObj.email || `${(userObj.fullName || userObj.name || 'member').toLowerCase().replace(/[^a-z0-9]/g, '.')}@solaris.io`,
+      avatarUrl: getAvatarUrl(userObj),
+      avatar: getAvatarUrl(userObj),
+      jobTitle: userObj.profession ? `${userObj.profession} Specialist` : 'Software Specialist',
+      department: 'Engineering',
+      globalRole: roleFallback,
+      statusSignal: 'ONLINE',
+      workMode: 'OFFICE',
+    });
+  };
 
   // 🔒 PRECISE OWNERSHIP CHECK: Khi đã giao việc, Task thuộc hoàn toàn về Assignee (người tạo không còn sở hữu, trừ Admin/Manager)
   const hasAssignee = Boolean(task?.assigneeId || task?.assignee?.id || task?.assignee?.email);
@@ -496,19 +515,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
-  const getPriorityBadge = (priority: TaskItem['priority']) => {
-    switch (priority) {
-      case 'URGENT':
-        return 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse';
-      case 'IMPORTANT':
-        return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
-      case 'NORMAL':
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
-      default:
-        return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
-    }
-  };
-
   const getDeadlineInfo = (dueDateStr?: string) => {
     if (!dueDateStr) {
       return {
@@ -609,9 +615,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 {statusStyle.text}
               </span>
 
-              <span className={`px-3 py-1 rounded-xl text-xs font-bold border ${getPriorityBadge(task.priority)}`}>
-                ƯU TIÊN: {task.priority}
-              </span>
+              {task.priority === 'URGENT' && (
+                <span className="px-3 py-1 rounded-xl text-xs font-bold border bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse">
+                  🚨 KHẨN CẤP (URGENT)
+                </span>
+              )}
 
               <span className="px-3 py-1 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-mono text-xs flex items-center gap-1.5 truncate max-w-full">
                 <FolderKanban className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -628,7 +636,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </span>
               ) : (
                 <span className="px-3 py-1 rounded-xl bg-slate-800 text-slate-400 font-bold text-xs flex items-center gap-1 shrink-0">
-                  <Lock className="w-3.5 h-3.5 text-slate-500" /> QUYỀN XEM VÂN TAY
+                  <Lock className="w-3.5 h-3.5 text-slate-500" /> LOCK
                 </span>
               )}
             </div>
@@ -743,12 +751,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           {/* 🌟 3-CARD METADATA BENTO GRID: NGƯỜI GIAO VIỆC • NGƯỜI THỰC HIỆN • HẠN DEADLINE */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* 👑 Người Giao Việc (Created / Assigned By) */}
-            <div className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <span className="text-[11px] font-mono text-purple-400 uppercase tracking-wider block font-bold">
-                👑 Người Giao Việc
+            <div
+              onClick={() => handleOpenProfile(task.createdBy, 'MANAGER')}
+              className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-purple-500/50 space-y-2 cursor-pointer transition-all group/creator"
+              title="Nhấn để xem hồ sơ người giao việc"
+            >
+              <span className="text-[11px] font-mono text-purple-400 uppercase tracking-wider block font-bold flex items-center justify-between">
+                <span>👑 Người Giao Việc</span>
+                <span className="text-[10px] text-purple-400/80 opacity-0 group-hover/creator:opacity-100 transition-opacity">Xem hồ sơ ↗</span>
               </span>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl overflow-hidden border border-purple-400/80 bg-slate-900 flex items-center justify-center font-bold text-purple-300 shrink-0">
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-purple-400/80 bg-slate-900 flex items-center justify-center font-bold text-purple-300 shrink-0 group-hover/creator:scale-105 transition-transform">
                   {task.createdBy?.avatar ? (
                     <img src={task.createdBy.avatar} alt="Creator" className="w-full h-full object-cover" />
                   ) : (
@@ -756,7 +769,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-extrabold text-white text-sm truncate" title={task.createdBy?.fullName || 'Người khởi tạo'}>
+                  <h4 className="font-extrabold text-white text-sm truncate group-hover/creator:text-purple-300 transition-colors" title={task.createdBy?.fullName || 'Người khởi tạo'}>
                     {task.createdBy?.fullName || 'Người khởi tạo'}
                   </h4>
                   <span className="text-[10px] text-purple-300 font-mono flex items-center gap-1 truncate" title={`Thời gian giao việc: ${task.createdAt || 'N/A'}`}>
@@ -768,12 +781,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
 
             {/* 🎯 Người Thực Hiện (Assignee) */}
-            <div className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider block font-bold">
-                🎯 Người Thực Hiện
+            <div
+              onClick={() => handleOpenProfile(task.assignee, 'EMPLOYEE')}
+              className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-amber-500/50 space-y-2 cursor-pointer transition-all group/assignee"
+              title="Nhấn để xem hồ sơ người thực hiện"
+            >
+              <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider block font-bold flex items-center justify-between">
+                <span>🎯 Người Thực Hiện</span>
+                <span className="text-[10px] text-amber-400/80 opacity-0 group-hover/assignee:opacity-100 transition-opacity">Xem hồ sơ ↗</span>
               </span>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400 bg-slate-900 flex items-center justify-center font-bold text-amber-400 shrink-0">
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400 bg-slate-900 flex items-center justify-center font-bold text-amber-400 shrink-0 group-hover/assignee:scale-105 transition-transform">
                   {task.assignee?.avatar ? (
                     <img src={task.assignee.avatar} alt="Assignee" className="w-full h-full object-cover" />
                   ) : (
@@ -781,7 +799,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-extrabold text-white text-sm truncate" title={task.assignee?.fullName || 'Chưa phân công'}>
+                  <h4 className="font-extrabold text-white text-sm truncate group-hover/assignee:text-amber-300 transition-colors" title={task.assignee?.fullName || 'Chưa phân công'}>
                     {task.assignee?.fullName || 'Chưa phân công (Unassigned)'}
                   </h4>
                   <span className="text-[11px] text-blue-300 font-mono truncate block">
@@ -1427,8 +1445,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </button>
           </div>
         </div>
-
       </div>
+
+      {/* 🌟 UNIVERSAL USER PROFILE MODAL */}
+      <UserProfileModal
+        user={profileUser}
+        isOpen={!!profileUser}
+        onClose={() => setProfileUser(null)}
+      />
     </div>
   );
 };

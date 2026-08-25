@@ -5,8 +5,11 @@ import { ProfilePage } from './pages/ProfilePage';
 import { BoardPage } from './pages/BoardPage';
 import { SchedulePage } from './pages/SchedulePage';
 import { AdminTrashPage } from './pages/AdminTrashPage';
+import { AdminUsersPage } from './pages/AdminUsersPage';
+import { OnboardingProfilePage } from './pages/OnboardingProfilePage';
+import { useAutoStatusSignal } from './hooks/useAutoStatusSignal';
 import { MainLayout } from './layouts/MainLayout';
-import { Video, MessageSquare, Inbox, Users, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Video, MessageSquare, Inbox, AlertTriangle, RotateCcw } from 'lucide-react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -65,7 +68,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 }
 
 export default function App() {
+  useAutoStatusSignal();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const currentUser = useAuthStore((state) => state.user);
+
+  const isAdmin = currentUser?.globalRole === 'ADMIN';
 
   // 🔄 Khôi phục trang hiện tại khi F5 / Reload từ URL pathname hoặc localStorage
   const getInitialRoute = () => {
@@ -81,6 +88,10 @@ export default function App() {
 
   // 🚀 Cập nhật route, đồng bộ localStorage và URL History khi chuyển trang
   const handleNavigate = (route: string) => {
+    // 🛡️ Guard Quản lý nhân sự: Chỉ dành cho Admin
+    if (route === '/admin/users' && !isAdmin) {
+      route = '/tasks';
+    }
     setCurrentRoute(route);
     localStorage.setItem('solaris_active_route', route);
     try {
@@ -97,16 +108,33 @@ export default function App() {
     const onPopState = () => {
       const path = window.location.pathname;
       if (path && path !== '/' && path !== '/login') {
-        setCurrentRoute(path);
-        localStorage.setItem('solaris_active_route', path);
+        if (path === '/admin/users' && !isAdmin) {
+          setCurrentRoute('/tasks');
+        } else {
+          setCurrentRoute(path);
+          localStorage.setItem('solaris_active_route', path);
+        }
       }
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+  }, [isAdmin]);
 
   if (!isAuthenticated) {
     return <LoginPage />;
+  }
+
+  // 🚀 FIRST-TIME LOGIN ONBOARDING CHECK
+  const isFirstTimeUser =
+    currentUser?.isFirstLogin === true ||
+    (currentUser?.id && localStorage.getItem(`solaris_onboarded_${currentUser.id}`) === 'needs_onboarding');
+
+  if (isFirstTimeUser) {
+    return (
+      <ErrorBoundary>
+        <OnboardingProfilePage onComplete={() => handleNavigate('/tasks')} />
+      </ErrorBoundary>
+    );
   }
 
   // Render view based on active route wrapped inside MainLayout with persistent MeteorEdgeMenu
@@ -127,7 +155,7 @@ export default function App() {
                 Yêu Cầu Làm Việc Từ Xa (Remote Work Requests)
               </h1>
               <p className="text-slate-300 mt-2">
-                Gửi Đơn xin làm Remote chọn ngày, nhập lý do &amp; kế hoạch công việc. Trạng thái PENDING chờ Manager/Admin duyệt (APPROVED ➡️ Tự động chuyển workMode = REMOTE trong CSDL Chấm công).
+                Gửi Đơn xin làm Remote chọn ngày, nhập lý do &amp; kế hoạch công việc. Trạng thái PENDING chờ Manager/Admin duyệt.
               </p>
             </div>
           </div>
@@ -141,7 +169,7 @@ export default function App() {
                 Phòng Họp Trực Tuyến WebRTC
               </h1>
               <p className="text-slate-300 mt-2">
-                Hệ thống Video Call WebRTC HD, Chia sẻ Màn hình 1-Click và tự động cập nhật quầng sáng trạng thái <span className="text-purple-400 font-bold">🟣 IN_MEETING</span>.
+                Hệ thống Video Call WebRTC HD, Chia sẻ Màn hình 1-Click và tự động cập nhật quầng sáng trạng thái.
               </p>
             </div>
           </div>
@@ -161,20 +189,14 @@ export default function App() {
           </div>
         );
       case '/admin/users':
-        return (
-          <div className="p-8 max-w-7xl mx-auto space-y-6">
-            <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-rose-500/30">
-              <h1 className="text-3xl font-extrabold text-rose-300 flex items-center gap-3">
-                <Users className="w-8 h-8 text-rose-400" />
-                Quản Lý Nhân Sự (Admin-Only Account Provisioning)
-              </h1>
-              <p className="text-slate-300 mt-2">
-                Tạo tài khoản nhân viên mới, phân quyền RBAC và gán Phòng ban (Department).
-              </p>
-            </div>
-          </div>
-        );
+        if (!isAdmin) {
+          return <BoardPage />;
+        }
+        return <AdminUsersPage />;
       case '/admin/trash':
+        if (!isAdmin) {
+          return <BoardPage />;
+        }
         return <AdminTrashPage />;
       default:
         return <ProfilePage onNavigate={handleNavigate} />;

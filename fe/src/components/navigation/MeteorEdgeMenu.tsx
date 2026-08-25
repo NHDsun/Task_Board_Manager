@@ -71,15 +71,17 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
       icon: MessageSquare,
       hoverGradient: 'from-blue-400 to-cyan-400',
     },
-    {
-      id: 'admin',
-      label: 'Quản Lý Nhân Sự',
-      route: '/admin/users',
-      icon: Users,
-      hoverGradient: 'from-rose-400 to-amber-400',
-    },
     ...(isAdmin
       ? [
+          {
+            id: 'admin-users',
+            label: 'Quản Lý Nhân Sự',
+            route: '/admin/users',
+            icon: Users,
+            hoverGradient: 'from-rose-400 to-amber-400',
+            badge: 'ADMIN',
+            badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+          },
           {
             id: 'trash',
             label: 'Thùng Rác Hệ Thống',
@@ -118,19 +120,19 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
           </div>
 
           {isExpanded && (
-            <div className="flex-1 flex flex-col min-w-0 transition-opacity duration-200">
-              <span className="font-extrabold text-base tracking-wider bg-gradient-to-r from-amber-300 via-purple-200 to-emerald-300 bg-clip-text text-transparent truncate">
-                SOLARIS
+            <div className="flex flex-col min-w-0 animate-fade-in">
+              <span className="font-black text-sm tracking-tight text-white flex items-center gap-1.5 truncate">
+                SOLARIS <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono">PRO</span>
               </span>
-              <span className="text-[10px] font-mono text-amber-400/90 tracking-widest uppercase truncate">
-                Workflow Manager
+              <span className="text-[10px] text-slate-400 font-mono truncate">
+                {currentUser?.fullName || 'Workspace Lead'}
               </span>
             </div>
           )}
         </div>
 
-        {/* Center Navigation Items */}
-        <nav className="flex-1 py-4 space-y-2 overflow-y-auto custom-scrollbar flex flex-col items-center">
+        {/* Middle Navigation Routes */}
+        <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentRoute === item.route;
@@ -139,110 +141,96 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.route)}
-                className={`w-full flex items-center py-2.5 rounded-xl transition-all duration-200 relative group cursor-pointer overflow-hidden ${
-                  isExpanded ? 'px-3 gap-3 justify-start' : 'px-0 justify-center'
+                className={`w-full group relative flex items-center transition-all duration-200 rounded-2xl cursor-pointer ${
+                  isExpanded ? 'px-3.5 py-2.5 gap-3.5' : 'p-2.5 justify-center'
                 } ${
                   isActive
-                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold shadow-[0_0_20px_rgba(245,158,11,0.45)] border border-amber-300'
-                    : `bg-slate-800/60 hover:bg-gradient-to-r hover:${item.hoverGradient} text-slate-200 hover:text-slate-950 border border-slate-700/50 hover:border-transparent hover:shadow-lg`
+                    ? 'bg-gradient-to-r from-amber-500/20 via-purple-500/15 to-transparent text-white border border-amber-400/40 shadow-[0_0_20px_rgba(245,158,11,0.2)]'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
                 }`}
+                title={!isExpanded ? item.label : undefined}
               >
-                {/* Icon Box */}
+                {/* Active Left Indicator Bar */}
+                {isActive && (
+                  <div className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-gradient-to-b from-amber-400 to-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
+                )}
+
                 <div
-                  className={`relative z-10 w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${
+                  className={`p-2 rounded-xl transition-all duration-200 shrink-0 ${
                     isActive
-                      ? 'text-slate-950 bg-slate-950/15'
-                      : 'text-slate-300 group-hover:text-slate-950 group-hover:bg-slate-950/15'
+                      ? 'bg-amber-400 text-slate-950 shadow-md font-bold'
+                      : 'bg-slate-900/80 text-slate-400 group-hover:text-amber-300 group-hover:bg-slate-800 border border-slate-800'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-4 h-4" />
                 </div>
 
-                {/* Text Label & Badge */}
                 {isExpanded && (
-                  <div className="relative z-10 flex-1 flex items-center justify-between min-w-0 gap-2 text-left">
+                  <div className="flex items-center justify-between flex-1 min-w-0 animate-fade-in">
                     <span
-                      className={`text-[13.5px] truncate transition-colors ${
-                        isActive
-                          ? 'font-bold text-slate-950'
-                          : 'font-medium text-slate-200 group-hover:text-slate-950 group-hover:font-bold'
+                      className={`text-xs font-bold tracking-wide truncate ${
+                        isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'
                       }`}
                     >
                       {item.label}
                     </span>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {item.badge && (
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider shrink-0 transition-colors border ${
-                            isActive
-                              ? 'bg-slate-950/20 text-slate-950 border-slate-950/30'
-                              : `${item.badgeColor} group-hover:bg-slate-950/20 group-hover:text-slate-950 group-hover:border-slate-950/30`
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                      <ChevronRight
-                        className={`w-4 h-4 shrink-0 transition-colors ${
-                          isActive
-                            ? 'text-slate-950 animate-pulse'
-                            : 'text-slate-400 group-hover:text-slate-950'
-                        }`}
-                      />
-                    </div>
+                    {item.badge && (
+                      <span
+                        className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md border shrink-0 ${item.badgeColor}`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
                   </div>
+                )}
+
+                {/* Subtle Right Chevron on Hover */}
+                {isExpanded && !isActive && (
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity -mr-1" />
                 )}
               </button>
             );
           })}
         </nav>
 
-        {/* Bottom Actions Cluster */}
-        <div className="pt-3 border-t border-slate-800/80 space-y-2 flex flex-col items-center">
-          {/* 🎙️ Voice Command Trigger */}
-          <button
-            onClick={() => {
-              if (onOpenVoiceCommand) {
-                onOpenVoiceCommand();
-              }
-            }}
-            className={`w-full flex items-center py-2.5 rounded-xl bg-slate-800/60 hover:bg-gradient-to-r hover:from-amber-400 hover:to-amber-500 border border-slate-700/50 hover:border-transparent text-slate-200 hover:text-slate-950 hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all duration-200 group cursor-pointer relative overflow-hidden ${
-              isExpanded ? 'px-3 gap-3 justify-start' : 'px-0 justify-center'
-            }`}
-            title="Trợ Lý Giọng Nói Solaris (Voice Command)"
-          >
-            <div className="relative z-10 w-9 h-9 rounded-lg bg-amber-500/20 group-hover:bg-slate-950/15 border border-amber-400/40 group-hover:border-slate-950/20 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.3)] group-hover:scale-105 transition-transform text-amber-300 group-hover:text-slate-950">
-              <Mic className="w-5 h-5" />
-            </div>
-
-            {isExpanded && (
-              <div className="relative z-10 flex-1 flex flex-col text-left min-w-0">
-                <span className="text-xs font-bold text-amber-300 group-hover:text-slate-950 flex items-center gap-1 truncate transition-colors">
-                  <Sparkles className="w-3 h-3 shrink-0" /> Voice Command
-                </span>
-                <span className="text-[10px] text-slate-400 group-hover:text-slate-900 font-medium truncate transition-colors">
-                  Trợ Lý Giọng Nói AI
-                </span>
+        {/* Bottom Action Footer */}
+        <div className="pt-3 border-t border-slate-800/80 space-y-2">
+          {/* Voice Assistant Trigger */}
+          {onOpenVoiceCommand && (
+            <button
+              onClick={onOpenVoiceCommand}
+              className={`w-full group flex items-center rounded-2xl bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/30 text-purple-300 transition-all cursor-pointer shadow-md ${
+                isExpanded ? 'px-3.5 py-2.5 gap-3' : 'p-2.5 justify-center'
+              }`}
+              title="Trợ lý giọng nói Solaris AI"
+            >
+              <div className="p-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0 group-hover:scale-105 transition-transform">
+                <Mic className="w-4 h-4 text-purple-400 animate-pulse" />
               </div>
-            )}
-          </button>
+              {isExpanded && (
+                <div className="flex flex-col text-left min-w-0 animate-fade-in">
+                  <span className="text-xs font-black text-purple-200">Solaris Voice AI</span>
+                  <span className="text-[9px] text-purple-400 font-mono">Điều khiển rảnh tay</span>
+                </div>
+              )}
+            </button>
+          )}
 
-          {/* 🚪 LOGOUT BUTTON */}
+          {/* Logout Action */}
           <button
             onClick={logout}
-            className={`w-full flex items-center py-2.5 rounded-xl bg-slate-800/60 hover:bg-gradient-to-r hover:from-rose-500 hover:to-rose-400 border border-slate-700/50 hover:border-transparent text-rose-300 hover:text-slate-950 hover:shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-all duration-200 group cursor-pointer relative overflow-hidden ${
-              isExpanded ? 'px-3 gap-3 justify-start' : 'px-0 justify-center'
+            className={`w-full group flex items-center rounded-2xl bg-rose-950/30 hover:bg-rose-900/50 border border-rose-500/30 text-rose-300 transition-all cursor-pointer ${
+              isExpanded ? 'px-3.5 py-2.5 gap-3' : 'p-2.5 justify-center'
             }`}
-            title="Đăng Xuất"
+            title="Đăng xuất tài khoản"
           >
-            <div className="relative z-10 w-9 h-9 rounded-lg bg-rose-500/20 group-hover:bg-slate-950/15 border border-rose-500/40 group-hover:border-slate-950/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform text-rose-400 group-hover:text-slate-950">
-              <LogOut className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40 shrink-0 group-hover:scale-105 transition-transform">
+              <LogOut className="w-4 h-4" />
             </div>
-
             {isExpanded && (
-              <span className="relative z-10 text-xs font-semibold text-rose-300 group-hover:text-slate-950 group-hover:font-bold truncate transition-colors">
-                Đăng Xuất Phiên Làm Việc
+              <span className="text-xs font-bold text-rose-300 group-hover:text-rose-200 animate-fade-in truncate">
+                Đăng Xuất
               </span>
             )}
           </button>

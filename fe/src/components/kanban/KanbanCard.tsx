@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
+import { UserProfileModal, type UserProfileData } from '../common/UserProfileModal';
+import { getAvatarUrl } from '../../utils/avatar';
 
 export interface SubtaskItem {
   id: string;
@@ -115,7 +117,26 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSubtasksOpen, setIsSubtasksOpen] = useState(false);
+  const [profileUser, setProfileUser] = useState<UserProfileData | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleOpenAssigneeProfile = (e: React.MouseEvent, targetUser?: any) => {
+    e.stopPropagation();
+    const u = targetUser || task.assignee;
+    if (!u) return;
+    setProfileUser({
+      id: u.id || 'u-assignee',
+      fullName: u.fullName || 'Thành viên Solaris',
+      email: u.email || `${u.fullName?.toLowerCase().replace(/\s+/g, '.')}@solaris.io`,
+      avatarUrl: getAvatarUrl(u),
+      avatar: getAvatarUrl(u),
+      jobTitle: u.profession ? `${u.profession} Specialist` : 'Software Engineer',
+      department: 'Engineering',
+      globalRole: 'EMPLOYEE',
+      statusSignal: 'ONLINE',
+      workMode: 'OFFICE',
+    });
+  };
 
   const isMyTask = Boolean(
     currentUser &&
@@ -169,19 +190,6 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
     }
   };
 
-  const getPriorityBadge = (priority: TaskItem['priority']) => {
-    switch (priority) {
-      case 'URGENT':
-        return 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse';
-      case 'IMPORTANT':
-        return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
-      case 'NORMAL':
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
-      default:
-        return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
-    }
-  };
-
   const getStatusBadge = (status: TaskItem['status']) => {
     switch (status) {
       case 'PAUSED':
@@ -221,11 +229,14 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                 </span>
               );
             }
-            return (
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityBadge(task.priority)}`}>
-                {task.priority}
-              </span>
-            );
+            if (task.priority === 'URGENT') {
+              return (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse">
+                  URGENT
+                </span>
+              );
+            }
+            return null;
           })()}
           {statusBadge && StatusIcon && (
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 ${statusBadge.color}`}>
@@ -583,15 +594,20 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
 
       {/* Footer Info */}
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+        <div
+          onClick={(e) => handleOpenAssigneeProfile(e)}
+          className="flex items-center gap-1.5 min-w-0 flex-1 hover:text-amber-300 transition-colors cursor-pointer group/assignee"
+          title="Nhấn để xem hồ sơ nhân sự"
+        >
           {/* Avatar Stack Group */}
           {task.assignees && task.assignees.length > 1 ? (
             <div className="flex items-center -space-x-1.5 overflow-hidden shrink-0">
               {task.assignees.slice(0, 3).map((u, i) => (
                 <div
                   key={u.id || i}
-                  className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[8px] text-cyan-300 overflow-hidden shadow-sm"
-                  title={u.fullName}
+                  onClick={(e) => handleOpenAssigneeProfile(e, u)}
+                  className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[8px] text-cyan-300 overflow-hidden shadow-sm hover:border-amber-400 transition-colors cursor-pointer"
+                  title={`Xem hồ sơ: ${u.fullName}`}
                 >
                   {u.avatar ? (
                     <img src={u.avatar} alt="Avatar" className="w-full h-full object-cover" />
@@ -607,7 +623,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
               )}
             </div>
           ) : (
-            <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[9px] text-amber-300 overflow-hidden shrink-0">
+            <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[9px] text-amber-300 overflow-hidden shrink-0 group-hover/assignee:border-amber-400 transition-colors">
               {task.assignee?.avatar ? (
                 <img src={task.assignee.avatar} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
@@ -616,7 +632,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
             </div>
           )}
           <span
-            className="truncate font-medium text-slate-300 max-w-[105px]"
+            className="truncate font-medium text-slate-300 max-w-[105px] group-hover/assignee:text-amber-300 transition-colors"
             title={
               task.assignees && task.assignees.length > 1
                 ? task.assignees.map((u) => u.fullName).join(', ')
@@ -671,6 +687,13 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
           )}
         </div>
       </div>
+
+      {/* 🌟 UNIVERSAL USER PROFILE MODAL */}
+      <UserProfileModal
+        user={profileUser}
+        isOpen={!!profileUser}
+        onClose={() => setProfileUser(null)}
+      />
     </div>
   );
 });

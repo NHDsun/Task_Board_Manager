@@ -8,6 +8,7 @@ export interface User {
   id: string;
   email: string;
   fullName: string;
+  avatar?: string;
   avatarUrl?: string;
   coverImage?: string;
   globalRole: GlobalRole;
@@ -17,6 +18,8 @@ export interface User {
   bio?: string;
   statusSignal?: UserStatusSignal;
   customStatus?: string;
+  workMode?: 'OFFICE' | 'REMOTE';
+  isFirstLogin?: boolean;
 }
 
 export interface LoginPayload {
