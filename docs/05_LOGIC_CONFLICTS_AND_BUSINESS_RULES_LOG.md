@@ -1028,6 +1028,33 @@ Mỗi lỗi xung đột logic được phân loại theo 4 cấp độ nghiêm t
 
 ---
 
+### [LC-102] Khóa Tài Khoản & Bảo Vệ Phiên Làm Việc Nhân Sự (Account Lock & Immediate Session Protection)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):**
+  1. Khi tài khoản nhân sự bị khóa (`isActive: false`), người quản trị cần có cơ chế dọn dẹp/xóa vĩnh viễn bản ghi nếu nhân sự đã thôi việc.
+  2. Nếu tài khoản chưa bị khóa mà có nút xóa ngay, Admin có thể vô tình bấm nhầm làm mất dữ liệu nhân sự đang làm việc.
+* **Giải pháp kỹ thuật:**
+  1. **Quy trình 2 bước bảo vệ an toàn (Two-Step Deletion Flow)**:
+     - Nhân sự đang hoạt động (`Active`) chỉ có tùy chọn Khóa tài khoản (`Lock`).
+     - Chỉ sau khi tài khoản đã bị Khóa (`Locked`), hệ thống mới kích hoạt hiển thị thêm **Nút Xóa Tài Khoản (Icon `Trash2` đỏ)**.
+  2. **Modal Xác Nhận Độc Lập**:
+     - Bật hộp thoại cảnh báo với thông điệp rõ ràng trước khi xóa vĩnh viễn khỏi danh bạ.
+* **File ảnh hưởng:** `fe/src/pages/AdminUsersPage.tsx`, `fe/src/store/useUserStore.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100% (Build Pass Exit Code 0)**.
+
+---
+
+### [LC-103] Bảo Vệ CSDL PostgreSQL Chống Drop Dữ Liệu Tự Động (Database Persistence & Data Loss Prevention)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Lệnh khởi động container Backend chứa cờ `npx prisma db push --accept-data-loss`. Mỗi khi có sự sai khác nhẹ về schema khi restart container, Prisma tự ý xóa trắng bảng hoặc drop cột trong CSDL, gây mất dữ liệu người dùng.
+* **Giải pháp kỹ thuật:**
+  1. Loại bỏ hoàn toàn cờ `--accept-data-loss` khỏi `docker-compose.yml`, chuyển thành `npx prisma db push && node dist/main`.
+  2. Thiết lập PostgreSQL 16 (`task_management_db`) làm Nguồn Dữ Liệu Duy Nhất (Single Source of Truth) cho toàn bộ Hồ sơ, Task, Dự án, Bình luận và Thùng rác.
+* **File ảnh hưởng:** `docker-compose.yml`, `be/src/modules/profile/profile.service.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100% (Build Pass Exit Code 0)**.
+
+---
+
 ## 3. DANH MỤC CÁC CONFLICT ĐANG TIẾP TỤC THEO DÕI & TỐI ƯU HÓA (BACKLOG CONFLICTS)
 
 | Mã ID | Tên Luồng Conflict | Mức Độ | Trạng Thái |

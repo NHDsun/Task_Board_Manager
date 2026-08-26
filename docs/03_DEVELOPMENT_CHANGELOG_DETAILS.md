@@ -1367,51 +1367,89 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
   - **Chi tiết:** Cập nhật lại mật khẩu tài khoản `admin@taskboard.com` và các tài khoản mẫu sang chuẩn chuỗi băm `bcrypt` thay vì lưu chuỗi thô (plain text), giải quyết triệt để lỗi đăng nhập thất bại 401 Unauthorized.
 - **Kết quả kiểm tra:** Đăng nhập thành công 100% với toàn bộ các tài khoản mẫu (`huydatne@gmail.com`, `admin@taskboard.com`, `manager@taskboard.com`, `employee@taskboard.com`...) trả về HTTP 201 và JWT AccessToken hợp lệ.
 
+---
 
+## 144. Khởi Tạo Phân Hệ Quản Lý Nhân Sự (Admin Users Page) & Phân Quyền RBAC Guard
+- **File 1:** `fe/src/pages/AdminUsersPage.tsx` & `fe/src/components/navigation/MeteorEdgeMenu.tsx`
+  - **Hành động:** `[THÊM MỚI TRANG QUẢN TRỊ & ROUTE GUARD]`.
+  - **Chi tiết:**
+    - Khởi tạo trang `/admin/users` với giao diện 2 chế độ (Thẻ Bento Grid & Bảng Doanh Nghiệp).
+    - Tích hợp bộ lọc đa chiều tức thì (Tìm kiếm từ khóa, Vai trò RBAC, Phòng ban, Trạng thái làm việc).
+    - Ẩn hoàn toàn mục "Quản Lý Nhân Sự" trên menu đối với `EMPLOYEE` và `MANAGER`; chỉ mở cho `ADMIN`.
+- **File 2:** `fe/src/App.tsx`
+  - **Hành động:** `[BỔ SUNG ROUTE GUARD CHẶN TRUY CẬP TRÁI PHÉP]`.
+  - **Chi tiết:** Nếu người dùng không phải Admin cố tình gõ URL `/admin/users`, hệ thống tự động chặn và điều hướng an toàn về `/tasks`.
 
+---
 
+## 145. Chuyển Đổi Hệ Thống Chỉ Số KPI Sang "Task Đúng Hạn" & "Task Trễ Hạn"
+- **File 1:** `fe/src/pages/ProfilePage.tsx` & `fe/src/components/common/UserProfileModal.tsx`
+  - **Hành động:** `[THAY THẾ CHỈ SỐ % BẰNG LƯỚI 4 THẺ METRIC CHUẨN]`.
+  - **Chi tiết:**
+    - Loại bỏ hoàn toàn thanh tỷ trọng % và chỉ số hiệu suất tĩnh cũ.
+    - Thay bằng Lưới 4 Thẻ KPI: **Tổng Task**, **Đang Làm (In Progress)**, **Đúng Hạn (On-Time - Badge xanh)**, và **Trễ Hạn (Overdue - Badge đỏ)**.
+    - Bổ sung chế độ xem hồ sơ người khác (View-Only Mode) kèm nút *"🔙 Quay Lại Hồ Sơ Của Tôi"*.
+- **File 2:** `fe/src/pages/AdminUsersPage.tsx`
+  - **Hành động:** `[ĐỒNG BỘ BADGE ĐÚNG HẠN / TRỄ HẠN TRÊN DANH SÁCH NHÂN SỰ]`.
+  - **Chi tiết:** Hiển thị trực tiếp số lượng task đúng hạn và cảnh báo task trễ hạn trên từng thẻ và dòng bảng nhân sự.
 
+---
 
+## 146. Xây Dựng Màn Hình Onboarding Thiết Lập Hồ Sơ & Đổi Mật Khẩu Lần Đầu
+- **File 1:** `fe/src/pages/OnboardingProfilePage.tsx`
+  - **Hành động:** `[TẠO MỚI TRANG THIẾT LẬP BAN ĐẦU]`.
+  - **Chi tiết:**
+    - Khi tài khoản đăng nhập lần đầu (`isFirstLogin: true`), hệ thống tự động điều hướng sang màn hình Onboarding.
+    - Cung cấp form nhập: Họ tên chính thức, SĐT, Chọn Avatar từ bộ Preset chất lượng cao, Chức danh, Phòng ban, Chuyên môn (DEV/TESTER/DESIGNER/BA/PO/DEVOPS/MARKETING), Chế độ làm việc (Office/Remote), Bio.
+    - Bắt buộc đặt lại mật khẩu mới để bảo mật tài khoản.
+- **File 2:** `fe/src/types/auth.ts`
+  - **Hành động:** `[MỞ RỘNG KIỂU DỮ LIỆU USER]`.
+  - **Chi tiết:** Bổ sung trường `isFirstLogin?: boolean;` và `workMode?: 'OFFICE' | 'REMOTE';`.
 
+---
 
+## 147. Chuẩn Hóa & Cố Định Avatar Mặc Định Tĩnh (Static Fixed Avatars)
+- **File 1:** `fe/src/utils/avatar.ts`
+  - **Hành động:** `[TẠO TIỆN ÍCH CHUẨN HÓA AVATAR TOÀN CỤC]`.
+  - **Chi tiết:**
+    - Khởi tạo hàm `getAvatarUrl(user)` ưu tiên đọc `user.avatar || user.avatarUrl`.
+    - Loại bỏ 100% việc gọi API ngẫu nhiên bên ngoài (`DiceBear API`), khắc phục triệt để lỗi avatar bị nhảy/thay đổi liên tục khi render hoặc gõ phím.
+    - Tự động gán Avatar doanh nghiệp tĩnh chuẩn HD nếu dữ liệu trong DB là `NULL`.
+- **File 2:** Áp dụng trên toàn bộ các file `fe/src/store/useUserStore.ts`, `UserProfileModal.tsx`, `ProfilePage.tsx`, `AdminUsersPage.tsx`, `KanbanCard.tsx`, `TaskDetailModal.tsx`.
 
+---
 
+## 148. Tự Động Hóa 100% Nhận Diện Trạng Thái Hoạt Động (Auto Status Detection)
+- **File 1:** `fe/src/hooks/useAutoStatusSignal.ts`
+  - **Hành động:** `[TẠO HOOK NHẬN DIỆN TRẠNG THÁI THEO THỜI GIAN THỰC]`.
+  - **Chi tiết:**
+    - Tự động chuyển `ONLINE` ngay khi có tương tác (di chuột, gõ phím, click, cuộn trang).
+    - Tự động chuyển `AWAY` khi người dùng không cử động trong 2 phút hoặc chuyển sang tab khác (`visibilityState === 'hidden'`).
+    - Tự động chuyển `OFFLINE` khi mất kết nối mạng.
+    - Đồng bộ ngầm lên Backend có cơ chế Throttle (tối đa 1 lần/15s) chống nghẽn mạng.
+- **File 2:** `fe/src/pages/ProfilePage.tsx`
+  - **Hành động:** `[LOẠI BỎ DROPDOWN ĐỔI TAY, THAY BẰNG HUY HIỆU AUTO]`.
+  - **Chi tiết:** Hiển thị huy hiệu `[ AUTO ⚡ ]` với đèn tín hiệu trạng thái phát sáng thời gian thực.
 
+---
 
+## 149. Thiết Lập PostgreSQL 16 Làm Nguồn Dữ Liệu Duy Nhất (Single Source of Truth) & Chống Mất Dữ Liệu
+- **File 1:** `docker-compose.yml`
+  - **Hành động:** `[LOẠI BỎ CỜ NGUY HIỂM --ACCEPT-DATA-LOSS]`.
+  - **Chi tiết:** Cập nhật lệnh khởi động Backend thành `command: sh -c "npx prisma db push && node dist/main"`. Prisma sẽ không bao giờ tự ý drop hoặc xóa bảng trong volume `pgdata` khi restart container.
+- **File 2:** `be/src/modules/profile/profile.service.ts`
+  - **Hành động:** `[ĐỒNG BỘ TRỰC TIẾP DỮ LIỆU PROFILE VÀO POSTGRESQL]`.
+  - **Chi tiết:** Đảm bảo `getProfile` và `updateProfile` luôn lưu trữ vĩnh viễn và trả về đầy đủ cả 2 trường `avatar` và `avatarUrl`.
 
+---
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## 150. Bổ Sung Nút Xóa Vĩnh Viễn Tài Khoản Khi Bị Khóa (Locked Account Deletion)
+- **File 1:** `fe/src/store/useUserStore.ts`
+  - **Hành động:** `[BỔ SUNG PHƯƠNG THỨC DELETEUSER]`.
+  - **Chi tiết:** Thêm hàm `deleteUser(id)` xóa sạch bản ghi nhân sự khỏi danh bạ và cập nhật `localStorage`.
+- **File 2:** `fe/src/pages/AdminUsersPage.tsx`
+  - **Hành động:** `[HIỂN THỊ NÚT XÓA KHI TÀI KHOẢN BỊ KHÓA & MODAL XÁC NHẬN]`.
+  - **Chi tiết:**
+    - Khi tài khoản ở trạng thái khóa (`!user.isActive`), tự động hiển thị thêm Nút Xóa Thùng Rác (Icon `Trash2` màu đỏ).
+    - Tích hợp Modal cảnh báo xác nhận xóa vĩnh viễn nhân sự khỏi tổ chức.
 
