@@ -196,6 +196,7 @@ interface UserStoreState {
   setViewingUserId: (userId: string | null) => void;
   addUser: (user: DirectoryUser) => void;
   updateDirectoryUser: (id: string, partial: Partial<DirectoryUser>) => void;
+  deleteUser: (id: string) => void;
   syncWithAuthUser: (authUser: User) => void;
   getUserById: (id: string) => DirectoryUser | undefined;
 }
@@ -228,6 +229,14 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   updateDirectoryUser: (id, partial) => {
     set((state) => {
       const updated = state.users.map((u) => (u.id === id ? { ...u, ...partial } : u));
+      localStorage.setItem('solaris_user_directory', JSON.stringify(updated));
+      return { users: updated };
+    });
+  },
+
+  deleteUser: (id) => {
+    set((state) => {
+      const updated = state.users.filter((u) => u.id !== id);
       localStorage.setItem('solaris_user_directory', JSON.stringify(updated));
       return { users: updated };
     });
