@@ -1,9 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import * as bcrypt from 'bcrypt';
+import { RegisterDto } from './dto/register.dto';
+import { use } from 'passport';
 
 @Injectable()
 export class AuthService {
@@ -103,7 +109,51 @@ export class AuthService {
       },
     };
   }
+  async register(registerDto: RegisterDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: registerDto.email },
+    });
+    if (existingUser) {
+      throw new ConflictException('Email này đã được sử dụng trong hệ thống');
+    }
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(registerDto.password, saltRounds);
 
+    const newUser = await this.prisma.user.create({
+      data: {
+        email: registerDto.email,
+        password: hashedPassword,
+        fullName: registerDto.fullName,
+        phone: registerDto.phone || null,
+        role: 'EMPLOYEE',
+      },
+    });
+    const effectiveRole = await this.computeEffectiveRole(newUser);
+    const tokens = await this.generateTokens(
+      newUser.id,
+      newUser.email,
+      effectiveRole,
+    );
+    await this.updateRefreshTokenHash(newUser.id, tokens.refreshToken);
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        fullName: newUser.fullName,
+        avatarUrl: newUser.avatar || '',
+        coverImage: newUser.coverImage || '',
+        globalRole: effectiveRole,
+        profession: newUser.profession,
+        jobTitle: newUser.jobTitle,
+        phone: newUser.phone,
+        bio: newUser.bio,
+        statusSignal: newUser.statusSignal,
+        customStatus: newUser.customStatus,
+      },
+    };
+  }
   async refreshTokens(refreshToken: string) {
     let payload: any;
     try {
