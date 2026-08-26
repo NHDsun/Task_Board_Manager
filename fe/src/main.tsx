@@ -6,7 +6,7 @@ import App from './App.tsx';
 import './index.css';
 
 const queryClient = new QueryClient();
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'solaris-google-client-id';
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '73331301666-21hnqrcgeel2pkbc4o0v3d4uvd49pu06.apps.googleusercontent.com';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
