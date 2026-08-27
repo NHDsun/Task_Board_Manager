@@ -17,6 +17,7 @@ import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { LockUserDto } from './dto/lock-user.dto';
+import { RolesGuard } from '../../common/guards/roles.guard';
 interface AuthenticatedRequest extends Request {
   user: {
     id: string;
@@ -50,7 +51,7 @@ export class UserController {
     return this.userService.updateRoleAndDepartment(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch(':id/lock')
   @Roles('ADMIN')
   lockUser(
@@ -62,7 +63,12 @@ export class UserController {
     const adminId: string = String(user.id || user.userId);
     return this.userService.lockOrUnlockUser(id, dto, adminId);
   }
-
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post(':id/reset-password')
+  @Roles('ADMIN')
+  resetPassword(@Param('id') id: string) {
+    return this.userService.resetPassword(id);
+  }
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.userService.remove(+id);

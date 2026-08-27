@@ -8,10 +8,10 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUserDto } from './dto/query-user.dto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NotFoundError } from 'rxjs';
+import { bindCallback, NotFoundError } from 'rxjs';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { LockUserDto } from './dto/lock-user.dto';
-
+import * as bcrypt from 'bcrypt';
 @Injectable()
 export class UserService {
   // create(createUserDto: CreateUserDto) {
@@ -214,6 +214,35 @@ export class UserService {
         isActive: true,
       },
     });
+  }
+  async resetPassword(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+      },
+    });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    const DEFAULT_PASSWORD = 'USER123456';
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, saltRounds);
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        password: hashedPassword,
+        isFirstLogin: true,
+        refreshToken: null,
+      },
+    });
+    return {
+      success: true,
+      message: `Đặt lại mật khẩu cho "${user.fullName}"`,
+      defaultPassword: DEFAULT_PASSWORD,  
+    };
   }
   remove(id: number) {
     return `This action removes a #${id} user`;
