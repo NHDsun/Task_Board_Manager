@@ -12,6 +12,7 @@ import { bindCallback, NotFoundError } from 'rxjs';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { LockUserDto } from './dto/lock-user.dto';
 import * as bcrypt from 'bcrypt';
+import { use } from 'passport';
 @Injectable()
 export class UserService {
   // create(createUserDto: CreateUserDto) {
@@ -241,10 +242,65 @@ export class UserService {
     return {
       success: true,
       message: `Đặt lại mật khẩu cho "${user.fullName}"`,
-      defaultPassword: DEFAULT_PASSWORD,  
+      defaultPassword: DEFAULT_PASSWORD,
     };
   }
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async remove(id: string, currentAdminId: string) {
+    if (id === currentAdminId) {
+      throw new BadRequestException(
+        'Bạn không thể xóa tài khoản của chính mình!',
+      );
+    }
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        managedProjects: {
+          where: {
+            isDeleted: false,
+          },
+        },
+        ownedProjects: {
+          where: {
+            isDeleted: false,
+          },
+        },
+      },
+    });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    if (user.isActive) {
+      throw new BadRequestException(
+        'Tài khoản đang Hoạt Động (Active). Bạn phải khóa tài khoản trước khi thực hiện xóa vĩnh viễn!',
+      );
+    }
+    if (user.managedProjects.length > 0 || user.ownedProjects.length > 0) {
+      throw new BadRequestException(
+        'Không thể xóa nhân sự này do đang là Chủ sở hữu/Quản lý của dự án đang chạy. Hãy chuyển giao quyền quản lý trước!',
+      );
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({
+        where: {
+          assigneeId: id,
+        },
+        data: { assigneeId: null },
+      });
+      await tx.subtask.updateMany({
+        where: { assigneeId: id },
+        data: { assigneeId: null },
+      });
+      await tx.user.delete({
+        where: {
+          id,
+        },
+      });
+      return {
+        success: true,
+        message: `Đã xóa vĩnh viễn tài khoản "${user.fullName}" (${user.email}) khỏi hệ thống.`,
+      };
+    });
   }
 }

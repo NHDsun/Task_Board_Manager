@@ -59,8 +59,7 @@ export class UserController {
     @Body() dto: LockUserDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    const user = req.user as { id?: string; userId?: string } | undefined;
-    const adminId: string = String(user.id || user.userId);
+    const adminId = req.user.id;
     return this.userService.lockOrUnlockUser(id, dto, adminId);
   }
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -69,8 +68,11 @@ export class UserController {
   resetPassword(@Param('id') id: string) {
     return this.userService.resetPassword(id);
   }
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.userService.remove(+id);
+  @Roles('ADMIN')
+  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    const adminId = req.user.id;
+    return this.userService.remove(id, adminId);
   }
 }

@@ -119,7 +119,7 @@ model User {
   jobTitle     String?          @map("job_title")
   phone        String?
   bio          String?
-  isActive     Boolean          @default(true) @map("is_active")         
+  isActive     Boolean          @default(true) @map("is_active")         // 👈 THÊM DÒNG NÀY
   isFirstLogin Boolean          @default(false) @map("is_first_login")
   statusSignal UserStatusSignal @default(ONLINE) @map("status_signal")
   customStatus String?          @map("custom_status")
