@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUserDto } from './dto/query-user.dto';
@@ -6,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundError } from 'rxjs';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { LockUserDto } from './dto/lock-user.dto';
 
 @Injectable()
 export class UserService {
@@ -135,6 +140,25 @@ export class UserService {
     return user;
   }
 
+  // async getUserWorkload(userId: string) {
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id: userId },
+  //     select: {
+  //       id: true,
+  //       fullName: true,
+  //       email: true,
+  //       avatar: true,
+  //       jobTitle: true,
+  //       profession: true,
+  //     },
+  //   });
+  //   if (!user) {
+  //     throw new NotFoundException('không tìm thấy người dùng');
+  //   }
+  //   const now = new Date();
+  //   const [todoCount , inProgressCount ,reviewCount , doneCount , overdueCount , urgentCount]
+  // }
+
   async updateRoleAndDepartment(id: string, dto: UpdateUserRoleDto) {
     await this.findOne(id);
 
@@ -170,7 +194,27 @@ export class UserService {
       },
     });
   }
-
+  async lockOrUnlockUser(id: string, dto: LockUserDto, currentAdminId: string) {
+    if (id === currentAdminId && !dto.isActive) {
+      throw new BadRequestException(
+        'Bạn không thể tự khóa tài khoản của chính mình!',
+      );
+    }
+    await this.findOne(id);
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        isActive: dto.isActive,
+        ...(!dto.isActive && { refreshToken: null }),
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isActive: true,
+      },
+    });
+  }
   remove(id: number) {
     return `This action removes a #${id} user`;
   }
