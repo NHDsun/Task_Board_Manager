@@ -388,7 +388,12 @@ export const BoardPage: React.FC = () => {
     if (!taskToMove) return;
 
     // 🔒 1. BỊ CẤM: Drag Ownership Rule
-    const isAdmin = user?.globalRole === 'ADMIN';
+    const isManagerOrAdmin = Boolean(
+      user?.globalRole === 'ADMIN' ||
+      user?.globalRole === 'MANAGER' ||
+      (user as any)?.role === 'ADMIN' ||
+      (user as any)?.role === 'MANAGER'
+    );
     const hasAssignee = Boolean(taskToMove.assigneeId || taskToMove.assignee?.id || taskToMove.assignee?.email);
     const isTaskOwner = hasAssignee
       ? (taskToMove.assigneeId === user?.id ||
@@ -396,7 +401,7 @@ export const BoardPage: React.FC = () => {
          taskToMove.assignee?.email === user?.email)
       : (taskToMove as any).createdById === user?.id;
 
-    if (!isAdmin && !isTaskOwner) {
+    if (!isManagerOrAdmin && !isTaskOwner) {
       showNotification(
         `Task này đã được giao cho ${taskToMove.assignee?.fullName || 'thành viên khác'}! Bạn không có quyền kéo thả Task của người khác.`,
         'warning',
@@ -473,8 +478,13 @@ export const BoardPage: React.FC = () => {
     const taskToMove = tasks.find((t) => t.id === draggableId);
     if (!taskToMove) return;
 
-    // 🔒 1. Drag Ownership Rule: Khi đã giao việc, Task thuộc hoàn toàn về Assignee (chỉ Assignee hoặc ADMIN mới có quyền kéo)
-    const isAdmin = user?.globalRole === 'ADMIN';
+    // 🔒 1. Drag Ownership Rule: Cho phép Assignee, Admin hoặc Manager có quyền kéo
+    const isManagerOrAdmin = Boolean(
+      user?.globalRole === 'ADMIN' ||
+      user?.globalRole === 'MANAGER' ||
+      (user as any)?.role === 'ADMIN' ||
+      (user as any)?.role === 'MANAGER'
+    );
     const hasAssignee = Boolean(taskToMove.assigneeId || taskToMove.assignee?.id || taskToMove.assignee?.email);
     const isTaskOwner = hasAssignee
       ? (taskToMove.assigneeId === user?.id ||
@@ -482,7 +492,7 @@ export const BoardPage: React.FC = () => {
          taskToMove.assignee?.email === user?.email)
       : (taskToMove as any).createdById === user?.id;
 
-    if (!isAdmin && !isTaskOwner) {
+    if (!isManagerOrAdmin && !isTaskOwner) {
       showNotification(
         `Task này đã được giao cho ${taskToMove.assignee?.fullName || 'thành viên khác'}! Bạn không có quyền chuyển giai đoạn Pipeline của người khác.`,
         'warning',
@@ -918,14 +928,19 @@ export const BoardPage: React.FC = () => {
 
                       <div className="flex-1 space-y-3">
                         {colTasks.map((t, index) => {
-                          const isAdminRole = user?.globalRole === 'ADMIN';
+                          const isManagerOrAdmin = Boolean(
+                            user?.globalRole === 'ADMIN' ||
+                            user?.globalRole === 'MANAGER' ||
+                            (user as any)?.role === 'ADMIN' ||
+                            (user as any)?.role === 'MANAGER'
+                          );
                           const hasAssignee = Boolean(t.assigneeId || t.assignee?.id || t.assignee?.email);
                           const isMyOwnTask = hasAssignee
                             ? (t.assigneeId === user?.id ||
                                t.assignee?.id === user?.id ||
                                t.assignee?.email === user?.email)
                             : (t as any).createdById === user?.id;
-                          const isDragDisabled = t.status === 'IN_REVIEW' || (!isAdminRole && !isMyOwnTask);
+                          const isDragDisabled = t.status === 'IN_REVIEW' || (!isManagerOrAdmin && !isMyOwnTask);
 
                           return (
                             <Draggable key={t.id} draggableId={t.id} index={index} isDragDisabled={isDragDisabled}>

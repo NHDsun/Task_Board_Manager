@@ -19,6 +19,34 @@ export class IdempotencyInterceptor implements NestInterceptor {
   private readonly logger = new Logger(IdempotencyInterceptor.name);
   private readonly cache = new Map<string, CachedResponse>();
   private readonly ttlMs = 5 * 60 * 1000; // Cache 5 phút
+  private readonly maxEntries = 2000; // Giới hạn tối đa 2000 bản ghi trong RAM
+
+  constructor() {
+    // 🧹 Tự động dọn dẹp các mục hết hạn mỗi 5 phút để chống Memory Leak
+    setInterval(() => {
+      this.purgeExpired();
+    }, 5 * 60 * 1000).unref();
+  }
+
+  private purgeExpired() {
+    const now = Date.now();
+    for (const [key, item] of this.cache.entries()) {
+      if (now - item.timestamp >= this.ttlMs) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  private setCache(key: string, value: CachedResponse) {
+    // Nếu vượt quá giới hạn tối đa, xóa phần tử cũ nhất (FIFO eviction)
+    if (this.cache.size >= this.maxEntries) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) {
+        this.cache.delete(oldestKey);
+      }
+    }
+    this.cache.set(key, value);
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
@@ -47,7 +75,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
     // 🚀 Nếu chưa có trong Cache -> Tiếp tục thực thi và lưu kết quả vào Cache
     return next.handle().pipe(
       tap((data) => {
-        this.cache.set(idempotencyKey, {
+        this.setCache(idempotencyKey, {
           statusCode: context.switchToHttp().getResponse().statusCode,
           data,
           timestamp: Date.now(),

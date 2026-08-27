@@ -116,14 +116,6 @@ export class TaskService {
   }
 
   async create(userId: string, createTaskDto: CreateTaskDto) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     let parsedStartDate: Date | null = null;
     if (createTaskDto.startDate) {
       parsedStartDate = new Date(createTaskDto.startDate);
@@ -202,8 +194,8 @@ export class TaskService {
         priority: calculatedPriority,
         progress: createTaskDto.progress || 0,
         projectId: createTaskDto.projectId,
-        assigneeId: createTaskDto.assigneeId || effectiveUserId,
-        createdById: effectiveUserId,
+        assigneeId: createTaskDto.assigneeId || userId,
+        createdById: userId,
         startDate: parsedStartDate,
         dueDate: parsedDueDate,
         stageId: createTaskDto.stageId || 'stage_1',
@@ -228,10 +220,10 @@ export class TaskService {
     });
 
     // 🔔 [LC-81] BẮN THÔNG BÁO GIAO VIỆC CHO NGƯỜI ĐƯỢC PHÂN CÔNG
-    if (task.assigneeId && task.assigneeId !== effectiveUserId) {
+    if (task.assigneeId && task.assigneeId !== userId) {
       await this.notificationService.sendNotification({
         userId: task.assigneeId,
-        actorId: effectiveUserId,
+        actorId: userId,
         title: '📋 Bạn được giao Task mới',
         content: `Bạn vừa được giao phụ trách Task "${task.title}".`,
         type: 'TASK_ASSIGNED',
@@ -712,14 +704,6 @@ export class TaskService {
   }
 
   async addComment(taskId: string, userId: string, dto: CreateTaskCommentDto) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     // 🔒 [LC-71] KIỂM TRA QUYỀN THÀNH VIÊN DỰ ÁN VÀ KHÓA TASK TRONG THÙNG RÁC
     const targetTask = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -738,17 +722,17 @@ export class TaskService {
     }
 
     const currentUser = await this.prisma.user.findUnique({
-      where: { id: effectiveUserId },
+      where: { id: userId },
     });
     const isAdmin =
       currentUser?.role === 'ADMIN' ||
       (currentUser as any)?.globalRole === 'ADMIN';
     const isMember =
-      targetTask.project?.members.some((m) => m.userId === effectiveUserId) ||
-      targetTask.project?.managerId === effectiveUserId ||
-      targetTask.project?.createdById === effectiveUserId ||
-      targetTask.assigneeId === effectiveUserId ||
-      targetTask.createdById === effectiveUserId;
+      targetTask.project?.members.some((m) => m.userId === userId) ||
+      targetTask.project?.managerId === userId ||
+      targetTask.project?.createdById === userId ||
+      targetTask.assigneeId === userId ||
+      targetTask.createdById === userId;
 
     if (!isAdmin && !isMember) {
       throw new ForbiddenException(
@@ -759,7 +743,7 @@ export class TaskService {
     const comment = await this.prisma.comment.create({
       data: {
         taskId,
-        userId: effectiveUserId,
+        userId: userId,
         content: cleanContent,
       },
       include: {
@@ -787,10 +771,10 @@ export class TaskService {
     }
 
     // 🔔 Gửi thông báo bình luận tới Người được giao việc và Người tạo Task
-    if (targetTask.assigneeId && targetTask.assigneeId !== effectiveUserId) {
+    if (targetTask.assigneeId && targetTask.assigneeId !== userId) {
       await this.notificationService.sendNotification({
         userId: targetTask.assigneeId,
-        actorId: effectiveUserId,
+        actorId: userId,
         title: '💬 Bình luận mới trong Task',
         content: `${comment.user?.fullName || 'Đồng nghiệp'} đã bình luận vào Task "${targetTask.title}": "${cleanContent.slice(0, 80)}..."`,
         type: 'TASK_COMMENT',
@@ -800,12 +784,12 @@ export class TaskService {
     }
     if (
       targetTask.createdById &&
-      targetTask.createdById !== effectiveUserId &&
+      targetTask.createdById !== userId &&
       targetTask.createdById !== targetTask.assigneeId
     ) {
       await this.notificationService.sendNotification({
         userId: targetTask.createdById,
-        actorId: effectiveUserId,
+        actorId: userId,
         title: '💬 Bình luận mới trong Task',
         content: `${comment.user?.fullName || 'Đồng nghiệp'} đã bình luận vào Task "${targetTask.title}": "${cleanContent.slice(0, 80)}..."`,
         type: 'TASK_COMMENT',
@@ -819,14 +803,6 @@ export class TaskService {
 
   // ✉️ Create a new Task Transfer/Assist Request in PostgreSQL CSDL
   async createTaskRequest(senderId: string, dto: any) {
-    let effectiveSenderId = senderId;
-    if (senderId === 'admin-huydat-id' || senderId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveSenderId = realAdmin.id;
-    }
-
     // 🔒 [LC-71] KIỂM TRA TASK TỒN TẠI VÀ KHÔNG Ở TRONG THÙNG RÁC
     const targetTask = await this.prisma.task.findUnique({
       where: { id: dto.taskId },
@@ -843,7 +819,7 @@ export class TaskService {
     }
 
     const senderUser = await this.prisma.user.findUnique({
-      where: { id: effectiveSenderId },
+      where: { id: senderId },
     });
     const isManagerOrAdmin = Boolean(
       senderUser &&
@@ -851,8 +827,8 @@ export class TaskService {
         senderUser.role === 'MANAGER' ||
         (senderUser as any).globalRole === 'ADMIN' ||
         (senderUser as any).globalRole === 'MANAGER' ||
-        targetTask.project?.managerId === effectiveSenderId ||
-        targetTask.project?.createdById === effectiveSenderId),
+        targetTask.project?.managerId === senderId ||
+        targetTask.project?.createdById === senderId),
     );
 
     // 🔒 [LC-45] CHẶN CHUYỂN GIAO TASK ĐÃ HOÀN THÀNH
@@ -869,23 +845,8 @@ export class TaskService {
       );
     }
 
-    let effectiveReceiverId = dto.receiverId;
-    if (dto.receiverId === 'admin-huydat-id' || dto.receiverId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveReceiverId = realAdmin.id;
-    } else if (dto.receiverId === 'manager-minhanh-id') {
-      const realManager = await this.prisma.user.findUnique({
-        where: { email: 'manager@taskboard.com' },
-      });
-      if (realManager) effectiveReceiverId = realManager.id;
-    } else if (dto.receiverId === 'employee-hoangnam-id') {
-      const realEmployee = await this.prisma.user.findUnique({
-        where: { email: 'employee@taskboard.com' },
-      });
-      if (realEmployee) effectiveReceiverId = realEmployee.id;
-    }
+    const effectiveSenderId = senderId;
+    const effectiveReceiverId = dto.receiverId;
 
     // 🔒 [LC-28] 2. Chặn chuyển giao hoặc hỗ trợ cho chính bản thân mình
     if (effectiveSenderId === effectiveReceiverId) {
@@ -1189,17 +1150,9 @@ export class TaskService {
 
   // 📤 Get outgoing task transfer requests sent by the logged-in user
   async getOutgoingRequests(userId: string) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const requests = await this.prisma.taskRequest.findMany({
       where: {
-        senderId: effectiveUserId,
+        senderId: userId,
       },
       include: {
         task: { select: { id: true, title: true, priority: true } },
@@ -1231,14 +1184,6 @@ export class TaskService {
 
   // 🚫 [LC-38] Cancel a pending outgoing task transfer request (Allowed for Sender, Admin, Manager)
   async cancelTaskRequest(requestId: string, userId: string) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const reqItem = await this.prisma.taskRequest.findUnique({
       where: { id: requestId },
       include: {
@@ -1259,7 +1204,7 @@ export class TaskService {
     }
 
     const currentUser = await this.prisma.user.findUnique({
-      where: { id: effectiveUserId },
+      where: { id: userId },
     });
     const isManagerOrAdmin = Boolean(
       currentUser &&
@@ -1267,11 +1212,11 @@ export class TaskService {
         currentUser.role === 'MANAGER' ||
         (currentUser as any).globalRole === 'ADMIN' ||
         (currentUser as any).globalRole === 'MANAGER' ||
-        reqItem.task.project?.managerId === effectiveUserId ||
-        reqItem.task.project?.createdById === effectiveUserId),
+        reqItem.task.project?.managerId === userId ||
+        reqItem.task.project?.createdById === userId),
     );
 
-    if (reqItem.senderId !== effectiveUserId && !isManagerOrAdmin) {
+    if (reqItem.senderId !== userId && !isManagerOrAdmin) {
       throw new ForbiddenException(
         'Bạn chỉ có thể hủy yêu cầu do chính mình gửi đi (hoặc bởi Quản lý/Admin)!',
       );
@@ -1308,7 +1253,7 @@ export class TaskService {
         await tx.comment.create({
           data: {
             taskId: reqItem.taskId,
-            userId: effectiveUserId,
+            userId: userId,
             content: `🚫 [HỦY YÊU CẦU CHUYỂN GIAO] ${reqItem.sender.fullName} đã hủy yêu cầu chuyển giao Task tới ${reqItem.receiver.fullName}. Task quay trở lại trạng thái Thực hiện.`,
           },
         });
@@ -1320,16 +1265,8 @@ export class TaskService {
 
   // 📬 Get incoming task transfer requests targeted to user (Admin can view all system requests)
   async getIncomingRequests(userId: string) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const currentUser = await this.prisma.user.findUnique({
-      where: { id: effectiveUserId },
+      where: { id: userId },
       select: { id: true, role: true },
     });
 
@@ -1341,7 +1278,7 @@ export class TaskService {
     };
 
     if (!isAdmin) {
-      whereCondition.receiverId = effectiveUserId;
+      whereCondition.receiverId = userId;
     }
 
     const requests = await this.prisma.taskRequest.findMany({
@@ -1382,14 +1319,6 @@ export class TaskService {
     userId: string,
     action: 'APPROVED' | 'REJECTED',
   ) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const reqItem = await this.prisma.taskRequest.findUnique({
       where: { id: requestId },
       include: {
@@ -1412,7 +1341,7 @@ export class TaskService {
 
     // 🔒 [LC-37] KIỂM TRA QUYỀN NGƯỜI NHẬN HOẶC ADMIN/MANAGER DỰ ÁN
     const responder = await this.prisma.user.findUnique({
-      where: { id: effectiveUserId },
+      where: { id: userId },
     });
     const isManagerOrAdmin = Boolean(
       responder &&
@@ -1420,11 +1349,11 @@ export class TaskService {
         responder.role === 'MANAGER' ||
         (responder as any).globalRole === 'ADMIN' ||
         (responder as any).globalRole === 'MANAGER' ||
-        reqItem.task.project?.managerId === effectiveUserId ||
-        reqItem.task.project?.createdById === effectiveUserId),
+        reqItem.task.project?.managerId === userId ||
+        reqItem.task.project?.createdById === userId),
     );
 
-    if (!isManagerOrAdmin && effectiveUserId !== reqItem.receiverId) {
+    if (!isManagerOrAdmin && userId !== reqItem.receiverId) {
       throw new ForbiddenException(
         'Bạn không phải là người nhận yêu cầu này để thực hiện phản hồi.',
       );
@@ -1484,7 +1413,7 @@ export class TaskService {
               await tx.comment.create({
                 data: {
                   taskId: reqItem.taskId,
-                  userId: effectiveUserId || reqItem.receiverId,
+                  userId: userId || reqItem.receiverId,
                   content: `🔄 [CHUYỂN GIAO MINITASK THÀNH CÔNG] Task con đã được chuyển giao thành công từ ${reqItem.sender?.fullName || 'Đồng nghiệp'} sang ${reqItem.receiver?.fullName || 'Người nhận'}.`,
                 },
               });
@@ -1500,7 +1429,7 @@ export class TaskService {
               await tx.comment.create({
                 data: {
                   taskId: reqItem.taskId,
-                  userId: effectiveUserId || reqItem.receiverId,
+                  userId: userId || reqItem.receiverId,
                   content: `❌ [TỪ CHỐI CHUYỂN GIAO MINITASK] ${reqItem.receiver?.fullName || 'Người nhận'} đã từ chối tiếp nhận Task con từ ${reqItem.sender?.fullName || 'Đồng nghiệp'}.`,
                 },
               });
@@ -1544,7 +1473,7 @@ export class TaskService {
               await tx.comment.create({
                 data: {
                   taskId: reqItem.taskId,
-                  userId: effectiveUserId || reqItem.receiverId,
+                  userId: userId || reqItem.receiverId,
                   content: `🔄 [LỊCH SỬ CHUYỂN GIAO BAN GIAO TASK] Task đã được chuyển giao thành công từ ${reqItem.sender?.fullName || 'Đồng nghiệp'} sang ${reqItem.receiver?.fullName || 'Người nhận'}. Chú thích: "${reqItem.note || 'Không có ghi chú'}"`,
                 },
               });
@@ -1561,7 +1490,7 @@ export class TaskService {
               await tx.comment.create({
                 data: {
                   taskId: reqItem.taskId,
-                  userId: effectiveUserId || reqItem.receiverId,
+                  userId: userId || reqItem.receiverId,
                   content: `❌ [LỊCH SỬ TỪ CHỐI CHUYỂN GIAO] ${reqItem.receiver?.fullName || 'Người nhận'} đã từ chối yêu cầu bàn giao từ ${reqItem.sender?.fullName || 'Đồng nghiệp'}. Task giữ nguyên cho người thực hiện cũ.`,
                 },
               });
@@ -1587,14 +1516,6 @@ export class TaskService {
 
   // 🗑️ [LC-55] Delete Task (Allowed for Admin, Global Manager & Project Manager)
   async deleteTask(id: string, userId: string) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const task = await this.prisma.task.findUnique({
       where: { id },
       include: { project: { select: { managerId: true, createdById: true } } },
@@ -1604,7 +1525,7 @@ export class TaskService {
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { id: effectiveUserId },
+      where: { id: userId },
     });
     const isManagerOrAdmin = Boolean(
       user &&
@@ -1612,8 +1533,8 @@ export class TaskService {
         user.role === 'MANAGER' ||
         (user as any).globalRole === 'ADMIN' ||
         (user as any).globalRole === 'MANAGER' ||
-        task.project?.managerId === effectiveUserId ||
-        task.project?.createdById === effectiveUserId),
+        task.project?.managerId === userId ||
+        task.project?.createdById === userId),
     );
 
     if (!isManagerOrAdmin) {

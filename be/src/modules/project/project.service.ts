@@ -17,17 +17,9 @@ export class ProjectService {
   ) {}
 
   async create(userId: string, createProjectDto: CreateProjectDto, user?: any) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const currentUser =
       user ||
-      (await this.prisma.user.findUnique({ where: { id: effectiveUserId } }));
+      (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
       throw new ForbiddenException(
         'Chỉ Quản trị viên (Admin) mới có quyền tạo dự án mới!',
@@ -49,7 +41,7 @@ export class ProjectService {
     }
 
     // 🔒 [LC-101] TỰ ĐỘNG CẤP QUYỀN VÀ BẢO ĐẢM QUẢN LÝ DỰ ÁN CÓ ROLE MANAGER
-    const assignedManagerId = createProjectDto.managerId || effectiveUserId;
+    const assignedManagerId = createProjectDto.managerId || userId;
     if (assignedManagerId) {
       const managerUser = await this.prisma.user.findUnique({
         where: { id: assignedManagerId },
@@ -69,7 +61,7 @@ export class ProjectService {
 
     const memberIds = Array.from(
       new Set([
-        effectiveUserId,
+        userId,
         ...(createProjectDto.managerId ? [createProjectDto.managerId] : []),
         ...(createProjectDto.memberIds || []),
       ]),
@@ -79,8 +71,8 @@ export class ProjectService {
       data: {
         name: createProjectDto.name.trim(),
         description: createProjectDto.description,
-        createdById: effectiveUserId,
-        managerId: createProjectDto.managerId || effectiveUserId,
+        createdById: userId,
+        managerId: createProjectDto.managerId || userId,
         stagesJson: createProjectDto.stagesJson || null,
         members: {
           create: memberIds.map((mId) => ({ userId: mId })),
@@ -105,16 +97,8 @@ export class ProjectService {
   }
 
   async findAll(userId: string) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const currentUser = await this.prisma.user.findUnique({
-      where: { id: effectiveUserId },
+      where: { id: userId },
     });
     const isAdmin = currentUser?.role === 'ADMIN';
 
@@ -125,9 +109,9 @@ export class ProjectService {
           ? {}
           : {
               OR: [
-                { createdById: effectiveUserId },
-                { managerId: effectiveUserId },
-                { members: { some: { userId: effectiveUserId } } },
+                { createdById: userId },
+                { managerId: userId },
+                { members: { some: { userId: userId } } },
               ],
             }),
       },
@@ -524,17 +508,9 @@ export class ProjectService {
 
   // 🗑️ [ADMIN ONLY] Xóa mềm Dự Án (Lưu vào Thùng Rác 14 ngày)
   async softDelete(id: string, userId: string, user?: any) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const currentUser =
       user ||
-      (await this.prisma.user.findUnique({ where: { id: effectiveUserId } }));
+      (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
       throw new ForbiddenException(
         'Chỉ Quản trị viên (Admin) mới có quyền xóa dự án!',
@@ -566,7 +542,7 @@ export class ProjectService {
         data: {
           isDeleted: true,
           deletedAt: now,
-          deletedById: effectiveUserId,
+          deletedById: userId,
         },
       });
 
@@ -601,17 +577,9 @@ export class ProjectService {
 
   // 🔄 [ADMIN ONLY] Khôi phục Dự Án từ Thùng Rác
   async restore(id: string, userId: string, user?: any) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const currentUser =
       user ||
-      (await this.prisma.user.findUnique({ where: { id: effectiveUserId } }));
+      (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
       throw new ForbiddenException(
         'Chỉ Quản trị viên (Admin) mới có quyền khôi phục dự án!',
@@ -678,17 +646,9 @@ export class ProjectService {
 
   // 💥 [ADMIN ONLY] Xóa Vĩnh Viễn Dự Án Khỏi CSDL
   async hardDelete(id: string, userId: string, user?: any) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const currentUser =
       user ||
-      (await this.prisma.user.findUnique({ where: { id: effectiveUserId } }));
+      (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
       throw new ForbiddenException(
         'Chỉ Quản trị viên (Admin) mới có quyền xóa vĩnh viễn dự án!',

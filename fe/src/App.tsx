@@ -1,15 +1,23 @@
-import React, { useState, useEffect, Component, type ReactNode } from 'react';
+import React, { useState, useEffect, Component, Suspense, type ReactNode } from 'react';
 import { useAuthStore } from './store/useAuthStore';
-import { LoginPage } from './pages/LoginPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { BoardPage } from './pages/BoardPage';
-import { SchedulePage } from './pages/SchedulePage';
-import { AdminTrashPage } from './pages/AdminTrashPage';
-import { AdminUsersPage } from './pages/AdminUsersPage';
-import { OnboardingProfilePage } from './pages/OnboardingProfilePage';
 import { useAutoStatusSignal } from './hooks/useAutoStatusSignal';
 import { MainLayout } from './layouts/MainLayout';
-import { Video, MessageSquare, Inbox, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Video, MessageSquare, Inbox, AlertTriangle, RotateCcw, Loader2 } from 'lucide-react';
+
+const LoginPage = React.lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const BoardPage = React.lazy(() => import('./pages/BoardPage').then((m) => ({ default: m.BoardPage })));
+const SchedulePage = React.lazy(() => import('./pages/SchedulePage').then((m) => ({ default: m.SchedulePage })));
+const AdminTrashPage = React.lazy(() => import('./pages/AdminTrashPage').then((m) => ({ default: m.AdminTrashPage })));
+const AdminUsersPage = React.lazy(() => import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })));
+const OnboardingProfilePage = React.lazy(() => import('./pages/OnboardingProfilePage').then((m) => ({ default: m.OnboardingProfilePage })));
+
+const PageLoadingFallback = () => (
+  <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-amber-400">
+    <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+    <span className="text-xs font-mono tracking-widest text-slate-400">ĐANG TẢI DỮ LIỆU...</span>
+  </div>
+);
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -121,7 +129,11 @@ export default function App() {
   }, [isAdmin]);
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return (
+      <Suspense fallback={<PageLoadingFallback />}>
+        <LoginPage />
+      </Suspense>
+    );
   }
 
   // 🚀 FIRST-TIME LOGIN ONBOARDING CHECK
@@ -132,7 +144,9 @@ export default function App() {
   if (isFirstTimeUser) {
     return (
       <ErrorBoundary>
-        <OnboardingProfilePage onComplete={() => handleNavigate('/tasks')} />
+        <Suspense fallback={<PageLoadingFallback />}>
+          <OnboardingProfilePage onComplete={() => handleNavigate('/tasks')} />
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -206,7 +220,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <MainLayout currentRoute={currentRoute} onNavigate={handleNavigate}>
-        {renderCurrentView()}
+        <Suspense fallback={<PageLoadingFallback />}>
+          {renderCurrentView()}
+        </Suspense>
       </MainLayout>
     </ErrorBoundary>
   );

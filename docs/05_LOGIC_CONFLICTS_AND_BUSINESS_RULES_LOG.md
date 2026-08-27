@@ -1055,6 +1055,66 @@ Mỗi lỗi xung đột logic được phân loại theo 4 cấp độ nghiêm t
 
 ---
 
+### [LC-104] Kiểm Soát Quyền & Xác Thực WebSocket Gateway (Socket.IO Room Authorization & JWT Handshake Authentication)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** Cổng kết nối WebSocket (`SocketGateway`) không kiểm tra chữ ký số JWT và quyền sở hữu room khi client phát lệnh `joinUser` hoặc `joinProject`. Bất kỳ client nào cũng có thể gửi event gia nhập phòng riêng của người khác và nghe lén toàn bộ tin nhắn, thông báo, cập nhật Task theo thời gian thực.
+* **Hậu quả:** Nguy cơ rò rỉ dữ liệu nghiêm trọng, vi phạm tính riêng tư và bảo mật cấp doanh nghiệp.
+* **Giải pháp kỹ thuật:**
+  1. Tích hợp `JwtService` và `PrismaService` vào `SocketGateway` và `SocketModule`.
+  2. Tự động xác thực JWT Token từ `client.handshake.auth.token` hoặc `client.handshake.headers.authorization` ngay khi kết nối.
+  3. Tại `handleJoinUser`: Kiểm tra `userId` phải trùng khớp với `client.user.id` (ngoại trừ tài khoản `ADMIN`).
+  4. Tại `handleJoinProject`: Truy vấn CSDL xác minh user là thành viên (`ProjectMember`), Quản lý (`managerId`), Người tạo (`createdById`) hoặc `ADMIN` trước khi cho phép `client.join(room)`.
+* **File ảnh hưởng:** `be/src/modules/socket/socket.gateway.ts`, `be/src/modules/socket/socket.module.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100% (Build Pass Exit Code 0)**.
+
+---
+
+### [LC-105] Đồng Bộ Vai Trò Động Trong Phiên Làm Việc (JWT Dynamic Role Elevation Synchronization)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** `AuthService` tính toán nâng quyền `MANAGER` cho nhân viên đang điều hành dự án và ghi vào `payload.role` của JWT Token. Tuy nhiên, `JwtStrategy.validate` chỉ truy vấn trực tiếp bảng `users` (nơi lưu `EMPLOYEE`) và trả về `user.role = 'EMPLOYEE'`, khiến `RolesGuard` `@Roles(Role.MANAGER)` từ chối quyền truy cập (403 Forbidden).
+* **Hậu quả:** Quản lý dự án không thể gọi các API quản lý được phân quyền.
+* **Giải pháp kỹ thuật:**
+  - Trong `JwtStrategy.validate(payload: JwtPayload)`: Đồng bộ `role: payload.role || user.role` và `globalRole: payload.role || user.role` vào `request.user` để đảm bảo `RolesGuard` nhận diện chính xác vai trò hiệu dụng.
+* **File ảnh hưởng:** `be/src/modules/auth/strategies/jwt.strategy.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100% (Build Pass Exit Code 0)**.
+
+---
+
+### [LC-106] Khắc Phục Sai Số Thống Kê Năng Suất Cá Nhân (Personal Task Statistics Calculation Accuracy)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Hàm `ProfileService.getPersonalStats` cộng gộp `totalAssignedTasks = completedTasks + overdueTasks + inProgressTasks`. Khi 1 task `IN_PROGRESS` bị quá hạn (`overdue`), task đó bị tính trùng 2 lần; đồng thời các task ở trạng thái `TODO`, `PAUSED`, `BLOCKED`, `IN_REVIEW` chưa đến hạn bị bỏ sót hoàn toàn.
+* **Hậu quả:** Số liệu tổng Task được giao bị sai lệch, biểu đồ hiệu suất nhân viên không chính xác.
+* **Giải pháp kỹ thuật:**
+  - Đếm `totalAssignedTasks` độc lập bằng `await this.prisma.task.count({ where: { assigneeId, isDeleted: false } })`.
+  - Phân loại song song chính xác: `completedTasks` (`status: 'DONE'`), `inProgressTasks` (`status: 'IN_PROGRESS'`), `overdueTasks` (`status: { not: 'DONE' }, dueDate: { lt: now }`).
+* **File ảnh hưởng:** `be/src/modules/profile/profile.service.ts`, `be/src/modules/profile/profile.service.spec.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Unit Test Passed 100%**.
+
+---
+
+### [LC-107] Phân Quyền Kéo Thả Điều Phối Kanban Toàn Diện Cho Quản Lý Dự Án (Manager Kanban Drag & Drop Authorization)
+* **Mức độ:** 🟡 **HIGH**
+* **Vấn đề (Root Cause):** Backend cho phép Admin và Project Manager cập nhật trạng thái Task của nhân viên, nhưng Frontend `BoardPage.tsx` chỉ cho phép duy nhất `ADMIN` kéo thả (`isAdmin = user?.globalRole === 'ADMIN'`), khiến Manager bị khóa kéo thả và nhận thông báo lỗi quyền hạn khi điều phối công việc trên Kanban.
+* **Hậu quả:** Trải nghiệm điều phối dự án của Manager bị gián đoạn.
+* **Giải pháp kỹ thuật:**
+  - Cập nhật điều kiện kiểm tra `isAdminOrManager` đồng bộ trên Frontend tại `handleDragEnd`, `handlePipelineDragEnd` và `isDragDisabled` trong `BoardPage.tsx`.
+* **File ảnh hưởng:** `fe/src/pages/BoardPage.tsx`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100% (Build Pass Exit Code 0)**.
+
+---
+
+### [LC-108] Chống Rò Rỉ Bộ Nhớ Idempotency Cache (LRU/TTL Bounded Idempotency Memory Management)
+* **Mức độ:** 🔵 **MEDIUM**
+* **Vấn đề (Root Cause):** `IdempotencyInterceptor` lưu trữ các transaction key trong một biến JavaScript `Map` trên RAM mà không có cơ chế định kỳ giải phóng bộ nhớ cho các key quá hạn 5 phút. Khi hệ thống nhận hàng trăm nghìn request, Map sẽ phình to gây Memory Leak.
+* **Hậu quả:** Làm tăng dần dung lượng RAM của Node.js process theo thời gian.
+* **Giải pháp kỹ thuật:**
+  - Thiết lập cơ chế tự động dọn dẹp theo chu kỳ: `setInterval(() => this.purgeExpired(), 5 * 60 * 1000).unref()`.
+  - Giới hạn dung lượng tối đa `maxEntries = 2000` kèm cơ chế thu hồi FIFO khi vượt ngưỡng.
+* **File ảnh hưởng:** `be/src/common/interceptors/idempotency.interceptor.ts`.
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100%**.
+
+---
+
 ## 3. DANH MỤC CÁC CONFLICT ĐANG TIẾP TỤC THEO DÕI & TỐI ƯU HÓA (BACKLOG CONFLICTS)
 
 | Mã ID | Tên Luồng Conflict | Mức Độ | Trạng Thái |
@@ -1067,4 +1127,5 @@ Mỗi lỗi xung đột logic được phân loại theo 4 cấp độ nghiêm t
 ## 📌 HƯỚNG DẪN CẬP NHẬT TÀI LIỆU DÀNH CHO DEVELOPERS
 1. Khi xử lý xong bất kỳ conflict nào, ghi nhận chi tiết đầy đủ vào Mục 2 (Resolved).
 2. Trình bày đầy đủ: Mức độ, Vấn đề gốc (Root Cause), Hậu quả, Giải pháp kỹ thuật, Files ảnh hưởng và Kết quả test.
-3. Đảm bảo chạy `npm run build` ở cả `be` và `fe` đạt **Exit Code 0** trước khi bàn giao.
+3. Đảm bảo chạy `npm run test` và `npm run build` ở cả `be` và `fe` đạt **Exit Code 0** trước khi bàn giao.
+

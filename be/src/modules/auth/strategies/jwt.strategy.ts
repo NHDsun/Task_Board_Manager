@@ -36,6 +36,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Tài khoản không tồn tại hoặc đã bị xóa');
     }
 
-    return user;
+    const effectiveRole = (payload.role as any) || user.role;
+
+    return {
+      ...user,
+      role: effectiveRole,
+      globalRole: effectiveRole,
+    };
   }
 }

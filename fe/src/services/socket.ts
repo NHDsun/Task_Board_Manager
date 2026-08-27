@@ -66,7 +66,8 @@ class SocketService {
 
   joinProject(projectId: string) {
     if (this.socket?.connected) {
-      this.socket.emit('joinProject', { projectId });
+      const token = localStorage.getItem('solarisToken') || '';
+      this.socket.emit('joinProject', { projectId, token });
     }
   }
 
@@ -78,7 +79,8 @@ class SocketService {
 
   joinUser(userId: string) {
     if (this.socket?.connected) {
-      this.socket.emit('joinUser', { userId });
+      const token = localStorage.getItem('solarisToken') || '';
+      this.socket.emit('joinUser', { userId, token });
     }
   }
 

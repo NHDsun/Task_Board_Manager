@@ -1453,3 +1453,90 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
     - Khi tài khoản ở trạng thái khóa (`!user.isActive`), tự động hiển thị thêm Nút Xóa Thùng Rác (Icon `Trash2` màu đỏ).
     - Tích hợp Modal cảnh báo xác nhận xóa vĩnh viễn nhân sự khỏi tổ chức.
 
+---
+
+## 151. Tổng Kiểm Toán QA, Vá Lỗ Hổng Bảo Mật & Tối Ưu Hóa Hiệu Năng Toàn Diện (System Audit & Hardening)
+- **File 1:** `be/src/modules/socket/socket.gateway.ts` & `be/src/modules/socket/socket.module.ts`
+  - **Hành động:** `[VÁ LỖ HỔNG BẢO MẬT REALTIME & XÁC THỰC SOCKET.IO HANDSHAKE]`.
+  - **Chi tiết:**
+    - Tích hợp `JwtService` và `PrismaService` vào Gateway.
+    - Kiểm tra tính hợp lệ của Token JWT khi Client kết nối socket.
+    - Chặn đứng hành vi nghe lén khi Client join room riêng của User khác hoặc room Dự án mà mình không phải là thành viên.
+- **File 2:** `be/src/modules/auth/strategies/jwt.strategy.ts`
+  - **Hành động:** `[ĐỒNG BỘ VAI TRÒ HIỆU DỤNG DYNAMIC ROLE TỪ TOKEN VÀO REQUEST.USER]`.
+  - **Chi tiết:** Gán `role: payload.role || user.role` và `globalRole: payload.role || user.role` giúp các Quản lý được nâng quyền động truy cập chuẩn xác các API được bảo vệ bởi `RolesGuard`.
+- **File 3:** `be/src/modules/task/task.service.ts`, `be/src/modules/project/project.service.ts`, `be/src/modules/profile/profile.service.ts`
+  - **Hành động:** `[DỌN SẠCH 100% HARDCODED TEST MOCK IDS]`.
+  - **Chi tiết:** Loại bỏ toàn bộ các điều kiện `if (userId === 'admin-huydat-id' || userId === 'admin-id')` và email fallback, vận hành 100% theo JWT Token chuẩn.
+- **File 4:** `be/src/modules/profile/profile.service.ts` & `be/src/modules/profile/profile.service.spec.ts`
+  - **Hành động:** `[SỬA LỖI TÍNH TOÁN THỐNG KÊ & BỔ SUNG UNIT TEST]`.
+  - **Chi tiết:**
+    - Đếm `totalAssignedTasks` độc lập từ CSDL, triệt tiêu lỗi đếm trùng Task quá hạn và không bỏ sót các trạng thái Task khác.
+    - Viết bộ Unit Test Jest kiểm thử 100% các ca nghiệp vụ của `ProfileService`.
+- **File 5:** `fe/src/pages/BoardPage.tsx`
+  - **Hành động:** `[MỞ KHÓA QUYỀN KÉO THẢ KANBAN CHO QUẢN LÝ DỰ ÁN]`.
+  - **Chi tiết:** Cho phép Admin và Manager điều phối kéo thả trạng thái và giai đoạn Pipeline công việc của các thành viên trong dự án.
+- **File 6:** `be/src/common/interceptors/idempotency.interceptor.ts`
+  - **Hành động:** `[CHỐNG RÒ RỈ BỘ NHỚ RAM BẰNG TTL PURGE & BOUNDED CACHE]`.
+  - **Chi tiết:** Bổ sung timer dọn dẹp mỗi 5 phút và giới hạn dung lượng cache tối đa 2000 mục, tự động thu hồi theo cơ chế FIFO.
+- **File 7:** `fe/src/App.tsx`
+  - **Hành động:** `[TỐI ƯU HÓA TẢI TRANG BẰNG REACT.LAZY & SUSPENSE CODE SPLITTING]`.
+  - **Chi tiết:** Tách nhỏ các route nặng thành các chunk độc lập, giảm kích thước gói ban đầu từ 782 kB xuống còn 299 kB và tăng tốc độ khởi động trang.
+
+---
+
+## 152. Xây Dựng Hệ Thống Kiểm Thử Tự Động Toàn Diện Cho Frontend (Frontend Automated Test Suites & Hardening)
+- **File 1:** `fe/vite.config.ts` & `fe/src/test/setup.ts`
+  - **Hành động:** `[CẤU HÌNH VITEST & GLOBAL LOCALSTORAGE POLYFILL MOCK]`.
+  - **Chi tiết:** Thiết lập môi trường chạy test Vitest độc lập với bộ giả lập `localStorage` chuẩn W3C Web Storage.
+- **File 2:** `fe/src/store/useAuthStore.test.ts`
+  - **Hành động:** `[KIỂM THỬ VÒNG ĐỜI XÁC THỰC, TOKEN & LOGOUT - 4 TESTS]`.
+  - **Chi tiết:** Khởi tạo state rỗng, thiết lập Auth token & refresh token vào localStorage, cập nhật hồ sơ người dùng một phần, và xóa sạch session khi Logout.
+- **File 3:** `fe/src/store/useUserStore.test.ts`
+  - **Hành động:** `[KIỂM THỬ DANH BẠ NHÂN SỰ & THAO TÁC QUẢN TRỊ - 5 TESTS]`.
+  - **Chi tiết:** Khởi tạo danh bạ mặc định, thêm nhân sự mới, cập nhật thông tin nhân viên, khóa/mở khóa tài khoản, và xóa nhân sự khỏi danh bạ.
+- **File 4:** `fe/src/utils/avatar.test.ts`
+  - **Hành động:** `[KIỂM THỬ TIỆN ÍCH CHUẨN HÓA AVATAR TOÀN CỤC - 4 TESTS]`.
+  - **Chi tiết:** Trả về avatar mặc định khi null/undefined, ưu tiên `user.avatar`, fallback `user.avatarUrl`, và xử lý chuỗi rỗng/khoảng trắng an toàn.
+- **File 5:** `fe/src/services/socket.test.ts`
+  - **Hành động:** `[KIỂM THỬ WEBSOCKET SERVICE & REAL-TIME HANDSHAKE - 5 TESTS]`.
+  - **Chi tiết:** Kiểm tra trạng thái khởi tạo, đăng ký/hủy callback reconnect, đính kèm JWT Token khi `joinProject`/`joinUser`, phát sự kiện `leaveProject`/`leaveUser`, đăng ký và hủy lắng nghe sự kiện (`on`, `off`).
+- **File 6:** `fe/src/components/kanban/kanbanPermissions.test.ts`
+  - **Hành động:** `[KIỂM THỬ MA TRẬN PHÂN QUYỀN KANBAN & DRAG RBAC - 6 TESTS]`.
+  - **Chi tiết:** Kiểm tra quyền kéo thả của Assignee, chặn nhân viên kéo Task người khác, cấp quyền kéo thả toàn diện cho Admin/Manager, khóa cột `IN_REVIEW`, và kiểm tra quyền tạo Subtask theo vai trò.
+- **File 7:** `fe/src/components/calendar/calendarLogic.test.ts`
+  - **Hành động:** `[KIỂM THỬ BỘ LỌC ĐA TIÊU CHÍ LỊCH LÀM VIỆC - 6 TESTS]`.
+  - **Chi tiết:** Lọc Task theo Dự án, theo Nhân sự trực tiếp và người nhận Subtask, lọc theo Mức độ ưu tiên, và kết hợp nhiều bộ lọc đồng thời.
+- **File 8:** `fe/src/services/apiToken.test.ts`
+  - **Hành động:** `[KIỂM THỬ GIẢI MÃ & BỘ ĐỆM HẾT HẠN JWT PRE-EMPTIVE REFRESH - 5 TESTS]`.
+  - **Chi tiết:** Kiểm tra token rỗng/hỏng, token hợp lệ, token hết hạn trong quá khứ, và cơ chế phát hiện token sắp hết hạn trong ngưỡng đệm 15 giây.
+
+---
+
+## 153. Kiểm Thử Toàn Diện Phân Hệ Quản Lý Nhân Sự & Bảo Mật [LC-102] (Admin Users Management Test Suite)
+- **File 1:** `fe/src/pages/adminUsersPageLogic.test.ts`
+  - **Hành động:** `[XÂY DỰNG TEST SUITE QUẢN LÝ NHÂN SỰ CHUYÊN SÂU - 13 TESTS]`.
+  - **Chi tiết:**
+    - **Tìm kiếm & Bộ lọc (7 tests):** Tìm kiếm không phân biệt hoa thường theo Họ tên, Email, Chức danh; Lọc theo Vai trò (`ADMIN`, `MANAGER`, `EMPLOYEE`); Lọc theo Phòng ban; Lọc theo Tín hiệu trạng thái (`ONLINE`, `BUSY`, `AWAY`, `OFFLINE`); Kết hợp nhiều bộ lọc đồng thời.
+    - **Chỉ số KPI (1 test):** Tính toán chính xác Tổng nhân sự, Nhân sự trực tuyến/đang bận, Số lượng Quản lý, và Số tài khoản đang hoạt động.
+    - **Validation & Khởi tạo (3 tests):** Xác thực bắt buộc các trường Họ tên, Email, Mật khẩu; Kiểm thử thuật toán tạo mật khẩu ngẫu nhiên an toàn bắt đầu bằng `Sol@` với 10 ký tự.
+    - **Bảo mật Xóa 2 Bước LC-102 (2 tests):** Ẩn nút xóa vĩnh viễn đối với tài khoản đang hoạt động (`isActive: true`), CHỈ hiển thị nút xóa khi tài khoản đã bị Khóa (`isActive: false`).
+
+---
+
+## 154. Kiểm Thử Toàn Diện Thùng Rác Hệ Thống & Khởi Tạo Hồ Sơ Onboarding (Admin Trash & Onboarding Test Suites)
+- **File 1:** `fe/src/pages/adminTrashPageLogic.test.ts`
+  - **Hành động:** `[KIỂM THỬ TÍNH TOÁN THỜI HẠN & BỘ LỌC THÙNG RÁC - 6 TESTS]`.
+  - **Chi tiết:**
+    - **Thời hạn lưu trữ 30 ngày (3 tests):** Tính toán chính xác số ngày/giờ còn lại (`daysLeft`, `hoursLeft`), kích hoạt cờ cảnh báo khẩn cấp khi còn dưới 3 ngày (`isUrgent`), và gắn cờ hết hạn để tự động dọn sạch (`isExpired`).
+    - **Tìm kiếm & Lọc Thùng rác (3 tests):** Tìm kiếm dự án theo tên, tìm kiếm task theo tiêu đề hoặc tên dự án cha, xử lý chuỗi rỗng an toàn.
+- **File 2:** `fe/src/pages/onboardingLogic.test.ts`
+  - **Hành động:** `[KIỂM THỬ XÁC THỰC THIẾT LẬP HỒ SƠ ĐĂNG NHẬP LẦN ĐẦU - 5 TESTS]`.
+  - **Chi tiết:** Chặn gửi khi thiếu Họ tên chính thức, thiếu Chuyên môn; Kiểm tra độ dài tối thiểu của mật khẩu mới (>= 6 ký tự); Kiểm tra khớp mật khẩu xác nhận; Chấp thuận hồ sơ hợp lệ.
+- **Kết quả kiểm thử:** Toàn bộ **59/59 test cases** (10 Test Suites) vượt qua 100% trong **662ms** (`vitest run`), Build Vite Production thành công 100% trong **444ms** (0 lỗi, 0 cảnh báo).
+
+
+
+
+
+

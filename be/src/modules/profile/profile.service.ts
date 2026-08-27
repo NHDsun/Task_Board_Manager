@@ -27,16 +27,8 @@ export class ProfileService {
   }
 
   async getProfile(userId: string) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const user = await this.prisma.user.findUnique({
-      where: { id: effectiveUserId },
+      where: { id: userId },
       select: {
         id: true,
         email: true,
@@ -67,14 +59,6 @@ export class ProfileService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const dataToUpdate: any = {};
     if (dto.fullName !== undefined) dataToUpdate.fullName = dto.fullName;
     if (dto.phone !== undefined) dataToUpdate.phone = dto.phone;
@@ -85,7 +69,7 @@ export class ProfileService {
     if (dto.coverImage !== undefined) dataToUpdate.coverImage = dto.coverImage;
 
     const updatedUser = await this.prisma.user.update({
-      where: { id: effectiveUserId },
+      where: { id: userId },
       data: dataToUpdate,
     });
 
@@ -107,16 +91,8 @@ export class ProfileService {
   }
 
   async updateStatusSignal(userId: string, dto: UpdateStatusSignalDto) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const updatedUser = await this.prisma.user.update({
-      where: { id: effectiveUserId },
+      where: { id: userId },
       data: {
         statusSignal: dto.statusSignal as any,
         customStatus: dto.customStatus,
@@ -130,16 +106,8 @@ export class ProfileService {
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
     const user = await this.prisma.user.findUnique({
-      where: { id: effectiveUserId },
+      where: { id: userId },
     });
     if (!user) {
       throw new NotFoundException('Người dùng không tồn tại');
@@ -155,7 +123,7 @@ export class ProfileService {
 
     const hashedNewPassword = await bcrypt.hash(dto.newPassword, 10);
     await this.prisma.user.update({
-      where: { id: effectiveUserId },
+      where: { id: userId },
       data: {
         password: hashedNewPassword,
         refreshToken: null, // Thu hồi phiên đăng nhập cũ để bảo mật
@@ -169,40 +137,44 @@ export class ProfileService {
   }
 
   async getPersonalStats(userId: string) {
-    let effectiveUserId = userId;
-    if (userId === 'admin-huydat-id' || userId === 'admin-id') {
-      const realAdmin = await this.prisma.user.findUnique({
-        where: { email: 'huydatne@gmail.com' },
-      });
-      if (realAdmin) effectiveUserId = realAdmin.id;
-    }
-
-    const completedTasks = await this.prisma.task.count({
-      where: { assigneeId: effectiveUserId, status: 'DONE', isDeleted: false },
-    });
-
-    const inProgressTasks = await this.prisma.task.count({
-      where: {
-        assigneeId: effectiveUserId,
-        status: 'IN_PROGRESS',
-        isDeleted: false,
-      },
-    });
-
-    const overdueTasks = await this.prisma.task.count({
-      where: {
-        assigneeId: effectiveUserId,
-        status: { not: 'DONE' },
-        isDeleted: false,
-        dueDate: { lt: new Date() },
-      },
-    });
+    const now = new Date();
+    const [completedTasks, inProgressTasks, overdueTasks, totalAssignedTasks] =
+      await Promise.all([
+        this.prisma.task.count({
+          where: {
+            assigneeId: userId,
+            status: 'DONE',
+            isDeleted: false,
+          },
+        }),
+        this.prisma.task.count({
+          where: {
+            assigneeId: userId,
+            status: 'IN_PROGRESS',
+            isDeleted: false,
+          },
+        }),
+        this.prisma.task.count({
+          where: {
+            assigneeId: userId,
+            status: { not: 'DONE' },
+            isDeleted: false,
+            dueDate: { lt: now },
+          },
+        }),
+        this.prisma.task.count({
+          where: {
+            assigneeId: userId,
+            isDeleted: false,
+          },
+        }),
+      ]);
 
     return {
       completedTasks,
       overdueTasks,
       inProgressTasks,
-      totalAssignedTasks: completedTasks + overdueTasks + inProgressTasks,
+      totalAssignedTasks,
     };
   }
 }
