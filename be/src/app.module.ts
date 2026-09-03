@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
-import { UserModule } from './user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProjectModule } from './modules/project/project.module';
 import { TaskModule } from './modules/task/task.module';
@@ -13,6 +12,7 @@ import { TrashModule } from './modules/trash/trash.module';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [

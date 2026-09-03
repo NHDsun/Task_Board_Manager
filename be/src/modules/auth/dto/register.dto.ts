@@ -23,4 +23,8 @@ export class RegisterDto {
   @IsString({ message: 'Mã phòng ban phải là chuỗi ký tự' })
   @IsOptional()
   departmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
 }
