@@ -32,11 +32,16 @@ export class UserController {
   // create(@Body() createUserDto: CreateUserDto) {
   //   return this.userService.create(createUserDto);
   // }
-  @UseGuards(JwtAuthGuard)
   @Get()
+  @UseGuards(JwtAuthGuard)
   @Roles('ADMIN', 'MANAGER')
   findAll(@Query() query: QueryUserDto) {
     return this.userService.findAll(query);
+  }
+  @Get(':id/workload')
+  // @UseGuards(JwtAuthGuard)
+  getUserWorkload(@Param('id') id: string) {
+    return this.userService.getUserWorkload(id);
   }
   @UseGuards(JwtAuthGuard)
   @Roles('ADMIN', 'MANAGER')

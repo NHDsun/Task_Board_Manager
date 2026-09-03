@@ -3,16 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+
 import { QueryUserDto } from './dto/query-user.dto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { bindCallback, NotFoundError } from 'rxjs';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { LockUserDto } from './dto/lock-user.dto';
 import * as bcrypt from 'bcrypt';
-import { use } from 'passport';
 @Injectable()
 export class UserService {
   // create(createUserDto: CreateUserDto) {
@@ -141,24 +138,75 @@ export class UserService {
     return user;
   }
 
-  // async getUserWorkload(userId: string) {
-  //   const user = await this.prisma.user.findUnique({
-  //     where: { id: userId },
-  //     select: {
-  //       id: true,
-  //       fullName: true,
-  //       email: true,
-  //       avatar: true,
-  //       jobTitle: true,
-  //       profession: true,
-  //     },
-  //   });
-  //   if (!user) {
-  //     throw new NotFoundException('không tìm thấy người dùng');
-  //   }
-  //   const now = new Date();
-  //   const [todoCount , inProgressCount ,reviewCount , doneCount , overdueCount , urgentCount]
-  // }
+  async getUserWorkload(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        avatar: true,
+        jobTitle: true,
+        profession: true,
+      },
+    });
+    if (!user) {
+      throw new NotFoundException('không tìm thấy người dùng');
+    }
+    const now = new Date();
+    const baseWhere = {
+      assigneeId: userId,
+      isDeleted: false,
+      isArchived: false,
+    };
+    const [
+      todoCount,
+      inProgressCount,
+      reviewCount,
+      doneCount,
+      overdueCount,
+      urgentCount,
+    ] = await Promise.all([
+      this.prisma.task.count({
+        where: { ...baseWhere, status: 'TODO' },
+      }),
+      this.prisma.task.count({
+        where: { ...baseWhere, status: 'IN_PROGRESS' },
+      }),
+      this.prisma.task.count({
+        where: { ...baseWhere, status: 'IN_REVIEW' },
+      }),
+      this.prisma.task.count({
+        where: { ...baseWhere, status: 'DONE' },
+      }),
+      this.prisma.task.count({
+        where: {
+          ...baseWhere,
+          dueDate: { lt: now },
+          status: { not: 'DONE' },
+        },
+      }),
+      this.prisma.task.count({
+        where: {
+          ...baseWhere,
+          priority: 'URGENT',
+          status: { not: 'DONE' },
+        },
+      }),
+    ]);
+    return {
+      user,
+      workload: {
+        totalActiveTasks: todoCount + inProgressCount + reviewCount,
+        todo: todoCount,
+        inProgress: inProgressCount,
+        review: reviewCount,
+        done: doneCount,
+        overdue: overdueCount,
+        urgent: urgentCount,
+      },
+    };
+  }
 
   async updateRoleAndDepartment(id: string, dto: UpdateUserRoleDto) {
     await this.findOne(id);
