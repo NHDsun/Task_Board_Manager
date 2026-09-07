@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Search,
@@ -23,18 +23,27 @@ import {
   Clock,
   AlertTriangle,
   RotateCcw,
+  Loader2,
 } from 'lucide-react';
 import type { GlobalRole, Profession, UserStatusSignal } from '../types/auth';
 import { UserProfileModal, type UserProfileData } from '../components/common/UserProfileModal';
 import { useUserStore, type DirectoryUser } from '../store/useUserStore';
-import { DEFAULT_AVATAR, getAvatarUrl } from '../utils/avatar';
+import { getAvatarUrl } from '../utils/avatar';
+import { api } from '../services/api';
 
-const DEPARTMENTS = ['Tất Cả', 'Engineering', 'Product & Planning', 'Design & UX', 'QA & Testing', 'Operations & SRE'];
+const DEPARTMENTS = [
+  'Tất Cả',
+  'Engineering',
+  'Product & Planning',
+  'Design & UX',
+  'QA & Testing',
+  'Operations & SRE',
+];
 
 export const AdminUsersPage: React.FC = () => {
   const users = useUserStore((state) => state.users);
-  const addUser = useUserStore((state) => state.addUser);
-  const updateDirectoryUser = useUserStore((state) => state.updateDirectoryUser);
+  const isLoading = useUserStore((state) => state.isLoading);
+  const fetchUsers = useUserStore((state) => state.fetchUsers);
   const deleteUser = useUserStore((state) => state.deleteUser);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,6 +51,10 @@ export const AdminUsersPage: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('Tất Cả');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+
+  // Action Loading
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -61,6 +74,10 @@ export const AdminUsersPage: React.FC = () => {
   const [newDepartment, setNewDepartment] = useState('Engineering');
   const [newProfession, setNewProfession] = useState<Profession>('DEV');
   const [newRole, setNewRole] = useState<GlobalRole>('EMPLOYEE');
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -102,43 +119,43 @@ export const AdminUsersPage: React.FC = () => {
     return { total, online, managers, active };
   }, [users]);
 
-  // 🛠️ Action Handlers
-  const handleCreateUser = (e: React.FormEvent) => {
+  // 🛠️ Action Handlers (Kết nối trực tiếp API Backend)
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFullName.trim() || !newEmail.trim() || !newPassword.trim()) {
       showToast('⚠️ Vui lòng nhập đầy đủ Họ tên, Email và Mật khẩu khởi tạo!');
       return;
     }
 
-    const newUser: DirectoryUser = {
-      id: `u-${Date.now()}`,
-      fullName: newFullName.trim(),
-      email: newEmail.trim(),
-      phone: newPhone.trim() || '0900 000 000',
-      avatarUrl: DEFAULT_AVATAR,
-      avatar: DEFAULT_AVATAR,
-      globalRole: newRole,
-      profession: newProfession,
-      jobTitle: newJobTitle.trim() || 'Software Engineer',
-      department: newDepartment,
-      statusSignal: 'ONLINE',
-      isActive: true,
-      joinedDate: new Date().toLocaleDateString('vi-VN'),
-      projectsCount: 1,
-      tasksCount: { total: 0, completed: 0, inProgress: 0, overdue: 0 },
-      workMode: 'OFFICE',
-    };
+    setIsSubmittingCreate(true);
+    try {
+      await api.post('/users', {
+        fullName: newFullName.trim(),
+        email: newEmail.trim(),
+        password: newPassword.trim(),
+        phone: newPhone.trim() || undefined,
+        jobTitle: newJobTitle.trim() || 'Software Engineer',
+        department: newDepartment,
+        profession: newProfession,
+        role: newRole,
+      });
 
-    addUser(newUser);
-    setIsCreateModalOpen(false);
-    showToast(`✅ Đã khởi tạo nhân sự mới: ${newUser.fullName} (Mật khẩu: ${newPassword})`);
+      await fetchUsers();
+      setIsCreateModalOpen(false);
+      showToast(`✅ Đã khởi tạo nhân sự mới: ${newFullName.trim()} (Mật khẩu: ${newPassword})`);
 
-    // Reset Form
-    setNewFullName('');
-    setNewEmail('');
-    setNewPassword('Solaris@2026');
-    setNewPhone('');
-    setNewJobTitle('');
+      // Reset Form
+      setNewFullName('');
+      setNewEmail('');
+      setNewPassword('Solaris@2026');
+      setNewPhone('');
+      setNewJobTitle('');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Không thể khởi tạo nhân sự mới';
+      showToast(`❌ Lỗi: ${msg}`);
+    } finally {
+      setIsSubmittingCreate(false);
+    }
   };
 
   const handleOpenProfile = (u: DirectoryUser) => {
@@ -157,31 +174,70 @@ export const AdminUsersPage: React.FC = () => {
       joinedDate: u.joinedDate,
       projectsCount: u.projectsCount,
       tasksCount: u.tasksCount,
-      bio: u.bio || `Chuyên gia ${u.jobTitle} phụ trách các giải pháp phân hệ ${u.department} tại Solaris Platform.`,
+      bio:
+        u.bio ||
+        `Chuyên gia ${u.jobTitle} phụ trách các giải pháp phân hệ ${u.department} tại Solaris Platform.`,
       workMode: u.workMode || 'OFFICE',
     });
   };
 
-  const handleUpdateRole = (userId: string, newRoleValue: GlobalRole) => {
-    updateDirectoryUser(userId, { globalRole: newRoleValue });
-    setSelectedUserForRole(null);
-    showToast(`✅ Đã cập nhật vai trò phân quyền thành công!`);
+  const handleUpdateRole = async (userId: string, newRoleValue: GlobalRole) => {
+    setActionLoadingId(userId);
+    try {
+      await api.patch(`/users/${userId}/role`, { role: newRoleValue });
+      await fetchUsers();
+      setSelectedUserForRole(null);
+      showToast(`✅ Đã cập nhật vai trò phân quyền thành công!`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Cập nhật vai trò thất bại';
+      showToast(`❌ Lỗi: ${msg}`);
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
-  const handleToggleLock = (user: DirectoryUser) => {
-    updateDirectoryUser(user.id, { isActive: !user.isActive });
-    setSelectedUserForLock(null);
-    showToast(`✅ Đã cập nhật trạng thái hoạt động của tài khoản!`);
+  const handleToggleLock = async (user: DirectoryUser) => {
+    setActionLoadingId(user.id);
+    try {
+      await api.patch(`/users/${user.id}/lock`, { isActive: !user.isActive });
+      await fetchUsers();
+      setSelectedUserForLock(null);
+      showToast(
+        user.isActive ? '🔒 Đã khóa tài khoản thành công!' : '🔓 Đã mở khóa tài khoản thành công!'
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Thao tác khóa/mở khóa thất bại';
+      showToast(`❌ Lỗi: ${msg}`);
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
-  const handleDeleteUser = (user: DirectoryUser) => {
-    deleteUser(user.id);
-    setSelectedUserForDelete(null);
-    showToast(`🗑️ Đã xóa vĩnh viễn tài khoản nhân sự: ${user.fullName}`);
+  const handleDeleteUser = async (user: DirectoryUser) => {
+    setActionLoadingId(user.id);
+    try {
+      await deleteUser(user.id);
+      setSelectedUserForDelete(null);
+      showToast(`🗑️ Đã xóa vĩnh viễn tài khoản: ${user.fullName}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Xóa tài khoản thất bại';
+      showToast(`❌ Lỗi: ${msg}`);
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
-  const handleResetPassword = (u: DirectoryUser) => {
-    showToast(`🔑 Đã cấp lại mật khẩu mặc định (Solaris@2026) cho ${u.fullName}!`);
+  const handleResetPassword = async (u: DirectoryUser) => {
+    setActionLoadingId(u.id);
+    try {
+      await api.post(`/users/${u.id}/reset-password`);
+      showToast(`🔑 Đã cấp lại mật khẩu mặc định (USER123456) cho ${u.fullName}!`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Không thể cấp lại mật khẩu';
+      showToast(`❌ Lỗi: ${msg}`);
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
   // Helper Badge Colors
@@ -319,7 +375,6 @@ export const AdminUsersPage: React.FC = () => {
 
         {/* Dropdown Filters */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Role Filter */}
           <select
             value={selectedRole}
             onChange={(e) => setSelectedRole(e.target.value)}
@@ -331,7 +386,6 @@ export const AdminUsersPage: React.FC = () => {
             <option value="EMPLOYEE">EMPLOYEE (Nhân viên)</option>
           </select>
 
-          {/* Department Filter */}
           <select
             value={selectedDepartment}
             onChange={(e) => setSelectedDepartment(e.target.value)}
@@ -344,7 +398,6 @@ export const AdminUsersPage: React.FC = () => {
             ))}
           </select>
 
-          {/* Status Filter */}
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
@@ -363,7 +416,9 @@ export const AdminUsersPage: React.FC = () => {
             <button
               onClick={() => setViewMode('cards')}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                viewMode === 'cards' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                viewMode === 'cards'
+                  ? 'bg-amber-500 text-slate-950 font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
               title="Chế độ Thẻ Bento"
             >
@@ -372,7 +427,9 @@ export const AdminUsersPage: React.FC = () => {
             <button
               onClick={() => setViewMode('table')}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                viewMode === 'table' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                viewMode === 'table'
+                  ? 'bg-amber-500 text-slate-950 font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
               title="Chế độ Bảng Doanh Nghiệp"
             >
@@ -382,287 +439,330 @@ export const AdminUsersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 🎴 VIEW 1: BENTO CARD GRID VIEW */}
-      {viewMode === 'cards' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredUsers.map((user) => {
-            const onTime = Math.max(0, user.tasksCount.completed - user.tasksCount.overdue);
-            const userAvatar = getAvatarUrl(user);
-
-            return (
-              <div
-                key={user.id}
-                onClick={() => handleOpenProfile(user)}
-                className="solar-glass-card p-6 rounded-3xl bg-[#0F172A]/90 border border-slate-800/80 hover:border-amber-500/60 shadow-xl space-y-5 transition-all duration-200 group relative overflow-hidden flex flex-col justify-between cursor-pointer hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]"
-              >
-                {/* Active Indicator Top Stripe */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-purple-500 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                <div className="space-y-4">
-                  {/* Avatar + Role Header */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3.5">
-                      <div className="relative">
-                        <img
-                          src={userAvatar}
-                          alt={user.fullName}
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-700 group-hover:border-amber-400/80 transition-colors shadow-md"
-                        />
-                        <span
-                          className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#0F172A] ${getStatusSignalDot(
-                            user.statusSignal
-                          )}`}
-                          title={`Trạng thái: ${user.statusSignal}`}
-                        />
-                      </div>
-
-                      <div className="min-w-0">
-                        <h3 className="font-extrabold text-base text-white group-hover:text-amber-300 transition-colors truncate">
-                          {user.fullName}
-                        </h3>
-                        <p className="text-xs text-slate-400 truncate">{user.jobTitle}</p>
-                        <span className="text-[10px] text-amber-400/90 font-mono flex items-center gap-1 mt-0.5">
-                          <Building2 className="w-3 h-3" /> {user.department}
-                        </span>
-                      </div>
-                    </div>
-
-                    <span
-                      className={`px-2.5 py-1 rounded-xl text-[10px] font-black tracking-wider border shrink-0 ${getRoleBadge(
-                        user.globalRole
-                      )}`}
-                    >
-                      {user.globalRole}
-                    </span>
-                  </div>
-
-                  {/* Contact Snippets */}
-                  <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 space-y-1.5 text-xs text-slate-300 font-mono">
-                    <div className="flex items-center gap-2 truncate">
-                      <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span className="truncate">{user.email}</span>
-                    </div>
-                    {user.phone && (
-                      <div className="flex items-center gap-2 truncate">
-                        <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                        <span className="truncate">{user.phone}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 🎯 ON-TIME vs OVERDUE TASK METRICS */}
-                  <div className="grid grid-cols-3 gap-2 bg-slate-900/70 p-3 rounded-2xl border border-slate-800 text-center font-mono">
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-slate-400 block font-bold flex items-center justify-center gap-1">
-                        <Clock className="w-3 h-3 text-amber-400" /> Đang Làm
-                      </span>
-                      <span className="font-extrabold text-amber-300 text-xs">{user.tasksCount.inProgress}</span>
-                    </div>
-
-                    <div className="space-y-0.5 border-x border-slate-800">
-                      <span className="text-[10px] text-emerald-400 block font-bold flex items-center justify-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Đúng Hạn
-                      </span>
-                      <span className="font-extrabold text-emerald-300 text-xs">{onTime}</span>
-                    </div>
-
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-rose-400 block font-bold flex items-center justify-center gap-1">
-                        <AlertTriangle className="w-3 h-3 text-rose-400" /> Trễ Hạn
-                      </span>
-                      <span className="font-extrabold text-rose-400 text-xs">{user.tasksCount.overdue}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Action Buttons */}
-                <div
-                  className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    onClick={() => handleOpenProfile(user)}
-                    className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:text-amber-300"
-                  >
-                    <Eye className="w-3.5 h-3.5 text-amber-400" /> Xem Hồ Sơ
-                  </button>
-
-                  <button
-                    onClick={() => setSelectedUserForRole(user)}
-                    className="p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 transition-all cursor-pointer"
-                    title="Đổi vai trò phân quyền"
-                  >
-                    <Shield className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => handleResetPassword(user)}
-                    className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all cursor-pointer"
-                    title="Cấp lại mật khẩu mặc định"
-                  >
-                    <KeyRound className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => setSelectedUserForLock(user)}
-                    className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                      user.isActive
-                        ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
-                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                    }`}
-                    title={user.isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                  >
-                    {user.isActive ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                  </button>
-
-                  {!user.isActive && (
-                    <button
-                      onClick={() => setSelectedUserForDelete(user)}
-                      className="p-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 hover:border-rose-400 transition-all cursor-pointer shadow-[0_0_12px_rgba(244,63,94,0.3)] animate-solar-drop-snap"
-                      title="Xóa vĩnh viễn tài khoản"
-                    >
-                      <Trash2 className="w-4 h-4 text-rose-400" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {/* ⏳ Loading State Spinner */}
+      {isLoading ? (
+        <div className="py-24 flex flex-col items-center justify-center gap-3 text-slate-400">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+          <p className="text-xs font-medium">Đang tải danh sách nhân sự từ máy chủ...</p>
         </div>
-      )}
+      ) : filteredUsers.length === 0 ? (
+        <div className="py-16 text-center solar-glass-card rounded-3xl bg-[#0F172A]/80 border border-slate-800">
+          <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+          <p className="text-slate-300 font-bold text-sm">Không tìm thấy nhân sự phù hợp</p>
+          <p className="text-slate-500 text-xs mt-1">Hãy thử điều chỉnh lại bộ lọc hoặc từ khóa tìm kiếm</p>
+        </div>
+      ) : (
+        <>
+          {/* 🎴 VIEW 1: BENTO CARD GRID VIEW */}
+          {viewMode === 'cards' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredUsers.map((user) => {
+                const onTime = Math.max(0, user.tasksCount.completed - user.tasksCount.overdue);
+                const userAvatar = getAvatarUrl(user);
+                const isProcessing = actionLoadingId === user.id;
 
-      {/* 📋 VIEW 2: ENTERPRISE TABLE VIEW */}
-      {viewMode === 'table' && (
-        <div className="solar-glass-card rounded-3xl bg-[#0F172A]/90 border border-slate-800 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-[#0A0F1D] text-slate-400 font-bold border-b border-slate-800 uppercase tracking-wider">
-                <tr>
-                  <th className="py-4 px-5">Nhân Sự</th>
-                  <th className="py-4 px-4">Chức Danh &amp; Phòng Ban</th>
-                  <th className="py-4 px-4">Vai Trò (RBAC)</th>
-                  <th className="py-4 px-4">Trực Tuyến</th>
-                  <th className="py-4 px-4">Đúng Hạn / Trễ Hạn</th>
-                  <th className="py-4 px-4">Trạng Thái</th>
-                  <th className="py-4 px-5 text-right">Thao Tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/80 font-mono">
-                {filteredUsers.map((user) => {
-                  const onTime = Math.max(0, user.tasksCount.completed - user.tasksCount.overdue);
-                  const userAvatar = getAvatarUrl(user);
+                return (
+                  <div
+                    key={user.id}
+                    onClick={() => handleOpenProfile(user)}
+                    className={`solar-glass-card p-6 rounded-3xl bg-[#0F172A]/90 border border-slate-800/80 hover:border-amber-500/60 shadow-xl space-y-5 transition-all duration-200 group relative overflow-hidden flex flex-col justify-between cursor-pointer hover:shadow-[0_0_30px_rgba(245,158,11,0.2)] ${
+                      isProcessing ? 'opacity-50 pointer-events-none' : ''
+                    }`}
+                  >
+                    {/* Active Indicator Top Stripe */}
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-purple-500 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                  return (
-                    <tr
-                      key={user.id}
-                      onClick={() => handleOpenProfile(user)}
-                      className="hover:bg-slate-800/60 transition-colors group cursor-pointer"
-                    >
-                      <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={userAvatar}
-                            alt={user.fullName}
-                            className="w-9 h-9 rounded-xl object-cover border border-slate-700 group-hover:border-amber-400 transition-colors"
-                          />
-                          <div>
-                            <span className="font-extrabold text-white font-sans block group-hover:text-amber-300 transition-colors">
+                    <div className="space-y-4">
+                      {/* Avatar + Role Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3.5">
+                          <div className="relative">
+                            <img
+                              src={userAvatar}
+                              alt={user.fullName}
+                              className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-700 group-hover:border-amber-400/80 transition-colors shadow-md"
+                            />
+                            <span
+                              className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#0F172A] ${getStatusSignalDot(
+                                user.statusSignal
+                              )}`}
+                              title={`Trạng thái: ${user.statusSignal}`}
+                            />
+                          </div>
+
+                          <div className="min-w-0">
+                            <h3 className="font-extrabold text-base text-white group-hover:text-amber-300 transition-colors truncate">
                               {user.fullName}
+                            </h3>
+                            <p className="text-xs text-slate-400 truncate">{user.jobTitle}</p>
+                            <span className="text-[10px] text-amber-400/90 font-mono flex items-center gap-1 mt-0.5">
+                              <Building2 className="w-3 h-3" /> {user.department}
                             </span>
-                            <span className="text-[10px] text-slate-500">{user.email}</span>
                           </div>
                         </div>
-                      </td>
 
-                      <td className="py-3.5 px-4">
-                        <span className="text-slate-200 font-sans font-medium block">{user.jobTitle}</span>
-                        <span className="text-[10px] text-amber-400/80">{user.department}</span>
-                      </td>
-
-                      <td className="py-3.5 px-4">
                         <span
-                          className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black border inline-block ${getRoleBadge(
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-black tracking-wider border shrink-0 ${getRoleBadge(
                             user.globalRole
                           )}`}
                         >
                           {user.globalRole}
                         </span>
-                      </td>
+                      </div>
 
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5 text-[11px]">
-                          <span className={`w-2.5 h-2.5 rounded-full ${getStatusSignalDot(user.statusSignal)}`} />
-                          <span className="text-slate-300">{user.statusSignal}</span>
+                      {/* Contact Snippets */}
+                      <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 space-y-1.5 text-xs text-slate-300 font-mono">
+                        <div className="flex items-center gap-2 truncate">
+                          <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <span className="truncate">{user.email}</span>
                         </div>
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
-                            ✓ {onTime} Đúng hạn
-                          </span>
-                          {user.tasksCount.overdue > 0 && (
-                            <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold">
-                              ⚠ {user.tasksCount.overdue} Trễ
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        {user.isActive ? (
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/40">
-                            Hoạt Động
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/40">
-                            Đã Khóa
-                          </span>
+                        {user.phone && (
+                          <div className="flex items-center gap-2 truncate">
+                            <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span className="truncate">{user.phone}</span>
+                          </div>
                         )}
-                      </td>
+                      </div>
 
-                      <td className="py-3.5 px-5 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenProfile(user)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
-                            title="Xem chi tiết"
-                          >
-                            <Eye className="w-4 h-4 text-amber-400" />
-                          </button>
-                          <button
-                            onClick={() => setSelectedUserForRole(user)}
-                            className="p-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 transition-colors cursor-pointer"
-                            title="Phân quyền"
-                          >
-                            <Shield className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setSelectedUserForLock(user)}
-                            className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 transition-colors cursor-pointer"
-                            title="Khóa / Mở"
-                          >
-                            {user.isActive ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                          </button>
-
-                          {!user.isActive && (
-                            <button
-                              onClick={() => setSelectedUserForDelete(user)}
-                              className="p-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition-colors cursor-pointer"
-                              title="Xóa vĩnh viễn tài khoản"
-                            >
-                              <Trash2 className="w-4 h-4 text-rose-400" />
-                            </button>
-                          )}
+                      {/* 🎯 TASK METRICS */}
+                      <div className="grid grid-cols-3 gap-2 bg-slate-900/70 p-3 rounded-2xl border border-slate-800 text-center font-mono">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-slate-400 block font-bold flex items-center justify-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-400" /> Đang Làm
+                          </span>
+                          <span className="font-extrabold text-amber-300 text-xs">
+                            {user.tasksCount.inProgress}
+                          </span>
                         </div>
-                      </td>
+
+                        <div className="space-y-0.5 border-x border-slate-800">
+                          <span className="text-[10px] text-emerald-400 block font-bold flex items-center justify-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Đúng Hạn
+                          </span>
+                          <span className="font-extrabold text-emerald-300 text-xs">{onTime}</span>
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-rose-400 block font-bold flex items-center justify-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-rose-400" /> Trễ Hạn
+                          </span>
+                          <span className="font-extrabold text-rose-400 text-xs">
+                            {user.tasksCount.overdue}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer Action Buttons */}
+                    <div
+                      className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => handleOpenProfile(user)}
+                        className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:text-amber-300"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-amber-400" /> Xem Hồ Sơ
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedUserForRole(user)}
+                        className="p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 transition-all cursor-pointer"
+                        title="Đổi vai trò phân quyền"
+                      >
+                        <Shield className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleResetPassword(user)}
+                        className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all cursor-pointer"
+                        title="Cấp lại mật khẩu mặc định"
+                      >
+                        <KeyRound className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedUserForLock(user)}
+                        className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                          user.isActive
+                            ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
+                            : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        }`}
+                        title={user.isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                      >
+                        {user.isActive ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                      </button>
+
+                      {!user.isActive && (
+                        <button
+                          onClick={() => setSelectedUserForDelete(user)}
+                          className="p-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 hover:border-rose-400 transition-all cursor-pointer shadow-[0_0_12px_rgba(244,63,94,0.3)] animate-solar-drop-snap"
+                          title="Xóa vĩnh viễn tài khoản"
+                        >
+                          <Trash2 className="w-4 h-4 text-rose-400" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 📋 VIEW 2: ENTERPRISE TABLE VIEW */}
+          {viewMode === 'table' && (
+            <div className="solar-glass-card rounded-3xl bg-[#0F172A]/90 border border-slate-800 overflow-hidden shadow-xl">
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-[#0A0F1D] text-slate-400 font-bold border-b border-slate-800 uppercase tracking-wider">
+                    <tr>
+                      <th className="py-4 px-5">Nhân Sự</th>
+                      <th className="py-4 px-4">Chức Danh &amp; Phòng Ban</th>
+                      <th className="py-4 px-4">Vai Trò (RBAC)</th>
+                      <th className="py-4 px-4">Trực Tuyến</th>
+                      <th className="py-4 px-4">Đúng Hạn / Trễ Hạn</th>
+                      <th className="py-4 px-4">Trạng Thái</th>
+                      <th className="py-4 px-5 text-right">Thao Tác</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80 font-mono">
+                    {filteredUsers.map((user) => {
+                      const onTime = Math.max(0, user.tasksCount.completed - user.tasksCount.overdue);
+                      const userAvatar = getAvatarUrl(user);
+                      const isProcessing = actionLoadingId === user.id;
+
+                      return (
+                        <tr
+                          key={user.id}
+                          onClick={() => handleOpenProfile(user)}
+                          className={`hover:bg-slate-800/60 transition-colors group cursor-pointer ${
+                            isProcessing ? 'opacity-50 pointer-events-none' : ''
+                          }`}
+                        >
+                          <td className="py-3.5 px-5">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={userAvatar}
+                                alt={user.fullName}
+                                className="w-9 h-9 rounded-xl object-cover border border-slate-700 group-hover:border-amber-400 transition-colors"
+                              />
+                              <div>
+                                <span className="font-extrabold text-white font-sans block group-hover:text-amber-300 transition-colors">
+                                  {user.fullName}
+                                </span>
+                                <span className="text-[10px] text-slate-500">{user.email}</span>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <span className="text-slate-200 font-sans font-medium block">
+                              {user.jobTitle}
+                            </span>
+                            <span className="text-[10px] text-amber-400/80">{user.department}</span>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black border inline-block ${getRoleBadge(
+                                user.globalRole
+                              )}`}
+                            >
+                              {user.globalRole}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-1.5 text-[11px]">
+                              <span
+                                className={`w-2.5 h-2.5 rounded-full ${getStatusSignalDot(
+                                  user.statusSignal
+                                )}`}
+                              />
+                              <span className="text-slate-300">{user.statusSignal}</span>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                                ✓ {onTime} Đúng hạn
+                              </span>
+                              {user.tasksCount.overdue > 0 && (
+                                <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold">
+                                  ⚠ {user.tasksCount.overdue} Trễ
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            {user.isActive ? (
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/40">
+                                Hoạt Động
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/40">
+                                Đã Khóa
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-5 text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenProfile(user)}
+                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
+                                title="Xem chi tiết"
+                              >
+                                <Eye className="w-4 h-4 text-amber-400" />
+                              </button>
+                              <button
+                                onClick={() => setSelectedUserForRole(user)}
+                                className="p-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 transition-colors cursor-pointer"
+                                title="Phân quyền"
+                              >
+                                <Shield className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleResetPassword(user)}
+                                className="p-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 transition-colors cursor-pointer"
+                                title="Cấp lại mật khẩu mặc định"
+                              >
+                                <KeyRound className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setSelectedUserForLock(user)}
+                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 transition-colors cursor-pointer"
+                                title="Khóa / Mở"
+                              >
+                                {user.isActive ? (
+                                  <Lock className="w-4 h-4" />
+                                ) : (
+                                  <Unlock className="w-4 h-4" />
+                                )}
+                              </button>
+
+                              {!user.isActive && (
+                                <button
+                                  onClick={() => setSelectedUserForDelete(user)}
+                                  className="p-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition-colors cursor-pointer"
+                                  title="Xóa vĩnh viễn tài khoản"
+                                >
+                                  <Trash2 className="w-4 h-4 text-rose-400" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* 🌟 UNIVERSAL USER PROFILE MODAL */}
@@ -673,7 +773,7 @@ export const AdminUsersPage: React.FC = () => {
         onSendMessage={(u) => showToast(`💬 Đang mở hộp thoại chat với ${u.fullName}...`)}
       />
 
-      {/* 🚀 MODAL 1: CREATE NEW USER MODAL (WITH PASSWORD FIELD & GENERATOR) */}
+      {/* 🚀 MODAL 1: CREATE NEW USER MODAL */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-xl solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_0_60px_rgba(245,158,11,0.25)] p-6 sm:p-8 space-y-6 relative overflow-hidden animate-solar-warp-in">
@@ -684,7 +784,9 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-extrabold text-white">Khởi Tạo Tài Khoản Nhân Sự</h2>
-                  <p className="text-xs text-slate-400">Cấp tài khoản đăng nhập, mật khẩu ban đầu và phân bổ phòng ban</p>
+                  <p className="text-xs text-slate-400">
+                    Cấp tài khoản đăng nhập, mật khẩu ban đầu và phân bổ phòng ban
+                  </p>
                 </div>
               </div>
               <button
@@ -839,8 +941,10 @@ export const AdminUsersPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg cursor-pointer hover:from-amber-400 hover:to-amber-500 transition-all"
+                  disabled={isSubmittingCreate}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg cursor-pointer hover:from-amber-400 hover:to-amber-500 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
+                  {isSubmittingCreate && <Loader2 className="w-4 h-4 animate-spin" />}
                   Xác Nhận Tạo Mới
                 </button>
               </div>
@@ -864,15 +968,17 @@ export const AdminUsersPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-300">
-              Chọn cấp độ đặc quyền mới cho nhân sự. Lưu ý: Cấp quyền <span className="text-rose-400 font-bold">ADMIN</span> sẽ cho phép người dùng truy cập toàn bộ CSDL và Thùng rác hệ thống.
+              Chọn cấp độ đặc quyền mới cho nhân sự. Lưu ý: Cấp quyền{' '}
+              <span className="text-rose-400 font-bold">ADMIN</span> sẽ cho phép người dùng truy cập toàn bộ CSDL và Thùng rác hệ thống.
             </p>
 
             <div className="space-y-2 text-xs">
               {(['EMPLOYEE', 'MANAGER', 'ADMIN'] as GlobalRole[]).map((r) => (
                 <button
                   key={r}
+                  disabled={actionLoadingId === selectedUserForRole.id}
                   onClick={() => handleUpdateRole(selectedUserForRole.id, r)}
-                  className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer disabled:opacity-50 ${
                     selectedUserForRole.globalRole === r
                       ? 'bg-purple-500/20 border-purple-400 text-white font-bold'
                       : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
@@ -884,7 +990,9 @@ export const AdminUsersPage: React.FC = () => {
                     {r === 'MANAGER' && 'MANAGER — Quản lý Dự án & Duyệt bài'}
                     {r === 'EMPLOYEE' && 'EMPLOYEE — Nhân viên tác nghiệp'}
                   </span>
-                  {selectedUserForRole.globalRole === r && <CheckCircle2 className="w-4 h-4 text-purple-400" />}
+                  {selectedUserForRole.globalRole === r && (
+                    <CheckCircle2 className="w-4 h-4 text-purple-400" />
+                  )}
                 </button>
               ))}
             </div>
@@ -911,10 +1019,13 @@ export const AdminUsersPage: React.FC = () => {
 
             <div className="space-y-1">
               <h3 className="text-base font-extrabold text-white">
-                {selectedUserForLock.isActive ? 'Xác Nhận Khóa Tài Khoản?' : 'Xác Nhận Mở Khóa Tài Khoản?'}
+                {selectedUserForLock.isActive
+                  ? 'Xác Nhận Khóa Tài Khoản?'
+                  : 'Xác Nhận Mở Khóa Tài Khoản?'}
               </h3>
               <p className="text-xs text-slate-400">
-                Nhân sự: <span className="text-white font-bold">{selectedUserForLock.fullName}</span> ({selectedUserForLock.email})
+                Nhân sự: <span className="text-white font-bold">{selectedUserForLock.fullName}</span>{' '}
+                ({selectedUserForLock.email})
               </p>
             </div>
 
@@ -932,13 +1043,17 @@ export const AdminUsersPage: React.FC = () => {
                 Hủy
               </button>
               <button
+                disabled={actionLoadingId === selectedUserForLock.id}
                 onClick={() => handleToggleLock(selectedUserForLock)}
-                className={`px-5 py-2.5 rounded-xl font-bold text-xs cursor-pointer ${
+                className={`px-5 py-2.5 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 disabled:opacity-50 ${
                   selectedUserForLock.isActive
                     ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-lg'
                     : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 shadow-lg'
                 }`}
               >
+                {actionLoadingId === selectedUserForLock.id && (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                )}
                 {selectedUserForLock.isActive ? 'Khóa Ngay' : 'Mở Khóa Ngay'}
               </button>
             </div>
@@ -946,7 +1061,7 @@ export const AdminUsersPage: React.FC = () => {
         </div>
       )}
 
-      {/* 🗑️ MODAL 4: PERMANENT DELETE USER MODAL (ONLY WHEN LOCKED) */}
+      {/* 🗑️ MODAL 4: PERMANENT DELETE USER MODAL */}
       {selectedUserForDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-md solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-rose-500/50 p-6 space-y-5 relative animate-solar-warp-in text-center shadow-[0_0_60px_rgba(244,63,94,0.3)]">
@@ -959,7 +1074,8 @@ export const AdminUsersPage: React.FC = () => {
                 Xác Nhận Xóa Vĩnh Viễn Tài Khoản?
               </h3>
               <p className="text-xs text-slate-400">
-                Nhân sự: <span className="text-white font-bold">{selectedUserForDelete.fullName}</span> ({selectedUserForDelete.email})
+                Nhân sự: <span className="text-white font-bold">{selectedUserForDelete.fullName}</span>{' '}
+                ({selectedUserForDelete.email})
               </p>
             </div>
 
@@ -975,10 +1091,16 @@ export const AdminUsersPage: React.FC = () => {
                 Hủy Bỏ
               </button>
               <button
+                disabled={actionLoadingId === selectedUserForDelete.id}
                 onClick={() => handleDeleteUser(selectedUserForDelete)}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs cursor-pointer shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs cursor-pointer shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
-                <Trash2 className="w-3.5 h-3.5" /> Xác Nhận Xóa
+                {actionLoadingId === selectedUserForDelete.id ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                Xác Nhận Xóa
               </button>
             </div>
           </div>
