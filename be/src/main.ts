@@ -42,7 +42,7 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: false,
-    }),
+    })
   );
 
   app.useGlobalFilters(new HttpExceptionFilter());

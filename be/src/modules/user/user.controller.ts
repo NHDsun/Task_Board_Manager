@@ -10,6 +10,7 @@ import {
   UseGuards,
   Req,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { QueryUserDto } from './dto/query-user.dto';
@@ -18,6 +19,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { LockUserDto } from './dto/lock-user.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 interface AuthenticatedRequest extends Request {
   user: {
     id: string;
@@ -28,12 +31,8 @@ interface AuthenticatedRequest extends Request {
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-  // @Post()
-  // create(@Body() createUserDto: CreateUserDto) {
-  //   return this.userService.create(createUserDto);
-  // }
-  @Get()
   @UseGuards(JwtAuthGuard)
+  @Get()
   @Roles('ADMIN', 'MANAGER')
   findAll(@Query() query: QueryUserDto) {
     return this.userService.findAll(query);
@@ -59,11 +58,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch(':id/lock')
   @Roles('ADMIN')
-  lockUser(
-    @Param('id') id: string,
-    @Body() dto: LockUserDto,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  lockUser(@Param('id') id: string, @Body() dto: LockUserDto, @Req() req: AuthenticatedRequest) {
     const adminId = req.user.id;
     return this.userService.lockOrUnlockUser(id, dto, adminId);
   }
@@ -79,5 +74,20 @@ export class UserController {
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const adminId = req.user.id;
     return this.userService.remove(id, adminId);
+  }
+  @Patch(':id')
+  updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: AuthenticatedRequest) {
+    const currentUserId = req.user.id;
+    const currentRole = req.user.role;
+    if (currentRole !== 'ADMIN' && currentUserId !== id) {
+      throw new ForbiddenException('Bạn chỉ có quyền cập nhật thông tin tài khoản của chính mình!');
+    }
+    return this.userService.updateUser(id, dto);
+  }
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post()
+  @Roles('ADMIN')
+  createUser(@Body() dto: CreateUserDto) {
+    return this.userService.createUser(dto);
   }
 }

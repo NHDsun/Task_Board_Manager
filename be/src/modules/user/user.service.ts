@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { QueryUserDto } from './dto/query-user.dto';
 import { Prisma } from '@prisma/client';
@@ -10,6 +6,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { LockUserDto } from './dto/lock-user.dto';
 import * as bcrypt from 'bcrypt';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 @Injectable()
 export class UserService {
   // create(createUserDto: CreateUserDto) {
@@ -17,15 +15,7 @@ export class UserService {
   // }
   constructor(private readonly prisma: PrismaService) {}
   async findAll(query: QueryUserDto) {
-    const {
-      search,
-      departmentId,
-      role,
-      profession,
-      statusSignal,
-      page = 1,
-      limit = 10,
-    } = query;
+    const { search, departmentId, role, profession, statusSignal, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.UserWhereInput = {
@@ -159,14 +149,7 @@ export class UserService {
       isDeleted: false,
       isArchived: false,
     };
-    const [
-      todoCount,
-      inProgressCount,
-      reviewCount,
-      doneCount,
-      overdueCount,
-      urgentCount,
-    ] = await Promise.all([
+    const [todoCount, inProgressCount, reviewCount, doneCount, overdueCount, urgentCount] = await Promise.all([
       this.prisma.task.count({
         where: { ...baseWhere, status: 'TODO' },
       }),
@@ -245,9 +228,7 @@ export class UserService {
   }
   async lockOrUnlockUser(id: string, dto: LockUserDto, currentAdminId: string) {
     if (id === currentAdminId && !dto.isActive) {
-      throw new BadRequestException(
-        'Bạn không thể tự khóa tài khoản của chính mình!',
-      );
+      throw new BadRequestException('Bạn không thể tự khóa tài khoản của chính mình!');
     }
     await this.findOne(id);
     return this.prisma.user.update({
@@ -295,9 +276,7 @@ export class UserService {
   }
   async remove(id: string, currentAdminId: string) {
     if (id === currentAdminId) {
-      throw new BadRequestException(
-        'Bạn không thể xóa tài khoản của chính mình!',
-      );
+      throw new BadRequestException('Bạn không thể xóa tài khoản của chính mình!');
     }
     const user = await this.prisma.user.findUnique({
       where: {
@@ -321,12 +300,12 @@ export class UserService {
     }
     if (user.isActive) {
       throw new BadRequestException(
-        'Tài khoản đang Hoạt Động (Active). Bạn phải khóa tài khoản trước khi thực hiện xóa vĩnh viễn!',
+        'Tài khoản đang Hoạt Động (Active). Bạn phải khóa tài khoản trước khi thực hiện xóa vĩnh viễn!'
       );
     }
     if (user.managedProjects.length > 0 || user.ownedProjects.length > 0) {
       throw new BadRequestException(
-        'Không thể xóa nhân sự này do đang là Chủ sở hữu/Quản lý của dự án đang chạy. Hãy chuyển giao quyền quản lý trước!',
+        'Không thể xóa nhân sự này do đang là Chủ sở hữu/Quản lý của dự án đang chạy. Hãy chuyển giao quyền quản lý trước!'
       );
     }
     await this.prisma.$transaction(async (tx) => {
@@ -350,5 +329,87 @@ export class UserService {
         message: `Đã xóa vĩnh viễn tài khoản "${user.fullName}" (${user.email}) khỏi hệ thống.`,
       };
     });
+  }
+  async updateUser(id: string, dto: UpdateUserDto) {
+    await this.findOne(id);
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        ...(dto.fullName !== undefined && { fullName: dto.fullName }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.bio !== undefined && { bio: dto.bio }),
+        ...(dto.jobTitle !== undefined && { jobTitle: dto.jobTitle }),
+        ...(dto.profession !== undefined && { profession: dto.profession }),
+        ...(dto.avatar !== undefined && { avatar: dto.avatar }),
+        ...(dto.coverImage !== undefined && { coverImage: dto.coverImage }),
+        ...(dto.departmentId !== undefined && { departmentId: dto.departmentId }),
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        bio: true,
+        jobTitle: true,
+        profession: true,
+        avatar: true,
+        coverImage: true,
+        department: {
+          select: { id: true, name: true },
+        },
+        updatedAt: true,
+      },
+    });
+  }
+  async createUser(dto: CreateUserDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: {
+        email: dto.email,
+      },
+    });
+    if (existingUser) {
+      throw new ConflictException('Email này đã được sử dụng trong hệ thống');
+    }
+    if (dto.departmentId) {
+      const dept = await this.prisma.department.findUnique({
+        where: {
+          id: dto.departmentId,
+        },
+      });
+      if (!dept) {
+        throw new NotFoundException('Department không tồn tại ');
+      }
+    }
+    const plainPassword = dto.password || 'NhanVien123';
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+    const newUser = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        fullName: dto.fullName,
+        password: hashedPassword,
+        role: dto.role || 'EMPLOYEE',
+        profession: dto.profession || 'DEV',
+        jobTitle: dto.jobTitle,
+        phone: dto.phone,
+        departmentId: dto.departmentId,
+        isFirstLogin: true,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        profession: true,
+        jobTitle: true,
+        department: { select: { id: true, name: true } },
+      },
+    });
+    return {
+      success: true,
+      message: `Đã tạo tài khoản cho nhân sự "${newUser.fullName}" thành công!`,
+      data: newUser,
+      defaultPassword: plainPassword,
+    };
   }
 }
