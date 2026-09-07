@@ -24,6 +24,11 @@ export class DepartmentController {
   findOne(@Param('id') id: string) {
     return this.departmentService.findOne(id);
   }
+
+  @Get('workload/:id')
+  getWorkload(@Param('id') id: string) {
+    return this.departmentService.getWorkload(id);
+  }
   @Patch(':id')
   @Roles('ADMIN')
   update(@Param('id') id: string, @Body() updateDepartmentDto: UpdateDepartmentDto) {
