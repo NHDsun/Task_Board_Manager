@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  ForbiddenException,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -14,9 +9,7 @@ export class TrashService {
 
   private checkAdmin(user: any) {
     if (user?.role !== 'ADMIN' && user?.globalRole !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Chỉ Quản trị viên (Admin) mới có quyền truy cập Thùng Rác Hệ Thống!',
-      );
+      throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền truy cập Thùng Rác Hệ Thống!');
     }
   }
 
@@ -24,21 +17,19 @@ export class TrashService {
   private async autoPurgeExpiredTrash() {
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     try {
-      const [purgedTasks, purgedProjects] = await this.prisma.$transaction(
-        async (tx) => {
-          const tCount = await tx.task.deleteMany({
-            where: { isDeleted: true, deletedAt: { lte: fourteenDaysAgo } },
-          });
-          const pCount = await tx.project.deleteMany({
-            where: { isDeleted: true, deletedAt: { lte: fourteenDaysAgo } },
-          });
-          return [tCount.count, pCount.count];
-        },
-      );
+      const [purgedTasks, purgedProjects] = await this.prisma.$transaction(async (tx) => {
+        const tCount = await tx.task.deleteMany({
+          where: { isDeleted: true, deletedAt: { lte: fourteenDaysAgo } },
+        });
+        const pCount = await tx.project.deleteMany({
+          where: { isDeleted: true, deletedAt: { lte: fourteenDaysAgo } },
+        });
+        return [tCount.count, pCount.count];
+      });
 
       if (purgedTasks > 0 || purgedProjects > 0) {
         this.logger.log(
-          `[AUTO-PURGE 14-DAY RETENTION] Đã tự động dọn sạch ${purgedProjects} Dự án và ${purgedTasks} Task hết hạn lưu giữ.`,
+          `[AUTO-PURGE 14-DAY RETENTION] Đã tự động dọn sạch ${purgedProjects} Dự án và ${purgedTasks} Task hết hạn lưu giữ.`
         );
       }
     } catch (err) {
@@ -91,15 +82,11 @@ export class TrashService {
 
     // Tính toán thời gian lưu giữ còn lại của 14 ngày
     const formattedProjects = deletedProjects.map((p) => {
-      const delTime = p.deletedAt
-        ? new Date(p.deletedAt).getTime()
-        : now.getTime();
+      const delTime = p.deletedAt ? new Date(p.deletedAt).getTime() : now.getTime();
       const expireTime = delTime + RETENTION_DAYS * 24 * 60 * 60 * 1000;
       const msLeft = Math.max(0, expireTime - now.getTime());
       const daysLeft = Math.floor(msLeft / (24 * 60 * 60 * 1000));
-      const hoursLeft = Math.floor(
-        (msLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000),
-      );
+      const hoursLeft = Math.floor((msLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
 
       return {
         id: p.id,
@@ -109,10 +96,7 @@ export class TrashService {
         expiresAt: new Date(expireTime),
         daysLeft,
         hoursLeft,
-        timeRemainingText:
-          daysLeft > 0
-            ? `Còn ${daysLeft} ngày ${hoursLeft} giờ`
-            : `Còn ${hoursLeft} giờ`,
+        timeRemainingText: daysLeft > 0 ? `Còn ${daysLeft} ngày ${hoursLeft} giờ` : `Còn ${hoursLeft} giờ`,
         tasksCount: p._count.tasks,
         membersCount: p._count.members,
         createdBy: p.createdBy,
@@ -121,15 +105,11 @@ export class TrashService {
     });
 
     const formattedTasks = deletedTasks.map((t) => {
-      const delTime = t.deletedAt
-        ? new Date(t.deletedAt).getTime()
-        : now.getTime();
+      const delTime = t.deletedAt ? new Date(t.deletedAt).getTime() : now.getTime();
       const expireTime = delTime + RETENTION_DAYS * 24 * 60 * 60 * 1000;
       const msLeft = Math.max(0, expireTime - now.getTime());
       const daysLeft = Math.floor(msLeft / (24 * 60 * 60 * 1000));
-      const hoursLeft = Math.floor(
-        (msLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000),
-      );
+      const hoursLeft = Math.floor((msLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
 
       return {
         id: t.id,
@@ -144,10 +124,7 @@ export class TrashService {
         expiresAt: new Date(expireTime),
         daysLeft,
         hoursLeft,
-        timeRemainingText:
-          daysLeft > 0
-            ? `Còn ${daysLeft} ngày ${hoursLeft} giờ`
-            : `Còn ${hoursLeft} giờ`,
+        timeRemainingText: daysLeft > 0 ? `Còn ${daysLeft} ngày ${hoursLeft} giờ` : `Còn ${hoursLeft} giờ`,
         assignee: t.assignee,
         createdBy: t.createdBy,
       };
@@ -167,20 +144,18 @@ export class TrashService {
   async emptyTrash(user: any) {
     this.checkAdmin(user);
 
-    const [deletedTasks, deletedProjects] = await this.prisma.$transaction(
-      async (tx) => {
-        const taskRes = await tx.task.deleteMany({
-          where: { isDeleted: true },
-        });
-        const projectRes = await tx.project.deleteMany({
-          where: { isDeleted: true },
-        });
-        return [taskRes.count, projectRes.count];
-      },
-    );
+    const [deletedTasks, deletedProjects] = await this.prisma.$transaction(async (tx) => {
+      const taskRes = await tx.task.deleteMany({
+        where: { isDeleted: true },
+      });
+      const projectRes = await tx.project.deleteMany({
+        where: { isDeleted: true },
+      });
+      return [taskRes.count, projectRes.count];
+    });
 
     this.logger.log(
-      `Admin ${user?.fullName || ''} đã dọn sạch Thùng Rác (${deletedProjects} Dự án, ${deletedTasks} Task)`,
+      `Admin ${user?.fullName || ''} đã dọn sạch Thùng Rác (${deletedProjects} Dự án, ${deletedTasks} Task)`
     );
 
     return {

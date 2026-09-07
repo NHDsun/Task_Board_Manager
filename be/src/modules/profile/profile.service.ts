@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateStatusSignalDto } from './dto/update-status-signal.dto';
@@ -131,44 +127,42 @@ export class ProfileService {
     });
 
     return {
-      message:
-        'Đổi mật khẩu thành công! Vui lòng sử dụng mật khẩu mới cho các lần đăng nhập sau.',
+      message: 'Đổi mật khẩu thành công! Vui lòng sử dụng mật khẩu mới cho các lần đăng nhập sau.',
     };
   }
 
   async getPersonalStats(userId: string) {
     const now = new Date();
-    const [completedTasks, inProgressTasks, overdueTasks, totalAssignedTasks] =
-      await Promise.all([
-        this.prisma.task.count({
-          where: {
-            assigneeId: userId,
-            status: 'DONE',
-            isDeleted: false,
-          },
-        }),
-        this.prisma.task.count({
-          where: {
-            assigneeId: userId,
-            status: 'IN_PROGRESS',
-            isDeleted: false,
-          },
-        }),
-        this.prisma.task.count({
-          where: {
-            assigneeId: userId,
-            status: { not: 'DONE' },
-            isDeleted: false,
-            dueDate: { lt: now },
-          },
-        }),
-        this.prisma.task.count({
-          where: {
-            assigneeId: userId,
-            isDeleted: false,
-          },
-        }),
-      ]);
+    const [completedTasks, inProgressTasks, overdueTasks, totalAssignedTasks] = await Promise.all([
+      this.prisma.task.count({
+        where: {
+          assigneeId: userId,
+          status: 'DONE',
+          isDeleted: false,
+        },
+      }),
+      this.prisma.task.count({
+        where: {
+          assigneeId: userId,
+          status: 'IN_PROGRESS',
+          isDeleted: false,
+        },
+      }),
+      this.prisma.task.count({
+        where: {
+          assigneeId: userId,
+          status: { not: 'DONE' },
+          isDeleted: false,
+          dueDate: { lt: now },
+        },
+      }),
+      this.prisma.task.count({
+        where: {
+          assigneeId: userId,
+          isDeleted: false,
+        },
+      }),
+    ]);
 
     return {
       completedTasks,

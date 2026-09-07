@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
@@ -17,7 +12,7 @@ export class TaskService {
   constructor(
     private prisma: PrismaService,
     private socketGateway: SocketGateway,
-    private notificationService: NotificationService,
+    private notificationService: NotificationService
   ) {}
 
   async findAll(query?: QueryTaskFilterDto) {
@@ -62,9 +57,7 @@ export class TaskService {
     }
 
     const page = query?.page ? Math.max(1, Number(query.page)) : undefined;
-    const limit = query?.limit
-      ? Math.min(200, Math.max(1, Number(query.limit)))
-      : undefined;
+    const limit = query?.limit ? Math.min(200, Math.max(1, Number(query.limit))) : undefined;
     const skip = page && limit ? (page - 1) * limit : undefined;
     const take = limit || undefined;
 
@@ -124,18 +117,14 @@ export class TaskService {
     let parsedDueDate: Date | null = null;
     if (createTaskDto.dueDate) {
       parsedDueDate = new Date(createTaskDto.dueDate);
-      const startOrToday = parsedStartDate
-        ? new Date(parsedStartDate)
-        : new Date();
+      const startOrToday = parsedStartDate ? new Date(parsedStartDate) : new Date();
       startOrToday.setHours(0, 0, 0, 0);
 
       const targetDueDate = new Date(parsedDueDate);
       targetDueDate.setHours(0, 0, 0, 0);
 
       if (targetDueDate.getTime() < startOrToday.getTime()) {
-        throw new BadRequestException(
-          'Hạn Deadline (due date) phải lớn hơn hoặc bằng Ngày Bắt Đầu!',
-        );
+        throw new BadRequestException('Hạn Deadline (due date) phải lớn hơn hoặc bằng Ngày Bắt Đầu!');
       }
     }
 
@@ -148,9 +137,7 @@ export class TaskService {
       throw new NotFoundException('Dự án không tồn tại!');
     }
     if (project.isCompleted) {
-      throw new BadRequestException(
-        'Dự án này đã hoàn thành/nghiệm thu và đã được đóng. Không thể tạo thêm Task mới!',
-      );
+      throw new BadRequestException('Dự án này đã hoàn thành/nghiệm thu và đã được đóng. Không thể tạo thêm Task mới!');
     }
 
     const validMemberIds = new Set([
@@ -161,9 +148,7 @@ export class TaskService {
 
     // 🔒 Kiểm tra người được giao Task cha có thuộc dự án không
     if (createTaskDto.assigneeId && !validMemberIds.has(createTaskDto.assigneeId)) {
-      throw new BadRequestException(
-        'Người được phân công không thuộc thành viên của Dự án này!',
-      );
+      throw new BadRequestException('Người được phân công không thuộc thành viên của Dự án này!');
     }
 
     // 🔒 [LC-66] KIỂM TRA TẤT CẢ NGƯỜI ĐƯỢC GIAO TASK CON CÓ THUỘC THÀNH VIÊN DỰ ÁN KHÔNG
@@ -171,7 +156,7 @@ export class TaskService {
       for (const st of createTaskDto.subtasks) {
         if (st.assigneeId && !validMemberIds.has(st.assigneeId)) {
           throw new BadRequestException(
-            `Nhân sự được giao Task con "${st.title || ''}" không thuộc thành viên của Dự án này!`,
+            `Nhân sự được giao Task con "${st.title || ''}" không thuộc thành viên của Dự án này!`
           );
         }
       }
@@ -179,10 +164,7 @@ export class TaskService {
 
     // 🚨 Tự động suy ra độ ưu tiên Task lớn từ các Việc Con
     let calculatedPriority = createTaskDto.priority || 'NORMAL';
-    if (
-      createTaskDto.subtasks &&
-      createTaskDto.subtasks.some((st) => st.isUrgent)
-    ) {
+    if (createTaskDto.subtasks && createTaskDto.subtasks.some((st) => st.isUrgent)) {
       calculatedPriority = 'URGENT';
     }
 
@@ -233,11 +215,7 @@ export class TaskService {
     }
 
     // 🏷️ [LC-76] TỰ ĐỘNG XỬ LÝ & KHỬ TRÙNG LẶP THẺ NHÃN (TAGS)
-    if (
-      createTaskDto.tagNames &&
-      Array.isArray(createTaskDto.tagNames) &&
-      createTaskDto.tagNames.length > 0
-    ) {
+    if (createTaskDto.tagNames && Array.isArray(createTaskDto.tagNames) && createTaskDto.tagNames.length > 0) {
       for (const rawTagName of createTaskDto.tagNames) {
         const cleanName = rawTagName?.trim();
         if (cleanName) {
@@ -266,11 +244,7 @@ export class TaskService {
         }
       }
     }
-    if (
-      createTaskDto.subtasks &&
-      Array.isArray(createTaskDto.subtasks) &&
-      createTaskDto.subtasks.length > 0
-    ) {
+    if (createTaskDto.subtasks && Array.isArray(createTaskDto.subtasks) && createTaskDto.subtasks.length > 0) {
       for (let i = 0; i < createTaskDto.subtasks.length; i++) {
         const item = createTaskDto.subtasks[i];
         if (item.title && item.title.trim()) {
@@ -283,9 +257,7 @@ export class TaskService {
               isDone: false,
               assigneeId: item.assigneeId || undefined,
               startDate: item.startDate ? new Date(item.startDate) : undefined,
-              estimatedDays: item.estimatedDays
-                ? Number(item.estimatedDays)
-                : 1,
+              estimatedDays: item.estimatedDays ? Number(item.estimatedDays) : 1,
               dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
             },
           });
@@ -343,11 +315,7 @@ export class TaskService {
     const createdTask = this.mapTaskResponse(taskWithSubtasks);
 
     if (task.projectId) {
-      this.socketGateway.broadcastToProject(
-        task.projectId,
-        'task:created',
-        createdTask,
-      );
+      this.socketGateway.broadcastToProject(task.projectId, 'task:created', createdTask);
     }
 
     return createdTask;
@@ -357,11 +325,7 @@ export class TaskService {
     return this.findAll({ projectId });
   }
 
-  async updateStatus(
-    id: string,
-    updateTaskStatusDto: UpdateTaskStatusDto,
-    user?: any,
-  ) {
+  async updateStatus(id: string, updateTaskStatusDto: UpdateTaskStatusDto, user?: any) {
     // Atomic Transaction to guarantee race condition prevention
     const updatedTask = await this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findUnique({
@@ -372,16 +336,12 @@ export class TaskService {
         },
       });
       if (!task || task.isDeleted) {
-        throw new NotFoundException(
-          'Task không tồn tại hoặc đã bị xóa vào thùng rác',
-        );
+        throw new NotFoundException('Task không tồn tại hoặc đã bị xóa vào thùng rác');
       }
 
       // 🔒 [LC-77] KHÓA ĐỔI TRẠNG THÁI TASK ĐÃ LƯU TRỮ
       if (task.isArchived) {
-        throw new BadRequestException(
-          'Task đã được lưu trữ vào kho (Archived). Không thể thay đổi trạng thái!',
-        );
+        throw new BadRequestException('Task đã được lưu trữ vào kho (Archived). Không thể thay đổi trạng thái!');
       }
 
       // 🔒 [LC-67] PHÂN QUYỀN ĐIỀU PHỐI KANBAN:
@@ -389,35 +349,30 @@ export class TaskService {
       if (user) {
         const isAdminOrManager = Boolean(
           user.role === 'ADMIN' ||
-            user.role === 'MANAGER' ||
-            user.globalRole === 'ADMIN' ||
-            user.globalRole === 'MANAGER' ||
-            task.project?.managerId === user.id ||
-            task.project?.createdById === user.id ||
-            task.createdById === user.id,
+          user.role === 'MANAGER' ||
+          user.globalRole === 'ADMIN' ||
+          user.globalRole === 'MANAGER' ||
+          task.project?.managerId === user.id ||
+          task.project?.createdById === user.id ||
+          task.createdById === user.id
         );
-        const isAssignee = task.assigneeId
-          ? task.assigneeId === user.id
-          : task.createdById === user.id;
+        const isAssignee = task.assigneeId ? task.assigneeId === user.id : task.createdById === user.id;
 
         if (!isAdminOrManager && !isAssignee) {
           throw new ForbiddenException(
-            'Task này thuộc về người được giao, bạn không có quyền chỉnh sửa trạng thái của người khác',
+            'Task này thuộc về người được giao, bạn không có quyền chỉnh sửa trạng thái của người khác'
           );
         }
       }
 
       // 🔒 [LC-31] CHẶN ĐỔI TRẠNG THÁI KHI TASK ĐANG IN_REVIEW VÀ CÓ YÊU CẦU BÀN GIAO PENDING
-      if (
-        task.status === 'IN_REVIEW' &&
-        updateTaskStatusDto.status !== 'IN_REVIEW'
-      ) {
+      if (task.status === 'IN_REVIEW' && updateTaskStatusDto.status !== 'IN_REVIEW') {
         const pendingTransfer = await tx.taskRequest.findFirst({
           where: { taskId: id, type: 'TRANSFER', status: 'PENDING' },
         });
         if (pendingTransfer) {
           throw new BadRequestException(
-            'Task đang trong trạng thái Chờ Duyệt Bàn Giao (IN_REVIEW). Vui lòng duyệt hoặc hủy yêu cầu bàn giao trước khi chuyển đổi trạng thái.',
+            'Task đang trong trạng thái Chờ Duyệt Bàn Giao (IN_REVIEW). Vui lòng duyệt hoặc hủy yêu cầu bàn giao trước khi chuyển đổi trạng thái.'
           );
         }
       }
@@ -425,12 +380,10 @@ export class TaskService {
       // 🔒 CHẶN KÉO SANG DONE KHI CHƯA HOÀN THÀNH TOÀN BỘ TASK CON
       if (updateTaskStatusDto.status === 'DONE') {
         const hasUnfinishedSubtasks =
-          task.subtasks &&
-          task.subtasks.length > 0 &&
-          task.subtasks.some((st) => !st.isDone);
+          task.subtasks && task.subtasks.length > 0 && task.subtasks.some((st) => !st.isDone);
         if (hasUnfinishedSubtasks) {
           throw new BadRequestException(
-            'Không thể chuyển Task sang Hoàn Thành khi vẫn còn Task con chưa được Quản lý phê duyệt hoàn tất.',
+            'Không thể chuyển Task sang Hoàn Thành khi vẫn còn Task con chưa được Quản lý phê duyệt hoàn tất.'
           );
         }
       }
@@ -439,10 +392,7 @@ export class TaskService {
         where: { id },
         data: {
           status: updateTaskStatusDto.status,
-          stageId:
-            updateTaskStatusDto.stageId !== undefined
-              ? updateTaskStatusDto.stageId
-              : undefined,
+          stageId: updateTaskStatusDto.stageId !== undefined ? updateTaskStatusDto.stageId : undefined,
           description:
             (updateTaskStatusDto as any).description !== undefined
               ? (updateTaskStatusDto as any).description
@@ -453,10 +403,7 @@ export class TaskService {
               : updateTaskStatusDto.status === 'DONE'
                 ? 100
                 : task.progress,
-          completedAt:
-            updateTaskStatusDto.status === 'DONE'
-              ? task.completedAt || new Date()
-              : null,
+          completedAt: updateTaskStatusDto.status === 'DONE' ? task.completedAt || new Date() : null,
         },
         include: {
           project: { select: { id: true, name: true } },
@@ -482,9 +429,7 @@ export class TaskService {
       status: updatedTask.status,
       priority: updatedTask.priority,
       progress: updatedTask.progress,
-      dueDate: updatedTask.dueDate
-        ? updatedTask.dueDate.toISOString().slice(0, 10)
-        : undefined,
+      dueDate: updatedTask.dueDate ? updatedTask.dueDate.toISOString().slice(0, 10) : undefined,
       projectName: updatedTask.project?.name || 'Solaris Core',
       assigneeId: updatedTask.assigneeId || undefined,
       assignee: updatedTask.assignee
@@ -515,11 +460,7 @@ export class TaskService {
     };
 
     if (updatedTask.projectId) {
-      this.socketGateway.broadcastToProject(
-        updatedTask.projectId,
-        'task:updated',
-        result,
-      );
+      this.socketGateway.broadcastToProject(updatedTask.projectId, 'task:updated', result);
     }
 
     return result;
@@ -535,9 +476,7 @@ export class TaskService {
         },
       });
       if (!task || task.isDeleted) {
-        throw new NotFoundException(
-          'Task không tồn tại hoặc đã bị xóa vào thùng rác',
-        );
+        throw new NotFoundException('Task không tồn tại hoặc đã bị xóa vào thùng rác');
       }
 
       // 🔒 [LC-32] ĐÓNG BĂNG CHỈNH SỬA NỘI DUNG KHI TASK ĐANG BỊ TẠM DỪNG HOẶC BỊ NGHẼN
@@ -547,12 +486,9 @@ export class TaskService {
           user.role === 'MANAGER' ||
           user.globalRole === 'ADMIN' ||
           user.globalRole === 'MANAGER');
-      if (
-        (task.status === 'PAUSED' || task.status === 'BLOCKED') &&
-        !isManagerOrAdmin
-      ) {
+      if ((task.status === 'PAUSED' || task.status === 'BLOCKED') && !isManagerOrAdmin) {
         throw new BadRequestException(
-          'Task đang ở trạng thái Tạm Dừng hoặc Bị Nghẽn. Không thể chỉnh sửa mô tả cho đến khi Task được khôi phục trạng thái Đang Thực Hiện.',
+          'Task đang ở trạng thái Tạm Dừng hoặc Bị Nghẽn. Không thể chỉnh sửa mô tả cho đến khi Task được khôi phục trạng thái Đang Thực Hiện.'
         );
       }
 
@@ -581,9 +517,7 @@ export class TaskService {
       }
 
       if (!isAllowed) {
-        throw new ForbiddenException(
-          'Chỉ chủ sở hữu hoặc người được giao mới có quyền sửa mô tả Task',
-        );
+        throw new ForbiddenException('Chỉ chủ sở hữu hoặc người được giao mới có quyền sửa mô tả Task');
       }
 
       return tx.task.update({
@@ -613,9 +547,7 @@ export class TaskService {
       status: updatedTask.status,
       priority: updatedTask.priority,
       progress: updatedTask.progress,
-      dueDate: updatedTask.dueDate
-        ? updatedTask.dueDate.toISOString().slice(0, 10)
-        : undefined,
+      dueDate: updatedTask.dueDate ? updatedTask.dueDate.toISOString().slice(0, 10) : undefined,
       projectName: updatedTask.project?.name || 'Solaris Core',
       assigneeId: updatedTask.assigneeId || undefined,
       assignee: updatedTask.assignee
@@ -646,11 +578,7 @@ export class TaskService {
     };
 
     if (updatedTask.projectId) {
-      this.socketGateway.broadcastToProject(
-        updatedTask.projectId,
-        'task:updated',
-        result,
-      );
+      this.socketGateway.broadcastToProject(updatedTask.projectId, 'task:updated', result);
     }
 
     return result;
@@ -677,9 +605,7 @@ export class TaskService {
 
       const isMember = task.project?.members.some((m) => m.userId === user.id);
       if (!isAdminOrManager && !isMember) {
-        throw new ForbiddenException(
-          'Bạn không thuộc dự án này để xem các bình luận của Task!',
-        );
+        throw new ForbiddenException('Bạn không thuộc dự án này để xem các bình luận của Task!');
       }
     }
 
@@ -710,9 +636,7 @@ export class TaskService {
       include: { project: { include: { members: true } } },
     });
     if (!targetTask || targetTask.isDeleted) {
-      throw new NotFoundException(
-        'Task không tồn tại hoặc đã bị xóa vào thùng rác',
-      );
+      throw new NotFoundException('Task không tồn tại hoặc đã bị xóa vào thùng rác');
     }
 
     // 🔒 [LC-75] CHUẨN HÓA NỘI DUNG BÌNH LUẬN & CHẶN BÌNH LUẬN RỖNG
@@ -724,9 +648,7 @@ export class TaskService {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: userId },
     });
-    const isAdmin =
-      currentUser?.role === 'ADMIN' ||
-      (currentUser as any)?.globalRole === 'ADMIN';
+    const isAdmin = currentUser?.role === 'ADMIN' || (currentUser as any)?.globalRole === 'ADMIN';
     const isMember =
       targetTask.project?.members.some((m) => m.userId === userId) ||
       targetTask.project?.managerId === userId ||
@@ -735,9 +657,7 @@ export class TaskService {
       targetTask.createdById === userId;
 
     if (!isAdmin && !isMember) {
-      throw new ForbiddenException(
-        'Bạn không phải là thành viên của dự án này để bình luận vào Task',
-      );
+      throw new ForbiddenException('Bạn không phải là thành viên của dự án này để bình luận vào Task');
     }
 
     const comment = await this.prisma.comment.create({
@@ -763,11 +683,7 @@ export class TaskService {
     };
 
     if (targetTask?.projectId) {
-      this.socketGateway.broadcastToProject(
-        targetTask.projectId,
-        'comment:created',
-        { taskId, comment: result },
-      );
+      this.socketGateway.broadcastToProject(targetTask.projectId, 'comment:created', { taskId, comment: result });
     }
 
     // 🔔 Gửi thông báo bình luận tới Người được giao việc và Người tạo Task
@@ -813,9 +729,7 @@ export class TaskService {
       },
     });
     if (!targetTask || targetTask.isDeleted) {
-      throw new NotFoundException(
-        'Task không tồn tại hoặc đã bị xóa vào thùng rác',
-      );
+      throw new NotFoundException('Task không tồn tại hoặc đã bị xóa vào thùng rác');
     }
 
     const senderUser = await this.prisma.user.findUnique({
@@ -828,20 +742,18 @@ export class TaskService {
         (senderUser as any).globalRole === 'ADMIN' ||
         (senderUser as any).globalRole === 'MANAGER' ||
         targetTask.project?.managerId === senderId ||
-        targetTask.project?.createdById === senderId),
+        targetTask.project?.createdById === senderId)
     );
 
     // 🔒 [LC-45] CHẶN CHUYỂN GIAO TASK ĐÃ HOÀN THÀNH
     if (targetTask.status === 'DONE') {
-      throw new BadRequestException(
-        'Không thể gửi yêu cầu chuyển giao cho Task đã hoàn thành!',
-      );
+      throw new BadRequestException('Không thể gửi yêu cầu chuyển giao cho Task đã hoàn thành!');
     }
 
     // 🔒 [LC-46] CHẶN CHUYỂN GIAO KHI TASK ĐANG TẠM DỪNG HOẶC BỊ NGHẼN
     if (targetTask.status === 'PAUSED' || targetTask.status === 'BLOCKED') {
       throw new BadRequestException(
-        `Task đang ở trạng thái ${targetTask.status === 'PAUSED' ? 'Tạm Dừng' : 'Bị Nghẽn'}, không thể gửi yêu cầu chuyển giao. Vui lòng khôi phục trạng thái Đang Thực Hiện trước.`,
+        `Task đang ở trạng thái ${targetTask.status === 'PAUSED' ? 'Tạm Dừng' : 'Bị Nghẽn'}, không thể gửi yêu cầu chuyển giao. Vui lòng khôi phục trạng thái Đang Thực Hiện trước.`
       );
     }
 
@@ -850,9 +762,7 @@ export class TaskService {
 
     // 🔒 [LC-28] 2. Chặn chuyển giao hoặc hỗ trợ cho chính bản thân mình
     if (effectiveSenderId === effectiveReceiverId) {
-      throw new BadRequestException(
-        'Không thể gửi yêu cầu chuyển giao hoặc hỗ trợ cho chính bản thân mình!',
-      );
+      throw new BadRequestException('Không thể gửi yêu cầu chuyển giao hoặc hỗ trợ cho chính bản thân mình!');
     }
 
     // 🔒 3. Kiểm tra người nhận có thuộc Dự án không
@@ -861,12 +771,9 @@ export class TaskService {
     });
     const isReceiverManagerOrCreator =
       targetTask.project &&
-      (targetTask.project.managerId === effectiveReceiverId ||
-        targetTask.project.createdById === effectiveReceiverId);
+      (targetTask.project.managerId === effectiveReceiverId || targetTask.project.createdById === effectiveReceiverId);
     if (!isReceiverInProject && !isReceiverManagerOrCreator) {
-      throw new BadRequestException(
-        'Người nhận chuyển giao không thuộc thành viên của Dự án này!',
-      );
+      throw new BadRequestException('Người nhận chuyển giao không thuộc thành viên của Dự án này!');
     }
 
     const receiverUser = await this.prisma.user.findUnique({
@@ -882,14 +789,10 @@ export class TaskService {
         throw new NotFoundException('Task con không tồn tại trong Task này');
       }
       if (targetSubtask.isDone) {
-        throw new BadRequestException(
-          'Không thể chuyển giao Task con đã hoàn thành nghiệm thu!',
-        );
+        throw new BadRequestException('Không thể chuyển giao Task con đã hoàn thành nghiệm thu!');
       }
       if (targetSubtask.assigneeId === effectiveReceiverId) {
-        throw new BadRequestException(
-          'Nhân sự này đã đang trực tiếp phụ trách Task con này.',
-        );
+        throw new BadRequestException('Nhân sự này đã đang trực tiếp phụ trách Task con này.');
       }
 
       const isSubtaskOwner =
@@ -898,9 +801,7 @@ export class TaskService {
         targetTask.createdById === effectiveSenderId;
 
       if (!isSubtaskOwner && !isManagerOrAdmin) {
-        throw new ForbiddenException(
-          'Bạn chỉ có quyền chuyển giao Task con do chính mình phụ trách!',
-        );
+        throw new ForbiddenException('Bạn chỉ có quyền chuyển giao Task con do chính mình phụ trách!');
       }
 
       // 👑 Quản lý phân công Minitask trực tiếp:
@@ -945,11 +846,7 @@ export class TaskService {
             });
           } catch {}
 
-          this.socketGateway.broadcastToProject(
-            targetTask.projectId,
-            'task:updated',
-            { taskId: targetTask.id },
-          );
+          this.socketGateway.broadcastToProject(targetTask.projectId, 'task:updated', { taskId: targetTask.id });
 
           return reqItem;
         });
@@ -965,9 +862,7 @@ export class TaskService {
         },
       });
       if (existingPending) {
-        throw new BadRequestException(
-          'Task con này đang có một yêu cầu chuyển giao chờ phản hồi!',
-        );
+        throw new BadRequestException('Task con này đang có một yêu cầu chuyển giao chờ phản hồi!');
       }
 
       const reqItem = await this.prisma.taskRequest.create({
@@ -986,18 +881,14 @@ export class TaskService {
         data: { status: 'IN_REVIEW' },
       });
 
-      this.socketGateway.broadcastToProject(
-        targetTask.projectId,
-        'task:request-created',
-        {
-          taskId: dto.taskId,
-          taskTitle: targetTask.title,
-          subtaskTitle: targetSubtask.title,
-          senderName: senderUser?.fullName || 'Đồng nghiệp',
-          receiverId: effectiveReceiverId,
-          note: dto.note,
-        },
-      );
+      this.socketGateway.broadcastToProject(targetTask.projectId, 'task:request-created', {
+        taskId: dto.taskId,
+        taskTitle: targetTask.title,
+        subtaskTitle: targetSubtask.title,
+        senderName: senderUser?.fullName || 'Đồng nghiệp',
+        receiverId: effectiveReceiverId,
+        note: dto.note,
+      });
 
       return reqItem;
     }
@@ -1021,8 +912,7 @@ export class TaskService {
         },
         data: {
           status: 'REJECTED',
-          responseNote:
-            'Đã tự động hủy do Quản lý phân công task cho nhân sự mới.',
+          responseNote: 'Đã tự động hủy do Quản lý phân công task cho nhân sự mới.',
         },
       });
 
@@ -1054,18 +944,14 @@ export class TaskService {
       } catch {}
 
       // Bắn Socket thông báo Realtime
-      this.socketGateway.broadcastToProject(
-        targetTask.projectId,
-        'task:assigned-by-manager',
-        {
-          taskId: dto.taskId,
-          taskTitle: targetTask.title,
-          assigneeId: effectiveReceiverId,
-          assigneeName: receiverUser?.fullName || 'Nhân sự',
-          managerName: senderUser?.fullName || 'Quản lý',
-          note: dto.note,
-        },
-      );
+      this.socketGateway.broadcastToProject(targetTask.projectId, 'task:assigned-by-manager', {
+        taskId: dto.taskId,
+        taskTitle: targetTask.title,
+        assigneeId: effectiveReceiverId,
+        assigneeName: receiverUser?.fullName || 'Nhân sự',
+        managerName: senderUser?.fullName || 'Quản lý',
+        note: dto.note,
+      });
 
       const updatedTaskObj = await this.prisma.task.findUnique({
         where: { id: dto.taskId },
@@ -1098,7 +984,7 @@ export class TaskService {
         this.socketGateway.broadcastToProject(
           targetTask.projectId,
           'task:updated',
-          this.mapTaskResponse(updatedTaskObj),
+          this.mapTaskResponse(updatedTaskObj)
         );
       }
 
@@ -1111,7 +997,7 @@ export class TaskService {
     });
     if (existingPending) {
       throw new BadRequestException(
-        'Task này đang có một yêu cầu chuyển giao chờ phản hồi. Vui lòng chờ người nhận xử lý trước khi gửi yêu cầu mới.',
+        'Task này đang có một yêu cầu chuyển giao chờ phản hồi. Vui lòng chờ người nhận xử lý trước khi gửi yêu cầu mới.'
       );
     }
 
@@ -1133,17 +1019,13 @@ export class TaskService {
       data: { status: 'IN_REVIEW' },
     });
 
-    this.socketGateway.broadcastToProject(
-      targetTask.projectId,
-      'task:request-created',
-      {
-        taskId: dto.taskId,
-        taskTitle: targetTask.title,
-        senderName: senderUser?.fullName || 'Đồng nghiệp',
-        receiverId: effectiveReceiverId,
-        note: dto.note,
-      },
-    );
+    this.socketGateway.broadcastToProject(targetTask.projectId, 'task:request-created', {
+      taskId: dto.taskId,
+      taskTitle: targetTask.title,
+      senderName: senderUser?.fullName || 'Đồng nghiệp',
+      receiverId: effectiveReceiverId,
+      note: dto.note,
+    });
 
     return reqItem;
   }
@@ -1213,19 +1095,15 @@ export class TaskService {
         (currentUser as any).globalRole === 'ADMIN' ||
         (currentUser as any).globalRole === 'MANAGER' ||
         reqItem.task.project?.managerId === userId ||
-        reqItem.task.project?.createdById === userId),
+        reqItem.task.project?.createdById === userId)
     );
 
     if (reqItem.senderId !== userId && !isManagerOrAdmin) {
-      throw new ForbiddenException(
-        'Bạn chỉ có thể hủy yêu cầu do chính mình gửi đi (hoặc bởi Quản lý/Admin)!',
-      );
+      throw new ForbiddenException('Bạn chỉ có thể hủy yêu cầu do chính mình gửi đi (hoặc bởi Quản lý/Admin)!');
     }
 
     if (reqItem.status !== 'PENDING') {
-      throw new BadRequestException(
-        'Yêu cầu đã được xử lý hoặc không ở trạng thái Chờ Duyệt (PENDING)',
-      );
+      throw new BadRequestException('Yêu cầu đã được xử lý hoặc không ở trạng thái Chờ Duyệt (PENDING)');
     }
 
     // 🔒 Bọc tất cả thao tác CSDL trong 1 Prisma Transaction nguyên tố (Atomic Transaction)
@@ -1314,11 +1192,7 @@ export class TaskService {
   }
 
   // 🟢 [LC-37] Respond to incoming transfer request (APPROVED or REJECTED)
-  async respondToRequest(
-    requestId: string,
-    userId: string,
-    action: 'APPROVED' | 'REJECTED',
-  ) {
+  async respondToRequest(requestId: string, userId: string, action: 'APPROVED' | 'REJECTED') {
     const reqItem = await this.prisma.taskRequest.findUnique({
       where: { id: requestId },
       include: {
@@ -1350,13 +1224,11 @@ export class TaskService {
         (responder as any).globalRole === 'ADMIN' ||
         (responder as any).globalRole === 'MANAGER' ||
         reqItem.task.project?.managerId === userId ||
-        reqItem.task.project?.createdById === userId),
+        reqItem.task.project?.createdById === userId)
     );
 
     if (!isManagerOrAdmin && userId !== reqItem.receiverId) {
-      throw new ForbiddenException(
-        'Bạn không phải là người nhận yêu cầu này để thực hiện phản hồi.',
-      );
+      throw new ForbiddenException('Bạn không phải là người nhận yêu cầu này để thực hiện phản hồi.');
     }
 
     const targetStatus = action === 'APPROVED' ? 'ACCEPTED' : 'REJECTED';
@@ -1447,8 +1319,7 @@ export class TaskService {
               },
               data: {
                 status: 'REJECTED',
-                responseNote:
-                  'Đã tự động hủy do Task được chuyển giao sang nhân sự mới.',
+                responseNote: 'Đã tự động hủy do Task được chuyển giao sang nhân sự mới.',
               },
             });
             await tx.subtask.updateMany({
@@ -1505,10 +1376,7 @@ export class TaskService {
     });
 
     if (reqItem.type === 'SUBTASK_APPROVAL') {
-      await this.recalculateTaskProgress(
-        reqItem.taskId,
-        reqItem.task.projectId,
-      );
+      await this.recalculateTaskProgress(reqItem.taskId, reqItem.task.projectId);
     }
 
     return updated;
@@ -1534,13 +1402,11 @@ export class TaskService {
         (user as any).globalRole === 'ADMIN' ||
         (user as any).globalRole === 'MANAGER' ||
         task.project?.managerId === userId ||
-        task.project?.createdById === userId),
+        task.project?.createdById === userId)
     );
 
     if (!isManagerOrAdmin) {
-      throw new ForbiddenException(
-        'Chỉ có Cấp Quản Lý (Manager) hoặc Quản Trị Viên (Admin) mới có quyền xóa Task!',
-      );
+      throw new ForbiddenException('Chỉ có Cấp Quản Lý (Manager) hoặc Quản Trị Viên (Admin) mới có quyền xóa Task!');
     }
 
     // 🔒 [LC-24] HỦY TOÀN BỘ YÊU CẦU CHUYỂN GIAO / DUYỆT ĐANG TREO KHI XÓA TASK
@@ -1578,17 +1444,12 @@ export class TaskService {
   // 📦 Lấy danh sách Task trong Lưu Trữ / Audit Log (CHỈ DÀNH CHO ADMIN)
   async getArchivedTasks(user?: any) {
     if (user && user.role !== 'ADMIN' && user.globalRole !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Chỉ Quản Trị Viên (Admin) mới có quyền truy cập Audit Log & Lưu Trữ!',
-      );
+      throw new ForbiddenException('Chỉ Quản Trị Viên (Admin) mới có quyền truy cập Audit Log & Lưu Trữ!');
     }
 
     const tasks = await this.prisma.task.findMany({
       where: {
-        OR: [
-          { isDeleted: true },
-          { isArchived: true },
-        ],
+        OR: [{ isDeleted: true }, { isArchived: true }],
       },
       include: {
         project: { select: { id: true, name: true } },
@@ -1635,7 +1496,7 @@ export class TaskService {
     // 🔒 [LC-78] CHẶN KHÔI PHỤC TASK VÀO DỰ ÁN ĐÃ HOÀN THÀNH / NGHIỆM THU
     if (task.project?.isCompleted) {
       throw new BadRequestException(
-        'Dự án này đã hoàn thành/nghiệm thu và đã đóng. Không thể khôi phục Task vào dự án đã đóng!',
+        'Dự án này đã hoàn thành/nghiệm thu và đã đóng. Không thể khôi phục Task vào dự án đã đóng!'
       );
     }
 
@@ -1650,7 +1511,7 @@ export class TaskService {
 
       if (!isManagerOrAdmin) {
         throw new ForbiddenException(
-          'Chỉ Quản Trị Viên (Admin) hoặc Quản lý dự án mới có quyền khôi phục Task từ Thùng Rác!',
+          'Chỉ Quản Trị Viên (Admin) hoặc Quản lý dự án mới có quyền khôi phục Task từ Thùng Rác!'
         );
       }
     }
@@ -1687,11 +1548,7 @@ export class TaskService {
     }
 
     const updated = await this.recalculateTaskProgress(id, task.projectId);
-    this.socketGateway.broadcastToProject(
-      task.projectId,
-      'task:created',
-      updated,
-    );
+    this.socketGateway.broadcastToProject(task.projectId, 'task:created', updated);
 
     const message = autoRestoredProject
       ? `Đã khôi phục Task "${task.title}" và tự động mở lại Dự án "${task.project?.name || ''}" từ Thùng Rác!`
@@ -1707,9 +1564,7 @@ export class TaskService {
   // 💥 [ADMIN ONLY] Xóa vĩnh viễn Task khỏi CSDL
   async permanentDeleteTask(id: string, user?: any) {
     if (user && user.role !== 'ADMIN' && user.globalRole !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Chỉ Quản Trị Viên (Admin) mới có quyền xóa vĩnh viễn Task khỏi CSDL!',
-      );
+      throw new ForbiddenException('Chỉ Quản Trị Viên (Admin) mới có quyền xóa vĩnh viễn Task khỏi CSDL!');
     }
 
     const task = await this.prisma.task.findUnique({
@@ -1735,9 +1590,7 @@ export class TaskService {
       status: t.status,
       priority: t.priority,
       progress: t.progress,
-      startDate: t.startDate
-        ? t.startDate.toISOString().slice(0, 10)
-        : undefined,
+      startDate: t.startDate ? t.startDate.toISOString().slice(0, 10) : undefined,
       dueDate: t.dueDate ? t.dueDate.toISOString().slice(0, 10) : undefined,
       projectName: t.project?.name || 'Solaris Core',
       assigneeId: t.assigneeId || undefined,
@@ -1800,14 +1653,11 @@ export class TaskService {
             title: st.title,
             isDone: Boolean(st.isDone),
             isUrgent: Boolean(st.isUrgent),
-            approvalStatus:
-              st.approvalStatus || (st.isDone ? 'APPROVED' : 'NONE'),
+            approvalStatus: st.approvalStatus || (st.isDone ? 'APPROVED' : 'NONE'),
             rejectionReason: st.rejectionReason || undefined,
             order: st.order || 0,
             assigneeId: st.assigneeId || undefined,
-            startDate: st.startDate
-              ? st.startDate.toISOString().slice(0, 10)
-              : undefined,
+            startDate: st.startDate ? st.startDate.toISOString().slice(0, 10) : undefined,
             estimatedDays: st.estimatedDays ? Number(st.estimatedDays) : 1,
             assignee: st.assignee
               ? {
@@ -1816,9 +1666,7 @@ export class TaskService {
                   avatar: st.assignee.avatar || undefined,
                 }
               : undefined,
-            dueDate: st.dueDate
-              ? st.dueDate.toISOString().slice(0, 10)
-              : undefined,
+            dueDate: st.dueDate ? st.dueDate.toISOString().slice(0, 10) : undefined,
             createdAt: st.createdAt ? st.createdAt.toISOString() : undefined,
           }))
         : [],
@@ -1835,20 +1683,13 @@ export class TaskService {
     };
   }
 
-  async addAttachment(
-    taskId: string,
-    file: any,
-    body: { name?: string; url?: string; type?: string },
-    user?: any,
-  ) {
+  async addAttachment(taskId: string, file: any, body: { name?: string; url?: string; type?: string }, user?: any) {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: { project: { include: { members: true } } },
     });
     if (!task || task.isDeleted) {
-      throw new NotFoundException(
-        'Task không tồn tại hoặc đã bị xóa vào thùng rác',
-      );
+      throw new NotFoundException('Task không tồn tại hoặc đã bị xóa vào thùng rác');
     }
 
     // 🔒 [LC-25] BẢO VỆ QUYỀN TẢI TỆP ĐÍNH KÈM (ATTACHMENT SECURITY)
@@ -1866,9 +1707,7 @@ export class TaskService {
         task.createdById === user.id;
 
       if (!isAdminOrManager && !isMember) {
-        throw new ForbiddenException(
-          'Bạn không phải là thành viên của dự án này để tải tệp đính kèm',
-        );
+        throw new ForbiddenException('Bạn không phải là thành viên của dự án này để tải tệp đính kèm');
       }
     }
 
@@ -1878,9 +1717,7 @@ export class TaskService {
       // 🔒 [LC-73] NÂNG GIỚI HẠN DUNG LƯỢNG LÊN 100MB & SANITIZE FILENAME
       const maxSizeBytes = 100 * 1024 * 1024; // 100MB
       if (file.size > maxSizeBytes) {
-        throw new BadRequestException(
-          'Dung lượng tệp đính kèm vượt quá giới hạn tối đa cho phép (100MB)!',
-        );
+        throw new BadRequestException('Dung lượng tệp đính kèm vượt quá giới hạn tối đa cho phép (100MB)!');
       }
 
       const fs = require('fs');
@@ -1937,11 +1774,7 @@ export class TaskService {
           attachments: true,
         },
       });
-      this.socketGateway.broadcastToProject(
-        task.projectId,
-        'task:updated',
-        this.mapTaskResponse(updatedTaskObj),
-      );
+      this.socketGateway.broadcastToProject(task.projectId, 'task:updated', this.mapTaskResponse(updatedTaskObj));
     }
 
     return attachment;
@@ -1970,7 +1803,7 @@ export class TaskService {
     // 🔒 BẢO VỆ BẰNG CHỨNG KIỂM TOÁN: Khóa không cho xóa file đính kèm của Task đã hoàn thành
     if (attachment.task?.status === 'DONE') {
       throw new BadRequestException(
-        'Không thể xóa tệp đính kèm của Task đã hoàn thành nhằm bảo vệ tính toàn vẹn dữ liệu nghiệm thu.',
+        'Không thể xóa tệp đính kèm của Task đã hoàn thành nhằm bảo vệ tính toàn vẹn dữ liệu nghiệm thu.'
       );
     }
 
@@ -1983,13 +1816,11 @@ export class TaskService {
         user.globalRole === 'MANAGER' ||
         attachment.task?.project?.managerId === user.id ||
         attachment.task?.project?.createdById === user.id;
-      const isOwner =
-        attachment.task?.assigneeId === user.id ||
-        attachment.task?.createdById === user.id;
+      const isOwner = attachment.task?.assigneeId === user.id || attachment.task?.createdById === user.id;
 
       if (!isAdminOrManager && !isOwner) {
         throw new ForbiddenException(
-          'Chỉ người thực hiện Task, người tạo Task hoặc Quản lý dự án mới có quyền xóa tệp đính kèm',
+          'Chỉ người thực hiện Task, người tạo Task hoặc Quản lý dự án mới có quyền xóa tệp đính kèm'
         );
       }
     }
@@ -2031,11 +1862,7 @@ export class TaskService {
           attachments: true,
         },
       });
-      this.socketGateway.broadcastToProject(
-        task.projectId,
-        'task:updated',
-        this.mapTaskResponse(updatedTaskObj),
-      );
+      this.socketGateway.broadcastToProject(task.projectId, 'task:updated', this.mapTaskResponse(updatedTaskObj));
     }
 
     return { success: true };
@@ -2051,7 +1878,7 @@ export class TaskService {
       dueDate?: string;
       isUrgent?: boolean;
     },
-    user?: any,
+    user?: any
   ) {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -2068,47 +1895,41 @@ export class TaskService {
       },
     });
     if (!task || task.isDeleted) {
-      throw new NotFoundException(
-        'Task không tồn tại hoặc đã bị xóa vào thùng rác',
-      );
+      throw new NotFoundException('Task không tồn tại hoặc đã bị xóa vào thùng rác');
     }
 
     // 🔒 [LC-69] CHẶN THÊM TASK CON VÀO DỰ ÁN ĐÃ ĐÓNG / HOÀN THÀNH
     if (task.project?.isCompleted) {
-      throw new BadRequestException(
-        'Dự án này đã hoàn thành/nghiệm thu và đã được đóng. Không thể thêm Task con mới!',
-      );
+      throw new BadRequestException('Dự án này đã hoàn thành/nghiệm thu và đã được đóng. Không thể thêm Task con mới!');
     }
 
     // 🔒 [LC-23] CHẶN THÊM TASK CON VÀO TASK ĐÃ LƯU TRỮ HOẶC ĐÃ HOÀN THÀNH KHI KHÔNG MỞ LẠI
     if (task.isArchived) {
-      throw new BadRequestException(
-        'Task này đã được lưu trữ (Archived). Không thể thêm Task con mới!',
-      );
+      throw new BadRequestException('Task này đã được lưu trữ (Archived). Không thể thêm Task con mới!');
     }
 
     // 👑 [LC-85] NẾU TASK ĐÃ DONE VÀ ADMIN/MANAGER/ASSIGNEE THÊM TASK CON MỚI -> HỆ THỐNG CHO PHÉP VÀ TỰ ĐỘNG MỞ LẠI TASK SANG IN_PROGRESS
     const isAdminOrManagerUser = Boolean(
       user &&
-        (user.role === 'ADMIN' ||
-          user.role === 'MANAGER' ||
-          user.globalRole === 'ADMIN' ||
-          user.globalRole === 'MANAGER' ||
-          task.project?.managerId === user.id ||
-          task.project?.createdById === user.id),
+      (user.role === 'ADMIN' ||
+        user.role === 'MANAGER' ||
+        user.globalRole === 'ADMIN' ||
+        user.globalRole === 'MANAGER' ||
+        task.project?.managerId === user.id ||
+        task.project?.createdById === user.id)
     );
     const isTaskAssignee = user && task.assigneeId === user.id;
 
     if (task.status === 'DONE' && !isAdminOrManagerUser && !isTaskAssignee) {
       throw new BadRequestException(
-        'Task đã hoàn thành (DONE). Chỉ Quản lý/Admin hoặc người đảm nhiệm mới có quyền thêm Task con để mở lại nhiệm vụ.',
+        'Task đã hoàn thành (DONE). Chỉ Quản lý/Admin hoặc người đảm nhiệm mới có quyền thêm Task con để mở lại nhiệm vụ.'
       );
     }
 
     // 🔒 [LC-10] KHÓA THÊM TASK CON KHI TASK ĐANG TẠM DỪNG HOẶC BỊ NGHẼN
     if (task.status === 'PAUSED' || task.status === 'BLOCKED') {
       throw new BadRequestException(
-        `Task đang ở trạng thái ${task.status === 'PAUSED' ? 'Tạm Dừng' : 'Bị Nghẽn'}. Vui lòng khôi phục trạng thái Đang Thực Hiện trước khi thêm Task con!`,
+        `Task đang ở trạng thái ${task.status === 'PAUSED' ? 'Tạm Dừng' : 'Bị Nghẽn'}. Vui lòng khôi phục trạng thái Đang Thực Hiện trước khi thêm Task con!`
       );
     }
 
@@ -2119,7 +1940,7 @@ export class TaskService {
       });
       if (pendingTransfer) {
         throw new BadRequestException(
-          'Task đang trong trạng thái Chờ Duyệt Bàn Giao (IN_REVIEW). Vui lòng hoàn tất hoặc hủy bàn giao trước khi thêm Task con mới.',
+          'Task đang trong trạng thái Chờ Duyệt Bàn Giao (IN_REVIEW). Vui lòng hoàn tất hoặc hủy bàn giao trước khi thêm Task con mới.'
         );
       }
     }
@@ -2128,18 +1949,18 @@ export class TaskService {
     if (user) {
       const isAdminOrManager = Boolean(
         user.role === 'ADMIN' ||
-          user.role === 'MANAGER' ||
-          user.globalRole === 'ADMIN' ||
-          user.globalRole === 'MANAGER' ||
-          task.project?.managerId === user.id ||
-          task.project?.createdById === user.id,
+        user.role === 'MANAGER' ||
+        user.globalRole === 'ADMIN' ||
+        user.globalRole === 'MANAGER' ||
+        task.project?.managerId === user.id ||
+        task.project?.createdById === user.id
       );
       const isAssignee = task.assigneeId === user.id;
       const isUnassignedAndCreator = !task.assigneeId && task.createdById === user.id;
 
       if (!isAdminOrManager && !isAssignee && !isUnassignedAndCreator) {
         throw new ForbiddenException(
-          'Chỉ người trực tiếp đảm nhiệm Task (Assignee) hoặc Quản lý/Admin mới có quyền tạo Task con!',
+          'Chỉ người trực tiếp đảm nhiệm Task (Assignee) hoặc Quản lý/Admin mới có quyền tạo Task con!'
         );
       }
     }
@@ -2154,26 +1975,19 @@ export class TaskService {
         task.project?.managerId === effectiveSubtaskAssigneeId ||
         task.project?.createdById === effectiveSubtaskAssigneeId;
       if (!isMember && !isProjectAdminOrManager) {
-        throw new BadRequestException(
-          'Nhân sự được giao Task con không thuộc thành viên của dự án này.',
-        );
+        throw new BadRequestException('Nhân sự được giao Task con không thuộc thành viên của dự án này.');
       }
     }
 
     const estimatedDays =
-      body.estimatedDays && Number(body.estimatedDays) > 0
-        ? Math.max(1, Math.floor(Number(body.estimatedDays)))
-        : 1;
+      body.estimatedDays && Number(body.estimatedDays) > 0 ? Math.max(1, Math.floor(Number(body.estimatedDays))) : 1;
     let parsedSubtaskStartDate: Date | null = null;
     let parsedSubtaskDueDate: Date | null = null;
 
     if (body.startDate) {
       parsedSubtaskStartDate = new Date(body.startDate);
       // Tự động mở rộng ngày bắt đầu của Task cha nếu Subtask bắt đầu sớm hơn
-      if (
-        task.startDate &&
-        parsedSubtaskStartDate.getTime() < new Date(task.startDate).getTime()
-      ) {
+      if (task.startDate && parsedSubtaskStartDate.getTime() < new Date(task.startDate).getTime()) {
         await this.prisma.task.update({
           where: { id: taskId },
           data: { startDate: parsedSubtaskStartDate },
@@ -2236,7 +2050,7 @@ export class TaskService {
       dueDate?: string;
       isUrgent?: boolean;
     },
-    user?: any,
+    user?: any
   ) {
     const subtask = await this.prisma.subtask.findUnique({
       where: { id: subtaskId },
@@ -2258,16 +2072,12 @@ export class TaskService {
       },
     });
     if (!subtask || subtask.task.isDeleted) {
-      throw new NotFoundException(
-        'Task con không tồn tại hoặc Task cha đã bị xóa vào thùng rác',
-      );
+      throw new NotFoundException('Task con không tồn tại hoặc Task cha đã bị xóa vào thùng rác');
     }
 
     // 🔒 [LC-79] KHÓA SỬA TASK CON KHI DỰ ÁN ĐÃ HOÀN THÀNH / NGHIỆM THU
     if (subtask.task.project?.isCompleted) {
-      throw new BadRequestException(
-        'Dự án này đã hoàn thành/nghiệm thu và đã đóng. Không thể cập nhật Task con!',
-      );
+      throw new BadRequestException('Dự án này đã hoàn thành/nghiệm thu và đã đóng. Không thể cập nhật Task con!');
     }
 
     // 🔒 [LC-44] KHÓA TOÀN DIỆN CHỈNH SỬA TASK CON ĐÃ HOÀN THÀNH
@@ -2281,7 +2091,7 @@ export class TaskService {
         body.assigneeId !== undefined
       ) {
         throw new BadRequestException(
-          'Task con này đã hoàn thành và được xác nhận. Chỉ Quản lý mới có quyền mở lại (REOPEN) trước khi chỉnh sửa nội dung.',
+          'Task con này đã hoàn thành và được xác nhận. Chỉ Quản lý mới có quyền mở lại (REOPEN) trước khi chỉnh sửa nội dung.'
         );
       }
     }
@@ -2292,35 +2102,20 @@ export class TaskService {
         where: { projectId: subtask.task.projectId, userId: body.assigneeId },
       });
       const isProjectAdminOrManager =
-        subtask.task.project?.managerId === body.assigneeId ||
-        subtask.task.project?.createdById === body.assigneeId;
+        subtask.task.project?.managerId === body.assigneeId || subtask.task.project?.createdById === body.assigneeId;
       if (!isMember && !isProjectAdminOrManager) {
-        throw new BadRequestException(
-          'Nhân sự được giao Task con không thuộc thành viên của dự án này.',
-        );
+        throw new BadRequestException('Nhân sự được giao Task con không thuộc thành viên của dự án này.');
       }
     }
 
     // 🔒 [LC-47] KIỂM TRA RÀNG BUỘC HẠN CHÓT TASK CON THEO TASK CHA KHI CẬP NHẬT
     if (body.dueDate) {
       const parsedSubtaskDueDate = new Date(body.dueDate);
-      if (
-        subtask.task.dueDate &&
-        parsedSubtaskDueDate.getTime() >
-          new Date(subtask.task.dueDate).getTime()
-      ) {
-        throw new BadRequestException(
-          'Hạn chót của Task con không thể vượt quá hạn chót tổng của Task cha!',
-        );
+      if (subtask.task.dueDate && parsedSubtaskDueDate.getTime() > new Date(subtask.task.dueDate).getTime()) {
+        throw new BadRequestException('Hạn chót của Task con không thể vượt quá hạn chót tổng của Task cha!');
       }
-      if (
-        subtask.task.startDate &&
-        parsedSubtaskDueDate.getTime() <
-          new Date(subtask.task.startDate).getTime()
-      ) {
-        throw new BadRequestException(
-          'Hạn chót của Task con không thể trước ngày bắt đầu của Task cha!',
-        );
+      if (subtask.task.startDate && parsedSubtaskDueDate.getTime() < new Date(subtask.task.startDate).getTime()) {
+        throw new BadRequestException('Hạn chót của Task con không thể trước ngày bắt đầu của Task cha!');
       }
     }
 
@@ -2332,16 +2127,13 @@ export class TaskService {
         user.globalRole === 'MANAGER' ||
         subtask.task.project.managerId === user.id ||
         subtask.task.project.createdById === user.id ||
-        subtask.task.createdById === user.id),
+        subtask.task.createdById === user.id)
     );
 
     // 🔒 KHÓA KHI TASK ĐANG TẠM DỪNG HOẶC BỊ NGHẼN (PAUSED / BLOCKED)
-    if (
-      body.isDone !== undefined &&
-      (subtask.task.status === 'PAUSED' || subtask.task.status === 'BLOCKED')
-    ) {
+    if (body.isDone !== undefined && (subtask.task.status === 'PAUSED' || subtask.task.status === 'BLOCKED')) {
       throw new BadRequestException(
-        `Task này đang ở trạng thái ${subtask.task.status === 'PAUSED' ? 'Tạm Dừng' : 'Bị Nghẽn'}, không thể nộp duyệt Task con.`,
+        `Task này đang ở trạng thái ${subtask.task.status === 'PAUSED' ? 'Tạm Dừng' : 'Bị Nghẽn'}, không thể nộp duyệt Task con.`
       );
     }
 
@@ -2349,7 +2141,7 @@ export class TaskService {
     const effectiveAssigneeId = subtask.assigneeId || subtask.task.assigneeId;
     if (!effectiveAssigneeId && body.isDone !== undefined) {
       throw new BadRequestException(
-        'Task này chưa được chỉ định người làm. Vui lòng phân công nhân sự trước khi thực hiện.',
+        'Task này chưa được chỉ định người làm. Vui lòng phân công nhân sự trước khi thực hiện.'
       );
     }
 
@@ -2358,9 +2150,7 @@ export class TaskService {
 
     if (body.isDone !== undefined) {
       if (!isWorkerDoingTask && !isAdminOrManager) {
-        throw new ForbiddenException(
-          'Chỉ người trực tiếp thực hiện Task mới có quyền đánh dấu hoàn thành Task con.',
-        );
+        throw new ForbiddenException('Chỉ người trực tiếp thực hiện Task mới có quyền đánh dấu hoàn thành Task con.');
       }
     }
 
@@ -2372,9 +2162,7 @@ export class TaskService {
     const updateData: any = {};
     if (body.isUrgent !== undefined) {
       if (subtask.isDone) {
-        throw new BadRequestException(
-          'Không thể thay đổi mức độ khẩn cấp của Task con đã hoàn thành.',
-        );
+        throw new BadRequestException('Không thể thay đổi mức độ khẩn cấp của Task con đã hoàn thành.');
       }
       updateData.isUrgent = Boolean(body.isUrgent);
 
@@ -2398,23 +2186,17 @@ export class TaskService {
       }
     }
     if (body.title !== undefined) updateData.title = body.title.trim();
-    if (body.assigneeId !== undefined)
-      updateData.assigneeId = body.assigneeId || null;
-    if (body.startDate !== undefined)
-      updateData.startDate = body.startDate ? new Date(body.startDate) : null;
-    if (body.dueDate !== undefined)
-      updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+    if (body.assigneeId !== undefined) updateData.assigneeId = body.assigneeId || null;
+    if (body.startDate !== undefined) updateData.startDate = body.startDate ? new Date(body.startDate) : null;
+    if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
 
     if (body.estimatedDays !== undefined) {
       if (!isAdminOrManager) {
         throw new ForbiddenException(
-          'Chỉ Quản lý hoặc Người tạo Task mới có quyền thay đổi thời gian ước lượng của Task con.',
+          'Chỉ Quản lý hoặc Người tạo Task mới có quyền thay đổi thời gian ước lượng của Task con.'
         );
       }
-      updateData.estimatedDays = Math.max(
-        1,
-        Math.round(Number(body.estimatedDays)),
-      );
+      updateData.estimatedDays = Math.max(1, Math.round(Number(body.estimatedDays)));
     }
 
     if (body.isDone !== undefined) {
@@ -2444,9 +2226,7 @@ export class TaskService {
           updateData.rejectionReason = null;
 
           const receiverId =
-            subtask.task.project.managerId ||
-            subtask.task.project.createdById ||
-            subtask.task.createdById;
+            subtask.task.project.managerId || subtask.task.project.createdById || subtask.task.createdById;
           if (receiverId && user) {
             await this.prisma.taskRequest.create({
               data: {
@@ -2459,17 +2239,13 @@ export class TaskService {
               },
             });
 
-            this.socketGateway.broadcastToProject(
-              subtask.task.projectId,
-              'task:approval-requested',
-              {
-                subtaskId,
-                taskId: subtask.taskId,
-                subtaskTitle: subtask.title,
-                senderName: user.fullName || 'Nhân viên',
-                taskTitle: subtask.task.title,
-              },
-            );
+            this.socketGateway.broadcastToProject(subtask.task.projectId, 'task:approval-requested', {
+              subtaskId,
+              taskId: subtask.taskId,
+              subtaskTitle: subtask.title,
+              senderName: user.fullName || 'Nhân viên',
+              taskTitle: subtask.task.title,
+            });
           }
         }
       } else {
@@ -2491,7 +2267,7 @@ export class TaskService {
   async reviewSubtask(
     subtaskId: string,
     body: { action: 'APPROVE' | 'REJECT' | 'REOPEN'; reason?: string },
-    user: any,
+    user: any
   ) {
     const subtask = await this.prisma.subtask.findUnique({
       where: { id: subtaskId },
@@ -2523,13 +2299,11 @@ export class TaskService {
         user.globalRole === 'MANAGER' ||
         subtask.task.project.managerId === user.id ||
         subtask.task.project.createdById === user.id ||
-        subtask.task.createdById === user.id),
+        subtask.task.createdById === user.id)
     );
 
     if (!isAdminOrManager) {
-      throw new ForbiddenException(
-        'Chỉ Quản lý hoặc Người tạo Task mới có quyền duyệt/mở lại Task con này',
-      );
+      throw new ForbiddenException('Chỉ Quản lý hoặc Người tạo Task mới có quyền duyệt/mở lại Task con này');
     }
 
     const updateData: any = {};
@@ -2541,14 +2315,11 @@ export class TaskService {
       // ↩️ Quản lý mở lại Task con đã duyệt nhầm để nhân sự sửa lại
       updateData.isDone = false;
       updateData.approvalStatus = 'NONE';
-      updateData.rejectionReason =
-        body.reason?.trim() || 'Quản lý đã mở lại Task con để kiểm tra lại.';
+      updateData.rejectionReason = body.reason?.trim() || 'Quản lý đã mở lại Task con để kiểm tra lại.';
     } else {
       updateData.isDone = false;
       updateData.approvalStatus = 'REJECTED';
-      updateData.rejectionReason =
-        body.reason?.trim() ||
-        'Chưa đạt yêu cầu, vui lòng kiểm tra và làm lại.';
+      updateData.rejectionReason = body.reason?.trim() || 'Chưa đạt yêu cầu, vui lòng kiểm tra và làm lại.';
     }
 
     await this.prisma.subtask.update({
@@ -2566,16 +2337,12 @@ export class TaskService {
       },
       data: {
         status: body.action === 'APPROVE' ? 'ACCEPTED' : 'REJECTED',
-        responseNote:
-          body.action === 'APPROVE' ? 'Đã phê duyệt hoàn thành' : body.reason,
+        responseNote: body.action === 'APPROVE' ? 'Đã phê duyệt hoàn thành' : body.reason,
       },
     });
 
     // 🔒 [LC-52] NẾU QUẢN LÝ MỞ LẠI HOẶC TỪ CHỐI TASK CON TRÊN TASK ĐÃ DONE -> TỰ ĐỘNG CHUYỂN TASK VỀ IN_PROGRESS
-    if (
-      (body.action === 'REOPEN' || body.action === 'REJECT') &&
-      subtask.task.status === 'DONE'
-    ) {
+    if ((body.action === 'REOPEN' || body.action === 'REJECT') && subtask.task.status === 'DONE') {
       await this.prisma.task.update({
         where: { id: subtask.taskId },
         data: {
@@ -2585,24 +2352,17 @@ export class TaskService {
       });
     }
 
-    const mapped = await this.recalculateTaskProgress(
-      subtask.taskId,
-      subtask.task.projectId,
-    );
+    const mapped = await this.recalculateTaskProgress(subtask.taskId, subtask.task.projectId);
 
     // Gửi thông báo realtime qua Socket
-    this.socketGateway.broadcastToProject(
-      subtask.task.projectId,
-      'task:subtask-reviewed',
-      {
-        subtaskId,
-        taskId: subtask.taskId,
-        action: body.action,
-        reason: body.reason,
-        reviewerName: user.fullName || 'Quản lý',
-        subtaskTitle: subtask.title,
-      },
-    );
+    this.socketGateway.broadcastToProject(subtask.task.projectId, 'task:subtask-reviewed', {
+      subtaskId,
+      taskId: subtask.taskId,
+      action: body.action,
+      reason: body.reason,
+      reviewerName: user.fullName || 'Quản lý',
+      subtaskTitle: subtask.title,
+    });
 
     return mapped;
   }
@@ -2631,14 +2391,12 @@ export class TaskService {
         user.globalRole === 'MANAGER' ||
         subtask.task.project?.managerId === user.id ||
         subtask.task.project?.createdById === user.id ||
-        subtask.task.createdById === user.id),
+        subtask.task.createdById === user.id)
     );
 
     // 🔒 [LC-51] KHÓA XÓA TASK CON ĐÃ HOÀN THÀNH NGHIỆM THU
     if (subtask.isDone && !isAdminOrManager) {
-      throw new ForbiddenException(
-        'Task con này đã hoàn thành và được phê duyệt. Chỉ Quản lý mới có quyền xóa!',
-      );
+      throw new ForbiddenException('Task con này đã hoàn thành và được phê duyệt. Chỉ Quản lý mới có quyền xóa!');
     }
 
     // 🔒 PHÂN QUYỀN: Admin, Manager, Người tạo Task (Creator) hoặc Người được giao Task (Assignee) có quyền xóa việc con
@@ -2691,10 +2449,7 @@ export class TaskService {
           completedEstimatedDays += days;
         }
       }
-      newProgress =
-        totalEstimatedDays > 0
-          ? Math.round((completedEstimatedDays / totalEstimatedDays) * 100)
-          : 0;
+      newProgress = totalEstimatedDays > 0 ? Math.round((completedEstimatedDays / totalEstimatedDays) * 100) : 0;
     }
 
     const currentTask = await this.prisma.task.findUnique({
@@ -2710,20 +2465,14 @@ export class TaskService {
     const updateTaskData: any = { progress: newProgress };
 
     // 🚨 [LC-81] TỰ ĐỘNG CHUYỂN URGENT KHI CÓ SUBTASK CHƯA XONG BẬT URGENT, TẮT URGENT KHI ĐÃ HOÀN THÀNH HẾT
-    const hasUnfinishedUrgentSubtasks = subtasks.some(
-      (st) => st.isUrgent && !st.isDone,
-    );
+    const hasUnfinishedUrgentSubtasks = subtasks.some((st) => st.isUrgent && !st.isDone);
     updateTaskData.priority = hasUnfinishedUrgentSubtasks ? 'URGENT' : 'NORMAL';
 
     // 🎯 TỰ ĐỘNG CHUYỂN SANG DONE KHI ĐẠT 100% VÀ TỰ ĐỘNG CHUYỂN VỀ IN_PROGRESS KHI MỞ LẠI
     if (newProgress === 100 && currentTask && currentTask.status !== 'DONE') {
       updateTaskData.status = 'DONE';
       updateTaskData.completedAt = currentTask.completedAt || new Date();
-    } else if (
-      newProgress < 100 &&
-      currentTask &&
-      currentTask.status === 'DONE'
-    ) {
+    } else if (newProgress < 100 && currentTask && currentTask.status === 'DONE') {
       updateTaskData.status = 'IN_PROGRESS';
       updateTaskData.completedAt = null;
     }
@@ -2752,14 +2501,10 @@ export class TaskService {
       if (hasCustomSubtaskDate && maxSubtaskDueDate) {
         updateTaskData.dueDate = maxSubtaskDueDate;
       } else if (totalEstimatedDays > 0) {
-        const baseDate = currentTask.startDate
-          ? new Date(currentTask.startDate)
-          : new Date(currentTask.createdAt);
+        const baseDate = currentTask.startDate ? new Date(currentTask.startDate) : new Date(currentTask.createdAt);
         baseDate.setHours(0, 0, 0, 0);
         const calculatedDueDate = new Date(baseDate);
-        calculatedDueDate.setDate(
-          calculatedDueDate.getDate() + totalEstimatedDays,
-        );
+        calculatedDueDate.setDate(calculatedDueDate.getDate() + totalEstimatedDays);
         updateTaskData.dueDate = calculatedDueDate;
       }
     }

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SocketGateway } from '../socket/socket.gateway';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -13,17 +8,13 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 export class ProjectService {
   constructor(
     private prisma: PrismaService,
-    private socketGateway: SocketGateway,
+    private socketGateway: SocketGateway
   ) {}
 
   async create(userId: string, createProjectDto: CreateProjectDto, user?: any) {
-    const currentUser =
-      user ||
-      (await this.prisma.user.findUnique({ where: { id: userId } }));
+    const currentUser = user || (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Chỉ Quản trị viên (Admin) mới có quyền tạo dự án mới!',
-      );
+      throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền tạo dự án mới!');
     }
 
     // 🔒 [LC-99] CHẶN TRÙNG TÊN DỰ ÁN TOÀN DIỆN (CASE-INSENSITIVE & EXCLUDING DELETED)
@@ -36,7 +27,7 @@ export class ProjectService {
     });
     if (existingProject) {
       throw new BadRequestException(
-        `Dự án mang tên "${trimmedName}" đã tồn tại trong hệ thống! Vui lòng đặt một tên khác để tránh nhầm lẫn.`,
+        `Dự án mang tên "${trimmedName}" đã tồn tại trong hệ thống! Vui lòng đặt một tên khác để tránh nhầm lẫn.`
       );
     }
 
@@ -47,9 +38,7 @@ export class ProjectService {
         where: { id: assignedManagerId },
       });
       if (!managerUser) {
-        throw new BadRequestException(
-          'Quản lý được chỉ định cho dự án không tồn tại trong hệ thống!',
-        );
+        throw new BadRequestException('Quản lý được chỉ định cho dự án không tồn tại trong hệ thống!');
       }
       if (managerUser.role === 'EMPLOYEE') {
         await this.prisma.user.update({
@@ -64,7 +53,7 @@ export class ProjectService {
         userId,
         ...(createProjectDto.managerId ? [createProjectDto.managerId] : []),
         ...(createProjectDto.memberIds || []),
-      ]),
+      ])
     );
 
     return this.prisma.project.create({
@@ -108,11 +97,7 @@ export class ProjectService {
         ...(isAdmin
           ? {}
           : {
-              OR: [
-                { createdById: userId },
-                { managerId: userId },
-                { members: { some: { userId: userId } } },
-              ],
+              OR: [{ createdById: userId }, { managerId: userId }, { members: { some: { userId: userId } } }],
             }),
       },
       include: {
@@ -196,7 +181,7 @@ export class ProjectService {
 
       if (!isManagerOrAdmin) {
         throw new ForbiddenException(
-          'Chỉ Quản trị viên (Admin) hoặc Quản lý dự án mới có quyền chỉnh sửa thông tin dự án!',
+          'Chỉ Quản trị viên (Admin) hoặc Quản lý dự án mới có quyền chỉnh sửa thông tin dự án!'
         );
       }
     }
@@ -207,9 +192,7 @@ export class ProjectService {
         where: { id: updateProjectDto.managerId },
       });
       if (!managerUser) {
-        throw new BadRequestException(
-          'Quản lý được chỉ định cho dự án không tồn tại trong hệ thống!',
-        );
+        throw new BadRequestException('Quản lý được chỉ định cho dự án không tồn tại trong hệ thống!');
       }
       if (managerUser.role === 'EMPLOYEE') {
         await this.prisma.user.update({
@@ -240,7 +223,7 @@ export class ProjectService {
       });
       if (duplicateProject) {
         throw new BadRequestException(
-          `Tên dự án "${trimmedName}" đã tồn tại trên một dự án khác trong hệ thống! Vui lòng chọn tên khác.`,
+          `Tên dự án "${trimmedName}" đã tồn tại trên một dự án khác trong hệ thống! Vui lòng chọn tên khác.`
         );
       }
     }
@@ -374,12 +357,10 @@ export class ProjectService {
         user.globalRole === 'ADMIN' ||
         user.globalRole === 'MANAGER' ||
         project.managerId === user.id ||
-        project.createdById === user.id),
+        project.createdById === user.id)
     );
     if (!isAdminOrManager) {
-      throw new ForbiddenException(
-        'Chỉ Quản lý hoặc Admin mới có quyền thêm thành viên vào dự án',
-      );
+      throw new ForbiddenException('Chỉ Quản lý hoặc Admin mới có quyền thêm thành viên vào dự án');
     }
 
     const existing = await this.prisma.projectMember.findFirst({
@@ -423,18 +404,14 @@ export class ProjectService {
         user.globalRole === 'ADMIN' ||
         user.globalRole === 'MANAGER' ||
         project.managerId === user.id ||
-        project.createdById === user.id),
+        project.createdById === user.id)
     );
     if (!isAdminOrManager) {
-      throw new ForbiddenException(
-        'Chỉ Quản lý hoặc Admin mới có quyền xóa thành viên khỏi dự án',
-      );
+      throw new ForbiddenException('Chỉ Quản lý hoặc Admin mới có quyền xóa thành viên khỏi dự án');
     }
 
     if (userIdToRemove === project.managerId) {
-      throw new BadRequestException(
-        'Không thể xóa Quản lý chính (Project Manager) ra khỏi dự án!',
-      );
+      throw new BadRequestException('Không thể xóa Quản lý chính (Project Manager) ra khỏi dự án!');
     }
 
     const targetManagerId = project.managerId || project.createdById || user.id;
@@ -445,10 +422,7 @@ export class ProjectService {
       const affectedTasks = await tx.task.findMany({
         where: {
           projectId,
-          OR: [
-            { assigneeId: userIdToRemove },
-            { subtasks: { some: { assigneeId: userIdToRemove } } },
-          ],
+          OR: [{ assigneeId: userIdToRemove }, { subtasks: { some: { assigneeId: userIdToRemove } } }],
         },
         include: {
           subtasks: true,
@@ -462,8 +436,7 @@ export class ProjectService {
           .map((st) => st.assigneeId);
 
         // Nếu có đồng nghiệp B còn lại -> chuyển cho B; nếu không còn ai -> chuyển cho Manager
-        const nextAssigneeId =
-          otherCollaborators.length > 0 ? otherCollaborators[0] : targetManagerId;
+        const nextAssigneeId = otherCollaborators.length > 0 ? otherCollaborators[0] : targetManagerId;
 
         // 1. Chuyển các subtask của người bị xóa sang cho B (hoặc Manager)
         await tx.subtask.updateMany({
@@ -500,21 +473,16 @@ export class ProjectService {
 
       return {
         success: true,
-        message:
-          'Đã xóa thành viên và tự động bàn giao phần việc cho đồng nghiệp còn lại (hoặc Quản lý dự án).',
+        message: 'Đã xóa thành viên và tự động bàn giao phần việc cho đồng nghiệp còn lại (hoặc Quản lý dự án).',
       };
     });
   }
 
   // 🗑️ [ADMIN ONLY] Xóa mềm Dự Án (Lưu vào Thùng Rác 14 ngày)
   async softDelete(id: string, userId: string, user?: any) {
-    const currentUser =
-      user ||
-      (await this.prisma.user.findUnique({ where: { id: userId } }));
+    const currentUser = user || (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Chỉ Quản trị viên (Admin) mới có quyền xóa dự án!',
-      );
+      throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền xóa dự án!');
     }
 
     const project = await this.prisma.project.findUnique({
@@ -577,13 +545,9 @@ export class ProjectService {
 
   // 🔄 [ADMIN ONLY] Khôi phục Dự Án từ Thùng Rác
   async restore(id: string, userId: string, user?: any) {
-    const currentUser =
-      user ||
-      (await this.prisma.user.findUnique({ where: { id: userId } }));
+    const currentUser = user || (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Chỉ Quản trị viên (Admin) mới có quyền khôi phục dự án!',
-      );
+      throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền khôi phục dự án!');
     }
 
     const project = await this.prisma.project.findUnique({
@@ -646,13 +610,9 @@ export class ProjectService {
 
   // 💥 [ADMIN ONLY] Xóa Vĩnh Viễn Dự Án Khỏi CSDL
   async hardDelete(id: string, userId: string, user?: any) {
-    const currentUser =
-      user ||
-      (await this.prisma.user.findUnique({ where: { id: userId } }));
+    const currentUser = user || (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Chỉ Quản trị viên (Admin) mới có quyền xóa vĩnh viễn dự án!',
-      );
+      throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền xóa vĩnh viễn dự án!');
     }
 
     const project = await this.prisma.project.findUnique({
