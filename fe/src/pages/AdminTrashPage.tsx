@@ -88,8 +88,9 @@ export const AdminTrashPage: React.FC = () => {
     setIsLoading(true);
     try {
       const res = await api.get('/admin/trash');
-      setProjects(res.data?.projects || []);
-      setTasks(res.data?.tasks || []);
+      const payload = res.data?.data ? res.data.data : res.data;
+      setProjects(payload?.projects || []);
+      setTasks(payload?.tasks || []);
     } catch (err: any) {
       console.error('Lỗi tải dữ liệu Thùng Rác:', err);
       setNotification({

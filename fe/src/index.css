@@ -140,3 +140,14 @@ html, body {
 .animate-solar-drop-snap {
   animation: solarDropSnap 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

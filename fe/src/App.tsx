@@ -96,8 +96,8 @@ export default function App() {
 
   // 🚀 Cập nhật route, đồng bộ localStorage và URL History khi chuyển trang
   const handleNavigate = (route: string) => {
-    // 🛡️ Guard Quản lý nhân sự: Chỉ dành cho Admin
-    if (route === '/admin/users' && !isAdmin) {
+    // 🛡️ Guard Quản trị: Chỉ dành cho Admin
+    if ((route === '/admin/users' || route === '/admin/departments' || route === '/admin/trash') && !isAdmin) {
       route = '/tasks';
     }
     setCurrentRoute(route);
@@ -116,7 +116,7 @@ export default function App() {
     const onPopState = () => {
       const path = window.location.pathname;
       if (path && path !== '/' && path !== '/login') {
-        if (path === '/admin/users' && !isAdmin) {
+        if ((path === '/admin/users' || path === '/admin/departments' || path === '/admin/trash') && !isAdmin) {
           setCurrentRoute('/tasks');
         } else {
           setCurrentRoute(path);
@@ -203,6 +203,7 @@ export default function App() {
           </div>
         );
       case '/admin/users':
+      case '/admin/departments':
         if (!isAdmin) {
           return <BoardPage />;
         }

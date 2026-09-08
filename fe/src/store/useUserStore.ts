@@ -15,6 +15,7 @@ export interface DirectoryUser {
   profession: Profession;
   jobTitle: string;
   department: string;
+  departmentId?: string;
   statusSignal: UserStatusSignal;
   customStatus?: string;
   bio?: string;
@@ -45,6 +46,16 @@ export interface UserWorkload {
   done: number;
   overdue: number;
   urgent: number;
+}
+
+export interface DepartmentItem {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  totalMembers?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface BackendDepartment {
@@ -80,6 +91,11 @@ interface UserStoreState {
   isLoading: boolean;
   error: string | null;
 
+  // Departments State
+  departments: DepartmentItem[];
+  isLoadingDepartments: boolean;
+  departmentError: string | null;
+
   // Workload state
   workload: UserWorkload | null;
   isLoadingWorkload: boolean;
@@ -88,6 +104,11 @@ interface UserStoreState {
   // Actions
   setViewingUserId: (userId: string | null) => void;
   fetchUsers: () => Promise<void>;
+  fetchDepartments: () => Promise<void>;
+  createDepartment: (data: { name: string; code: string; description?: string }) => Promise<void>;
+  updateDepartment: (id: string, data: { name?: string; code?: string; description?: string }) => Promise<void>;
+  deleteDepartment: (id: string) => Promise<void>;
+  transferUsersDepartment: (userIds: string[], departmentId: string) => Promise<void>;
   fetchUserWorkload: (userId: string) => Promise<void>;
   addUser: (user: DirectoryUser) => void;
   updateDirectoryUser: (id: string, partial: Partial<DirectoryUser>) => void;
@@ -101,6 +122,10 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   viewingUserId: null,
   isLoading: false,
   error: null,
+
+  departments: [],
+  isLoadingDepartments: false,
+  departmentError: null,
 
   workload: null,
   isLoadingWorkload: false,
@@ -131,6 +156,11 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
             ? u.department
             : (u.department as { name?: string } | null | undefined)?.name || 'Chưa phân bổ';
 
+        const departmentId =
+          typeof u.department === 'object' && u.department
+            ? (u.department as { id?: string }).id
+            : undefined;
+
         const userAvatar = getAvatarUrl(u as unknown as User) || u.avatar || DEFAULT_COVER;
 
         return {
@@ -145,6 +175,7 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
           profession: u.profession || 'DEV',
           jobTitle: u.jobTitle || 'Chuyên viên',
           department: departmentName,
+          departmentId: departmentId,
           statusSignal: u.statusSignal || 'ONLINE',
           customStatus: u.customStatus || '',
           bio: u.bio || '',
@@ -167,6 +198,76 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
       const message =
         err instanceof Error ? err.message : 'Không thể tải danh sách nhân sự';
       set({ error: message, isLoading: false });
+    }
+  },
+
+  fetchDepartments: async () => {
+    set({ isLoadingDepartments: true, departmentError: null });
+    try {
+      const response = await api.get('/departments');
+      const res = response.data;
+      let rawDepts: DepartmentItem[] = [];
+      if (Array.isArray(res?.data?.data)) {
+        rawDepts = res.data.data;
+      } else if (Array.isArray(res?.data)) {
+        rawDepts = res.data;
+      } else if (Array.isArray(res)) {
+        rawDepts = res;
+      }
+
+      set({ departments: rawDepts, isLoadingDepartments: false });
+    } catch (err: unknown) {
+      console.error('Fetch departments error:', err);
+      const message =
+        err instanceof Error ? err.message : 'Không thể tải danh sách phòng ban';
+      set({ departmentError: message, isLoadingDepartments: false });
+    }
+  },
+
+  createDepartment: async (data) => {
+    try {
+      await api.post('/departments', data);
+      await get().fetchDepartments();
+    } catch (err: unknown) {
+      console.error('Create department error:', err);
+      throw err;
+    }
+  },
+
+  updateDepartment: async (id, data) => {
+    try {
+      await api.patch(`/departments/${id}`, data);
+      await get().fetchDepartments();
+    } catch (err: unknown) {
+      console.error('Update department error:', err);
+      throw err;
+    }
+  },
+
+  deleteDepartment: async (id) => {
+    try {
+      await api.delete(`/departments/${id}`);
+      await get().fetchDepartments();
+    } catch (err: unknown) {
+      console.error('Delete department error:', err);
+      throw err;
+    }
+  },
+
+  transferUsersDepartment: async (userIds: string[], departmentId: string) => {
+    try {
+      await Promise.all(
+        userIds.map((id) =>
+          api.patch(`/users/${id}/role`, {
+            departmentId: departmentId,
+          })
+        )
+      );
+      await get().fetchUsers();
+      await get().fetchDepartments();
+    } catch (err: unknown) {
+      console.error('Transfer users department error:', err);
+      throw err;
     }
   },
 

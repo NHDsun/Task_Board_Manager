@@ -75,7 +75,7 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
       ? [
           {
             id: 'admin-users',
-            label: 'Quản Lý Nhân Sự',
+            label: 'Quản Lý Nhân Sự & Tổ Chức',
             route: '/admin/users',
             icon: Users,
             hoverGradient: 'from-rose-400 to-amber-400',
@@ -132,7 +132,7 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
         </div>
 
         {/* Middle Navigation Routes */}
-        <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto no-scrollbar">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentRoute === item.route;
