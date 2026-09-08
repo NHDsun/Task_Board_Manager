@@ -29,52 +29,55 @@ interface AuthenticatedRequest extends Request {
   };
 }
 @Controller('users')
+@UseGuards(JwtAuthGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
-  @UseGuards(JwtAuthGuard)
+
   @Get()
-  @Roles('ADMIN', 'MANAGER')
   findAll(@Query() query: QueryUserDto) {
     return this.userService.findAll(query);
   }
+
   @Get(':id/workload')
-  // @UseGuards(JwtAuthGuard)
   getUserWorkload(@Param('id') id: string) {
     return this.userService.getUserWorkload(id);
   }
-  @UseGuards(JwtAuthGuard)
-  @Roles('ADMIN', 'MANAGER')
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
-  @UseGuards(JwtAuthGuard)
+
+  @UseGuards(RolesGuard)
   @Patch(':id/role')
   @Roles('ADMIN')
   updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto) {
     return this.userService.updateRoleAndDepartment(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Patch(':id/lock')
   @Roles('ADMIN')
   lockUser(@Param('id') id: string, @Body() dto: LockUserDto, @Req() req: AuthenticatedRequest) {
     const adminId = req.user.id;
     return this.userService.lockOrUnlockUser(id, dto, adminId);
   }
-  @UseGuards(JwtAuthGuard, RolesGuard)
+
+  @UseGuards(RolesGuard)
   @Post(':id/reset-password')
   @Roles('ADMIN')
   resetPassword(@Param('id') id: string) {
     return this.userService.resetPassword(id);
   }
-  @UseGuards(JwtAuthGuard, RolesGuard)
+
+  @UseGuards(RolesGuard)
   @Delete(':id')
   @Roles('ADMIN')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const adminId = req.user.id;
     return this.userService.remove(id, adminId);
   }
+
   @Patch(':id')
   updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: AuthenticatedRequest) {
     const currentUserId = req.user.id;
@@ -84,7 +87,8 @@ export class UserController {
     }
     return this.userService.updateUser(id, dto);
   }
-  @UseGuards(JwtAuthGuard, RolesGuard)
+
+  @UseGuards(RolesGuard)
   @Post()
   @Roles('ADMIN')
   createUser(@Body() dto: CreateUserDto) {
