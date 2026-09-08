@@ -13,6 +13,7 @@ import { TrashModule } from './modules/trash/trash.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
 import { UserModule } from './modules/user/user.module';
+import { DepartmentModule } from './modules/department/department.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UserModule } from './modules/user/user.module';
     SocketModule,
     NotificationModule,
     TrashModule,
+    DepartmentModule,
   ],
   controllers: [AppController],
   providers: [
