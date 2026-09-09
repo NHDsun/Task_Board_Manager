@@ -4,7 +4,6 @@ import {
   Mail,
   Phone,
   Building2,
-  Sparkles,
   CheckCircle2,
   Clock,
   Calendar,
@@ -88,13 +87,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const getStatusInfo = (signal?: string) => {
     switch (signal) {
       case 'ONLINE':
-        return { label: 'Trực Tuyến (Online)', color: 'bg-emerald-400 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.8)]' };
+        return { label: 'Trực Tuyến (Online)', color: 'bg-emerald-400 text-emerald-300 border-emerald-500/40' };
       case 'BUSY':
-        return { label: 'Bận Rộn (Busy)', color: 'bg-rose-500 text-rose-300 border-rose-500/40 shadow-[0_0_10px_rgba(244,63,94,0.8)]' };
+        return { label: 'Bận Rộn (Busy)', color: 'bg-rose-500 text-rose-300 border-rose-500/40' };
       case 'IN_MEETING':
-        return { label: 'Đang Họp (In Meeting)', color: 'bg-purple-500 text-purple-300 border-purple-500/40 shadow-[0_0_10px_rgba(139,92,246,0.8)]' };
+        return { label: 'Đang Họp (In Meeting)', color: 'bg-purple-500 text-purple-300 border-purple-500/40' };
       case 'AWAY':
-        return { label: 'Vắng Mặt (Away)', color: 'bg-amber-400 text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.8)]' };
+        return { label: 'Vắng Mặt (Away)', color: 'bg-amber-400 text-amber-300 border-amber-500/40' };
       default:
         return { label: 'Ngoại Tuyến (Offline)', color: 'bg-slate-500 text-slate-400 border-slate-600' };
     }
@@ -103,11 +102,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const getRoleBadge = (role?: string) => {
     switch (role) {
       case 'ADMIN':
-        return 'bg-gradient-to-r from-rose-500/20 to-amber-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.3)]';
+        return 'bg-rose-500/15 text-rose-300 border-rose-500/30';
       case 'MANAGER':
-        return 'bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.3)]';
+        return 'bg-purple-500/15 text-purple-300 border-purple-500/30';
       default:
-        return 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border-emerald-500/40';
+        return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
     }
   };
 
@@ -135,11 +134,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-2xl max-h-[92vh] solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_0_60px_rgba(245,158,11,0.25)] relative overflow-hidden flex flex-col animate-solar-warp-in">
-        {/* Ambient Glows */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="w-full max-w-2xl max-h-[92vh] rounded-3xl bg-[#0f172a] border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col animate-solar-warp-in">
         {/* 🌠 Cover Photo Header */}
         <div className="relative h-36 sm:h-44 w-full overflow-hidden shrink-0">
           <img
@@ -147,14 +142,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             alt="Cover"
             className="w-full h-full object-cover brightness-75"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0F172A]/40 to-[#0F172A]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0f172a]/40 to-[#0f172a]" />
 
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-3.5 right-3.5 p-2 rounded-2xl bg-black/50 hover:bg-black/80 text-slate-300 hover:text-white backdrop-blur-md border border-white/10 transition-all cursor-pointer z-20"
+            className="absolute top-3.5 right-3.5 p-2 rounded-xl bg-black/50 hover:bg-black/80 text-slate-300 hover:text-white backdrop-blur-md border border-white/10 transition-all cursor-pointer z-20"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -167,25 +162,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <img
                   src={defaultAvatar}
                   alt={user.fullName}
-                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-4 border-[#0F172A] shadow-2xl bg-slate-900"
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-4 border-[#0f172a] shadow-xl bg-slate-900"
                 />
                 <span
-                  className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-3 border-[#0F172A] ${statusInfo.color}`}
+                  className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-[#0f172a] ${statusInfo.color}`}
                   title={statusInfo.label}
                 />
               </div>
 
               {/* Name & Job Title */}
-              <div className="space-y-1 pb-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight truncate flex items-center gap-2">
+              <div className="space-y-0.5 pb-1 min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight truncate flex items-center gap-2">
                   {user.fullName}
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-300 font-medium truncate">
                   {user.jobTitle || 'Chuyên viên Phát triển Hệ thống'}
                 </p>
-                <div className="flex items-center gap-2 text-[11px] text-amber-400 font-mono">
-                  <Building2 className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono">
+                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
                   <span>{user.department || 'Engineering'}</span>
                 </div>
               </div>
@@ -194,7 +188,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {/* Role & Work Mode Badges */}
             <div className="flex items-center gap-2 self-start sm:self-end pb-1">
               <span
-                className={`px-3 py-1 rounded-xl text-xs font-extrabold border ${getRoleBadge(
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${getRoleBadge(
                   user.globalRole
                 )}`}
               >

@@ -12,11 +12,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children, currentRoute, 
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 font-['Plus_Jakarta_Sans',sans-serif] relative overflow-x-hidden">
-      {/* 🌌 Ambient Floating Orbs Background */}
-      <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[140px] pointer-events-none animate-pulse" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-purple-600/15 rounded-full blur-[160px] pointer-events-none animate-pulse" />
-      <div className="fixed top-[40%] right-[30%] w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
+    <div className="min-h-screen bg-[#090d16] text-slate-100 font-['Plus_Jakarta_Sans',sans-serif] relative overflow-x-hidden">
+      {/* Subtle Dark Ambient Backdrop */}
+      <div className="fixed top-0 left-1/4 w-[600px] h-[300px] bg-indigo-950/20 rounded-full blur-[160px] pointer-events-none" />
+      <div className="fixed bottom-0 right-1/4 w-[600px] h-[300px] bg-amber-950/15 rounded-full blur-[180px] pointer-events-none" />
 
       {/* 🌠 Persistent Universal Meteor Edge Menu (Always Available Across All Views) */}
       <MeteorEdgeMenu
