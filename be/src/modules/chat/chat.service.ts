@@ -2,8 +2,6 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { SocketGateway } from '../socket/socket.gateway';
 import { SendMessageDto } from './dto/chat-dto';
-import { last } from 'rxjs';
-import { create } from 'domain';
 
 @Injectable()
 export class ChatService {
@@ -50,6 +48,60 @@ export class ChatService {
     return {
       success: true,
       data: message,
+    };
+  }
+  async getRecentConversations(userId: string) {
+    const message = await this.prisma.directMessage.findMany({
+      where: {
+        OR: [{ senderId: userId }, { receiverId: userId }],
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            fullName: true,
+            avatar: true,
+            statusSignal: true,
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            fullName: true,
+            avatar: true,
+            statusSignal: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const conversationsMap = new Map<string, any>();
+    for (const msg of message) {
+      const peer = msg.senderId === userId ? msg.receiver : msg.sender;
+      if (!conversationsMap.has(peer.id)) {
+        const unreadCount = await this.prisma.directMessage.count({
+          where: {
+            senderId: peer.id,
+            receiverId: userId,
+            isRead: false,
+          },
+        });
+        conversationsMap.set(peer.id, {
+          peer,
+          lastMessage: {
+            id: msg.id,
+            content: msg.content,
+            createdAt: msg.createdAt,
+            senderId: msg.senderId,
+            isRead: msg.isRead,
+          },
+          unreadCount,
+        });
+      }
+    }
+    return {
+      success: true,
+      data: Array.from(conversationsMap.values()),
     };
   }
 }
