@@ -106,21 +106,21 @@ export const BoardPage: React.FC = () => {
   const [filterPriority, setFilterPriority] = useState<string>('ALL');
   const [filterProfession, setFilterProfession] = useState<string>('ALL');
 
+  const fetchMetadata = async () => {
+    try {
+      const [projRes, userRes] = await Promise.all([
+        api.get('/projects'),
+        api.get('/profile/users'),
+      ]);
+
+      setDbProjects(Array.isArray(projRes.data) ? projRes.data : projRes.data?.data || []);
+      setDbUsers(Array.isArray(userRes.data) ? userRes.data : userRes.data?.data || []);
+    } catch {
+      // Fallback
+    }
+  };
+
   useEffect(() => {
-    const fetchMetadata = async () => {
-      try {
-        const [projRes, userRes] = await Promise.all([
-          api.get('/projects'),
-          api.get('/profile/users'),
-        ]);
-
-        setDbProjects(Array.isArray(projRes.data) ? projRes.data : projRes.data?.data || []);
-        setDbUsers(Array.isArray(userRes.data) ? userRes.data : userRes.data?.data || []);
-      } catch {
-        // Fallback
-      }
-    };
-
     fetchMetadata();
   }, [token]);
 
@@ -561,19 +561,24 @@ export const BoardPage: React.FC = () => {
   // 🗑️ Hàm thực thi Xóa Task khỏi CSDL PostgreSQL khi User bấm Xác Nhận trên Modal (Áp dụng Retry)
   const handleConfirmDeleteTask = async () => {
     if (!taskToDelete) return;
+    const deletedId = taskToDelete.id;
+    const taskTitle = taskToDelete.title;
     setIsDeleting(true);
 
-    try {
-      await api.delete(`/tasks/${taskToDelete.id}`);
+    // Optimistic UI update: Remove task immediately
+    setTasks((prev) => prev.filter((t) => t.id !== deletedId));
+    setIsDeleteModalOpen(false);
+    setSelectedTaskForDetail(null);
+    setTaskToDelete(null);
 
-      showNotification(`🟢 Solaris: Đã xóa Task "${taskToDelete.title}" (Chuyển vào Thùng Rác 14 ngày)!`, 'success', 'Xóa Task Thành Công');
-      setIsDeleteModalOpen(false);
-      setSelectedTaskForDetail(null);
-      setTaskToDelete(null);
+    try {
+      await api.delete(`/tasks/${deletedId}`);
+      showNotification(`🟢 Solaris: Đã xóa Task "${taskTitle}" (Chuyển vào Thùng Rác 14 ngày)!`, 'success', 'Xóa Task Thành Công');
       fetchTasksFromBackend();
     } catch (err: any) {
       const errMsg = err.response?.data?.message || err.message || 'Không thể xóa Task';
       showNotification(`❌ Lỗi: ${errMsg}`, 'warning', 'Xóa Task Thất Bại');
+      fetchTasksFromBackend();
     } finally {
       setIsDeleting(false);
     }
@@ -582,17 +587,26 @@ export const BoardPage: React.FC = () => {
   // 🗑️ Hàm thực thi Xóa Dự Án (Chuyển vào Thùng Rác 14 ngày) dành cho Admin
   const handleConfirmDeleteProject = async () => {
     if (!projectToDelete) return;
+    const deletedProjId = projectToDelete.id;
+    const deletedProjName = projectToDelete.name;
     setIsDeleting(true);
 
+    // Optimistic UI update: Remove project and its tasks immediately
+    setDbProjects((prev) => prev.filter((p) => p.id !== deletedProjId));
+    setTasks((prev) => prev.filter((t) => t.projectId !== deletedProjId));
+    setProjectToDelete(null);
+    setSelectedPipelineProject('ALL');
+
     try {
-      await api.delete(`/projects/${projectToDelete.id}`);
-      showNotification(`🟢 Đã chuyển dự án "${projectToDelete.name}" vào Thùng Rác (Lưu giữ 14 ngày)!`, 'success', 'Xóa Dự Án');
-      setProjectToDelete(null);
-      setSelectedPipelineProject('ALL');
+      await api.delete(`/projects/${deletedProjId}`);
+      showNotification(`🟢 Đã chuyển dự án "${deletedProjName}" vào Thùng Rác (Lưu giữ 14 ngày)!`, 'success', 'Xóa Dự Án');
+      fetchMetadata();
       fetchTasksFromBackend();
     } catch (err: any) {
       const errMsg = err.response?.data?.message || err.message || 'Không thể xóa dự án';
       showNotification(`❌ Lỗi: ${errMsg}`, 'warning', 'Xóa Dự Án Thất Bại');
+      fetchMetadata();
+      fetchTasksFromBackend();
     } finally {
       setIsDeleting(false);
     }
@@ -600,11 +614,11 @@ export const BoardPage: React.FC = () => {
 
   const columns: Array<{ id: TaskItem['status']; label: string; color: string; border: string }> = [
     { id: 'TODO', label: 'CẦN LÀM (TODO)', color: 'text-slate-400', border: 'border-slate-800' },
-    { id: 'IN_PROGRESS', label: 'ĐANG LÀM (IN PROGRESS)', color: 'text-amber-400', border: 'border-amber-500/30' },
-    { id: 'PAUSED', label: 'TẠM DỪNG (PAUSED)', color: 'text-blue-400', border: 'border-blue-500/30' },
-    { id: 'BLOCKED', label: 'TẮC NGHỄN (BLOCKED)', color: 'text-rose-400', border: 'border-rose-500/30' },
-    { id: 'IN_REVIEW', label: 'CHỜ DUYỆT BÀI (IN REVIEW) 🔒', color: 'text-purple-400', border: 'border-purple-500/40' },
-    { id: 'DONE', label: 'HOÀN THÀNH (DONE)', color: 'text-emerald-400', border: 'border-emerald-500/30' },
+    { id: 'IN_PROGRESS', label: 'ĐANG LÀM (IN PROGRESS)', color: 'text-amber-400', border: 'border-slate-800' },
+    { id: 'PAUSED', label: 'TẠM DỪNG (PAUSED)', color: 'text-slate-400', border: 'border-slate-800' },
+    { id: 'BLOCKED', label: 'TẮC NGHỄN (BLOCKED)', color: 'text-rose-400', border: 'border-slate-800' },
+    { id: 'IN_REVIEW', label: 'CHỜ DUYỆT BÀI (IN REVIEW) 🔒', color: 'text-purple-400', border: 'border-slate-800' },
+    { id: 'DONE', label: 'HOÀN THÀNH (DONE)', color: 'text-emerald-400', border: 'border-slate-800' },
   ];
 
   // Apply Multi-Criteria Filters
@@ -648,70 +662,70 @@ export const BoardPage: React.FC = () => {
   const isRoleAdminOrManager = user?.globalRole === 'ADMIN' || user?.globalRole === 'MANAGER';
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-5 pb-12">
       {/* 🚀 Top Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-slate-900/90 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-mono font-bold text-amber-300">SOLARIS WORKSPACE</span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-300">
+            <div className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>SOLARIS WORKSPACE</span>
           </div>
 
           <button
             onClick={fetchTasksFromBackend}
             disabled={isLoading}
-            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer shadow-md"
-            title="Đồng Bộ CSDL Postgres"
+            className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+            title="Đồng Bộ Dữ Liệu"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
           </button>
         </div>
 
-        {/* 👑 NÚT TẠO DỰ ÁN (CHỈ ADMIN) & TẠO TASK CHO ADMIN VÀ MANAGER */}
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           {user?.globalRole === 'ADMIN' && (
             <button
               onClick={() => setIsCreateProjectModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-lg"
+              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              <FolderPlus className="w-4 h-4 text-purple-400" />
-              <span>+ Tạo Dự Án Mới</span>
+              <FolderPlus className="w-3.5 h-3.5 text-slate-400" />
+              <span>+ Tạo Dự Án</span>
             </button>
           )}
 
           {isRoleAdminOrManager && (
             <button
               onClick={() => setIsProjectMembersModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-lg group"
-              title="Xem danh sách, thêm nhân sự mới hoặc xóa nhân viên khỏi dự án"
+              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Quản lý thành viên dự án"
             >
-              <Users className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform" />
-              <span>👥 Quản Lý Thành Viên</span>
+              <Users className="w-3.5 h-3.5 text-slate-400" />
+              <span>Thành Viên</span>
             </button>
           )}
 
           {isRoleAdminOrManager && (
             <button
               onClick={() => setIsCreateTaskModalOpen(true)}
-              className="solar-corona-btn px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer flex items-center gap-2"
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs tracking-wide transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
             >
-              <PlusCircle className="w-4 h-4" />
+              <PlusCircle className="w-3.5 h-3.5" />
               <span>+ Tạo Task Mới</span>
             </button>
           )}
 
           <div className="relative hidden lg:block">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm task (Ctrl + K)..."
-              className="pl-9 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 w-52"
+              placeholder="Tìm kiếm task..."
+              className="pl-8 pr-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-slate-700 w-48"
             />
           </div>
 
-          {/* 🔔 TRUNG TÂM THÔNG BÁO CÁ NHÂN */}
+          {/* 🔔 Notification Center */}
           <NotificationCenter
             onSelectTaskId={async (id) => {
               const target = tasks.find((t) => t.id === id);
@@ -734,79 +748,52 @@ export const BoardPage: React.FC = () => {
             }}
           />
 
-          {/* 🔔 NÚT HIỂN THỊ THÔNG BÁO & PHÊ DUYỆT */}
+          {/* 🔔 Task Transfer & Approval Inbox */}
           <button
             onClick={() => {
               setIsTransferInboxOpen(true);
               fetchNotificationCount();
             }}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-cyan-500/20 hover:from-amber-500/30 hover:to-cyan-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-2 transition-all relative cursor-pointer shadow-md group"
-            title="Trung Tâm Thông Báo & Phê Duyệt Task / Task Con"
+            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-medium flex items-center gap-2 transition-all cursor-pointer"
+            title="Trung Tâm Phê Duyệt Task"
           >
             <div className="relative">
-              <Bell className="w-4 h-4 text-amber-400 group-hover:rotate-12 transition-transform" />
+              <Bell className="w-3.5 h-3.5 text-slate-400" />
               {pendingNotificationCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white font-mono text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center animate-bounce shadow-[0_0_8px_rgba(239,68,68,0.8)]">
+                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white font-mono text-[8px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center">
                   {pendingNotificationCount}
                 </span>
               )}
             </div>
-            <span>Thông Báo & Duyệt</span>
-            {pendingNotificationCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-red-500/30 text-red-300 border border-red-500/40 text-[10px] font-mono font-bold">
-                {pendingNotificationCount}
-              </span>
-            )}
+            <span>Duyệt & Bàn Giao</span>
           </button>
         </div>
       </div>
 
       {/* 🔍 Advanced Filter Toolbar */}
-      <div className="solar-glass-card p-4 rounded-2xl bg-[#0F172A]/70 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-        {/* View Switcher Tabs with Animated Sliding Pill Indicator */}
+      <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        {/* View Switcher Tabs */}
         {(() => {
           const tabs = [
             {
               id: 'focus',
-              label: "☀️ Today's Focus Cockpit",
+              label: "Today's Focus",
               icon: Target,
-              color: 'from-amber-500 via-orange-500 to-amber-600',
-              shadow: 'shadow-[0_0_20px_rgba(245,158,11,0.5)]',
-              activeText: 'text-slate-950 font-black',
             },
             {
               id: 'pipeline',
-              label: '🌌 Master Plan & Roadmap',
+              label: 'Roadmap & Pipeline',
               icon: GitMerge,
-              color: 'from-purple-600 via-indigo-600 to-blue-600',
-              shadow: 'shadow-[0_0_20px_rgba(147,51,234,0.5)]',
-              activeText: 'text-white font-black',
             },
             {
               id: 'kanban',
-              label: '📊 Kanban Matrix',
+              label: 'Kanban Matrix',
               icon: Kanban,
-              color: 'from-blue-600 to-cyan-600',
-              shadow: 'shadow-[0_0_20px_rgba(37,99,235,0.4)]',
-              activeText: 'text-white font-bold',
             },
           ];
 
-          const activeIndex = Math.max(0, tabs.findIndex((t) => t.id === activeView));
-          const currentTab = tabs[activeIndex] || tabs[0];
-          const tabWidthPercent = 100 / tabs.length;
-
           return (
-            <div className="relative p-1 bg-slate-900/90 rounded-2xl border border-slate-800 flex items-center shadow-inner overflow-hidden">
-              {/* 🌠 Animated Sliding Pill Indicator */}
-              <div
-                className={`absolute top-1 bottom-1 rounded-xl bg-gradient-to-r ${currentTab.color} ${currentTab.shadow} transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] z-0`}
-                style={{
-                  width: `calc(${tabWidthPercent}% - 4px)`,
-                  left: `calc(${activeIndex * tabWidthPercent}% + 2px)`,
-                }}
-              />
-
+            <div className="p-1 bg-slate-950/80 rounded-xl border border-slate-800/80 flex items-center gap-1">
               {tabs.map((tab) => {
                 const IconComponent = tab.icon;
                 const isActive = activeView === tab.id;
@@ -814,13 +801,14 @@ export const BoardPage: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveView(tab.id as any)}
-                    className={`relative z-10 px-4 py-2 text-xs font-black flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer select-none ${
-                      isActive ? `${tab.activeText} scale-[1.02]` : 'text-slate-400 hover:text-slate-200'
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-slate-800 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
-                    style={{ width: `${tabWidthPercent}%` }}
                   >
-                    <IconComponent className={`w-3.5 h-3.5 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />
-                    <span className="whitespace-nowrap tracking-wide">{tab.label}</span>
+                    <IconComponent className={`w-3.5 h-3.5 ${isActive ? 'text-amber-400' : 'text-slate-500'}`} />
+                    <span>{tab.label}</span>
                   </button>
                 );
               })}
@@ -1911,6 +1899,7 @@ export const BoardPage: React.FC = () => {
         onSubmitSuccess={(msg) => {
           showNotification(msg, 'success', 'Yêu Cầu Task Đã Gửi');
           fetchTasksFromBackend();
+          fetchNotificationCount();
         }}
       />
 
@@ -1921,6 +1910,7 @@ export const BoardPage: React.FC = () => {
         onSuccess={() => {
           showNotification('🟢 Đã tiếp nhận và cập nhật phân công Task thành công!', 'success', 'Yêu Cầu Chuyển Giao');
           fetchTasksFromBackend();
+          fetchNotificationCount();
         }}
       />
 
@@ -1929,8 +1919,12 @@ export const BoardPage: React.FC = () => {
         isOpen={isCreateProjectModalOpen}
         onClose={() => setIsCreateProjectModalOpen(false)}
         existingProjects={dbProjects.map((p) => p.name)}
-        onSuccess={() => {
+        onSuccess={(newProj) => {
           showNotification('🟢 Khởi tạo Dự Án Mới vào CSDL PostgreSQL thành công!', 'success', 'Tạo Dự Án');
+          if (newProj && newProj.id) {
+            setDbProjects((prev) => [newProj, ...prev]);
+          }
+          fetchMetadata();
           fetchTasksFromBackend();
         }}
       />
@@ -1939,8 +1933,11 @@ export const BoardPage: React.FC = () => {
       <CreateTaskModal
         isOpen={isCreateTaskModalOpen}
         onClose={() => setIsCreateTaskModalOpen(false)}
-        onSuccess={() => {
+        onSuccess={(newTask) => {
           showNotification('🟢 Khởi tạo Task Mới vào CSDL PostgreSQL thành công!', 'success', 'Tạo Task');
+          if (newTask && newTask.id) {
+            setTasks((prev) => [newTask, ...prev]);
+          }
           fetchTasksFromBackend();
         }}
       />
@@ -2049,7 +2046,10 @@ export const BoardPage: React.FC = () => {
             onClose={() => setIsProjectMembersModalOpen(false)}
             projectId={selectedProj?.id || ''}
             projectName={selectedProj?.name || 'Dự án chính'}
-            onMemberChanged={fetchTasksFromBackend}
+            onMemberChanged={() => {
+              fetchMetadata();
+              fetchTasksFromBackend();
+            }}
           />
         );
       })()}

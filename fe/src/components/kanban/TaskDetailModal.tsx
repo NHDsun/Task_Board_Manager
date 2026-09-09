@@ -436,7 +436,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       });
       const newAtt = res.data?.data || res.data;
       if (newAtt && newAtt.id) {
-        setAttachments((prev) => [newAtt, ...prev]);
+        const nextAtts = [newAtt, ...attachments];
+        setAttachments(nextAtts);
+        if (onUpdateTask) {
+          onUpdateTask({ ...task, attachments: nextAtts });
+        }
       }
     } catch (err) {
       console.error('Lỗi khi tải file lên:', err);
@@ -460,7 +464,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       });
       const newAtt = res.data?.data || res.data;
       if (newAtt && newAtt.id) {
-        setAttachments((prev) => [newAtt, ...prev]);
+        const nextAtts = [newAtt, ...attachments];
+        setAttachments(nextAtts);
+        if (onUpdateTask) {
+          onUpdateTask({ ...task, attachments: nextAtts });
+        }
       }
       setUrlInput('');
       setUrlTitleInput('');
@@ -492,7 +500,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const handleRemoveAttachment = async (id: string) => {
     try {
       await api.delete(`/tasks/attachments/${id}`);
-      setAttachments((prev) => prev.filter((a) => a.id !== id));
+      const nextAtts = attachments.filter((a) => a.id !== id);
+      setAttachments(nextAtts);
+      if (onUpdateTask && task) {
+        onUpdateTask({ ...task, attachments: nextAtts });
+      }
     } catch (err) {
       console.error('Lỗi khi xóa đính kèm:', err);
     }

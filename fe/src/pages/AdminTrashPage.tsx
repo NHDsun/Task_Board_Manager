@@ -110,6 +110,10 @@ export const AdminTrashPage: React.FC = () => {
 
   // 🔄 Khôi phục Dự Án
   const handleRestoreProject = async (id: string, name: string) => {
+    // Optimistic removal from trash view
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    setTasks((prev) => prev.filter((t) => t.projectId !== id));
+
     try {
       await api.post(`/admin/trash/restore-project/${id}`);
       setNotification({
@@ -126,11 +130,15 @@ export const AdminTrashPage: React.FC = () => {
         message: err.response?.data?.message || 'Không thể khôi phục dự án.',
         type: 'warning',
       });
+      fetchTrashData();
     }
   };
 
   // 🔄 Khôi phục Task
   const handleRestoreTask = async (id: string, title: string) => {
+    // Optimistic removal from trash view
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+
     try {
       await api.post(`/admin/trash/restore-task/${id}`);
       setNotification({
@@ -147,29 +155,45 @@ export const AdminTrashPage: React.FC = () => {
         message: err.response?.data?.message || 'Không thể khôi phục công việc.',
         type: 'warning',
       });
+      fetchTrashData();
     }
   };
 
   // 💥 Xóa Vĩnh Viễn khi nhấn nút xác nhận trong Modal
   const executePermanentAction = async () => {
+    const targetType = confirmModal.type;
+    const targetId = confirmModal.targetId;
+    const targetName = confirmModal.targetName;
+
+    if (targetType === 'project' && targetId) {
+      setProjects((prev) => prev.filter((p) => p.id !== targetId));
+      setTasks((prev) => prev.filter((t) => t.projectId !== targetId));
+    } else if (targetType === 'task' && targetId) {
+      setTasks((prev) => prev.filter((t) => t.id !== targetId));
+    } else if (targetType === 'empty_all') {
+      setProjects([]);
+      setTasks([]);
+    }
+    setConfirmModal({ ...confirmModal, isOpen: false });
+
     try {
-      if (confirmModal.type === 'project' && confirmModal.targetId) {
-        await api.delete(`/admin/trash/permanent-project/${confirmModal.targetId}`);
+      if (targetType === 'project' && targetId) {
+        await api.delete(`/admin/trash/permanent-project/${targetId}`);
         setNotification({
           isOpen: true,
           title: 'Đã Xóa Vĩnh Viễn',
-          message: `Dự án "${confirmModal.targetName}" đã được xóa triệt để khỏi CSDL.`,
+          message: `Dự án "${targetName}" đã được xóa triệt để khỏi CSDL.`,
           type: 'success',
         });
-      } else if (confirmModal.type === 'task' && confirmModal.targetId) {
-        await api.delete(`/admin/trash/permanent-task/${confirmModal.targetId}`);
+      } else if (targetType === 'task' && targetId) {
+        await api.delete(`/admin/trash/permanent-task/${targetId}`);
         setNotification({
           isOpen: true,
           title: 'Đã Xóa Vĩnh Viễn',
-          message: `Công việc "${confirmModal.targetName}" đã được xóa triệt để khỏi CSDL.`,
+          message: `Công việc "${targetName}" đã được xóa triệt để khỏi CSDL.`,
           type: 'success',
         });
-      } else if (confirmModal.type === 'empty_all') {
+      } else if (targetType === 'empty_all') {
         await api.delete('/admin/trash/empty-all');
         setNotification({
           isOpen: true,
@@ -178,15 +202,15 @@ export const AdminTrashPage: React.FC = () => {
           type: 'success',
         });
       }
-      setConfirmModal({ ...confirmModal, isOpen: false });
       fetchTrashData();
     } catch (err: any) {
       setNotification({
         isOpen: true,
         title: 'Lỗi Xóa Dữ Liệu',
-        message: err.response?.data?.message || 'Không thể thực hiện xóa vĩnh viễn.',
+        message: err.response?.data?.message || 'Không thể hoàn tất thao tác xóa vĩnh viễn.',
         type: 'warning',
       });
+      fetchTrashData();
     }
   };
 
@@ -219,35 +243,35 @@ export const AdminTrashPage: React.FC = () => {
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in pb-20">
       {/* 🚀 Top Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-[#0F172A]/90 border border-amber-500/30 shadow-[0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-2xl">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500/30 to-amber-500/30 border border-amber-400/50 flex items-center justify-center text-amber-400 shrink-0 shadow-lg">
-            <Trash2 className="w-7 h-7 text-rose-400 animate-pulse" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+            <Trash2 className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-black text-white">
+              <h1 className="text-lg md:text-xl font-bold text-white">
                 Thùng Rác Hệ Thống
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-mono font-bold">
+              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-mono">
                 14-DAY RETENTION
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Dữ liệu đã xóa được lưu trữ an toàn trong <span className="text-amber-300 font-bold">14 ngày</span> trước khi bị hủy vĩnh viễn. Bạn có thể khôi phục bất cứ lúc nào.
+            <p className="text-xs text-slate-400 mt-0.5">
+              Dữ liệu đã xóa được lưu trữ an toàn trong <span className="text-slate-200 font-semibold">14 ngày</span> trước khi bị hủy vĩnh viễn.
             </p>
           </div>
         </div>
 
         {/* Nút Hành Động Nhanh */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={fetchTrashData}
             disabled={isLoading}
-            className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-amber-500/40 transition-all cursor-pointer shadow-md"
+            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
             title="Đồng Bộ Lại"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
           </button>
 
           {totalItems > 0 && (
@@ -260,9 +284,9 @@ export const AdminTrashPage: React.FC = () => {
                   type: 'empty_all',
                 })
               }
-              className="px-4 py-3 rounded-2xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-rose-500/10"
+              className="px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              <Trash2 className="w-4 h-4 text-rose-400" />
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
               <span>Dọn Sạch Thùng Rác</span>
             </button>
           )}
@@ -270,9 +294,9 @@ export const AdminTrashPage: React.FC = () => {
       </div>
 
       {/* 🔍 Bộ Lọc & Tìm Kiếm */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Tabs */}
-        <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-900/90 border border-slate-800">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900/80 border border-slate-800">
           {[
             { id: 'ALL', label: `Tất Cả (${totalItems})` },
             { id: 'PROJECTS', label: `Dự Án (${projects.length})` },
@@ -281,9 +305,9 @@ export const AdminTrashPage: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === tab.id
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-md'
+                  ? 'bg-slate-800 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
             >

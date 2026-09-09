@@ -193,13 +193,13 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
   const getStatusBadge = (status: TaskItem['status']) => {
     switch (status) {
       case 'PAUSED':
-        return { label: 'Tạm Dừng', color: 'bg-purple-500/20 text-purple-300 border-purple-500/40', icon: PauseCircle };
+        return { label: 'Tạm Dừng', color: 'bg-slate-800 text-slate-300 border-slate-700', icon: PauseCircle };
       case 'BLOCKED':
-        return { label: 'Tắc Nghẽn', color: 'bg-rose-500/20 text-rose-300 border-rose-500/40', icon: AlertCircle };
+        return { label: 'Tắc Nghẽn', color: 'bg-rose-500/15 text-rose-300 border-rose-500/30', icon: AlertCircle };
       case 'IN_REVIEW':
-        return { label: 'Chờ Duyệt', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40', icon: Clock };
+        return { label: 'Chờ Duyệt', color: 'bg-purple-500/15 text-purple-300 border-purple-500/30', icon: Clock };
       case 'DONE':
-        return { label: 'Hoàn Thành', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', icon: CheckCircle2 };
+        return { label: 'Hoàn Thành', color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', icon: CheckCircle2 };
       default:
         return null;
     }
@@ -211,11 +211,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
   return (
     <div
       onClick={() => onCardClick?.(task)}
-      className="solar-glass-card p-4 rounded-2xl bg-[#0F172A]/90 border border-slate-800/80 hover:border-amber-500/50 shadow-lg space-y-3 transition-[border-color,box-shadow,background-color] duration-150 group relative overflow-visible cursor-pointer"
+      className="p-4 rounded-2xl bg-[#0f172a]/80 border border-slate-800/80 hover:border-slate-700 hover:bg-[#0f172a] shadow-sm hover:shadow-md space-y-3 transition-all duration-150 group relative overflow-visible cursor-pointer"
     >
-      {/* Glow Hover Line */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl overflow-hidden pointer-events-none" />
-
       {/* Header Badges & 3-Dot Quick Actions Menu */}
       <div className="flex items-center justify-between gap-2 relative">
         <div className="flex items-center gap-2 flex-wrap">
@@ -224,14 +221,14 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
             const urgentSubtasksCount = task.subtasks?.filter((st) => st.isUrgent && !st.isDone).length || 0;
             if (urgentSubtasksCount > 0) {
               return (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border bg-red-500/25 text-red-300 border-red-500/60 flex items-center gap-1 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.4)]">
-                  🚨 {urgentSubtasksCount} TASK CON GẤP
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-rose-500/15 text-rose-300 border-rose-500/30 flex items-center gap-1">
+                  🚨 {urgentSubtasksCount} Task con gấp
                 </span>
               );
             }
             if (task.priority === 'URGENT') {
               return (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-rose-500/15 text-rose-300 border-rose-500/30">
                   URGENT
                 </span>
               );
@@ -239,7 +236,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
             return null;
           })()}
           {statusBadge && StatusIcon && (
-            <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 ${statusBadge.color}`}>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1 ${statusBadge.color}`}>
               <StatusIcon className="w-3 h-3" />
               {statusBadge.label}
             </span>
