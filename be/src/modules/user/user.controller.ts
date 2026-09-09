@@ -77,7 +77,11 @@ export class UserController {
     const adminId = req.user.id;
     return this.userService.remove(id, adminId);
   }
+<<<<<<< HEAD
 
+=======
+  @UseGuards(JwtAuthGuard)
+>>>>>>> 9ea86b4 (feat : handle add feature Send Message for user chat 1-1)
   @Patch(':id')
   updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: AuthenticatedRequest) {
     const currentUserId = req.user.id;

@@ -11,7 +11,7 @@ export const AuthSuccessTestPage = () => {
 
       <div className="w-full max-w-lg solar-glass-card rounded-3xl p-8 relative z-10 space-y-6 border-t-2 border-t-emerald-400/50 shadow-2xl">
         <div className="text-center space-y-2 relative">
-          <div className="inline-block relative">
+           <div className="inline-block relative">
             <DarkSunLogo size={72} className="mb-3" />
             <Sparkles className="w-5 h-5 text-emerald-400 absolute -top-1 -right-2 animate-bounce" />
           </div>

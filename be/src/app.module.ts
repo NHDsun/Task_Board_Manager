@@ -14,6 +14,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
 import { UserModule } from './modules/user/user.module';
 import { DepartmentModule } from './modules/department/department.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { DepartmentModule } from './modules/department/department.module';
     NotificationModule,
     TrashModule,
     DepartmentModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [
