@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/chat-dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -21,9 +21,14 @@ export class ChatController {
     const userId = req.user.id;
     return this.chatService.sendMessage(userId, dto);
   }
-  @Get()
+  @Get('conversations/recent')
   getRecentConversations(@Req() req: RequestWithUser) {
     const userId = req.user.id;
     return this.chatService.getRecentConversations(userId);
+  }
+  @Get(':peerId')
+  getConversation(@Req() req: RequestWithUser, @Param('peerId') peerId: string) {
+    const userId = req.user.id;
+    return this.chatService.getConversation(userId, peerId);
   }
 }

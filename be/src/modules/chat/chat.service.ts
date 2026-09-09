@@ -104,4 +104,33 @@ export class ChatService {
       data: Array.from(conversationsMap.values()),
     };
   }
+  async getConversation(userId: string, peerId: string) {
+    const peer = await this.prisma.user.findUnique({ where: { id: peerId } });
+    if (!peer) {
+      throw new NotFoundException('Người dùng không tồn tại!');
+    }
+
+    const messages = await this.prisma.directMessage.findMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: peerId },
+          { senderId: peerId, receiverId: userId },
+        ],
+      },
+      include: {
+        sender: { select: { id: true, fullName: true, avatar: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    await this.prisma.directMessage.updateMany({
+      where: { senderId: peerId, receiverId: userId, isRead: false },
+      data: { isRead: true },
+    });
+
+    return {
+      success: true,
+      data: messages,
+    };
+  }
 }
