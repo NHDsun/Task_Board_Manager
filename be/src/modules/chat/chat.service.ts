@@ -133,10 +133,10 @@ export class ChatService {
       data: messages,
     };
   }
-  async deleteMessage(messageID: string, userId: string) {
+  async deleteMessage(messageId: string, userId: string) {
     const message = await this.prisma.directMessage.findUnique({
       where: {
-        id: messageID,
+        id: messageId,
       },
     });
     if (!message) {
@@ -146,8 +146,14 @@ export class ChatService {
       throw new BadRequestException('Bạn chỉ có quyền thu hồi tin nhắn do chính mình gửi!');
     }
     await this.prisma.directMessage.delete({
-      where: { id: messageID },
+      where: { id: messageId },
     });
+    try {
+      const targetId = message.senderId === userId ? message.receiverId : message.senderId;
+      this.socketGateway.sendToUser(targetId, 'chat:delete', { messageId });
+    } catch (error) {
+      console.error('Lỗi Socket khi xóa tin nhắn:', error);
+    }
     return {
       success: true,
       message: 'Đã thu hồi tin nhắn thành công.',
