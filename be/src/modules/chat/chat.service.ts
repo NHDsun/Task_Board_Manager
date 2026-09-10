@@ -133,4 +133,24 @@ export class ChatService {
       data: messages,
     };
   }
+  async deleteMessage(messageID: string, userId: string) {
+    const message = await this.prisma.directMessage.findUnique({
+      where: {
+        id: messageID,
+      },
+    });
+    if (!message) {
+      throw new NotFoundException('Tin nhắn không tồn tại!');
+    }
+    if (message.senderId !== userId) {
+      throw new BadRequestException('Bạn chỉ có quyền thu hồi tin nhắn do chính mình gửi!');
+    }
+    await this.prisma.directMessage.delete({
+      where: { id: messageID },
+    });
+    return {
+      success: true,
+      message: 'Đã thu hồi tin nhắn thành công.',
+    };
+  }
 }
