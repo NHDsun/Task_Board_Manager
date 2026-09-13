@@ -6,13 +6,16 @@ import { QueryTaskFilterDto } from './dto/query-task-filter.dto';
 import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
 import { SocketGateway } from '../socket/socket.gateway';
 import { NotificationService } from '../notification/notification.service';
+import { TaskActivityService } from './task-activity.service';
+import { TaskStatus } from '@prisma/client';
 
 @Injectable()
 export class TaskService {
   constructor(
     private prisma: PrismaService,
     private socketGateway: SocketGateway,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private activityService: TaskActivityService
   ) {}
 
   async findAll(query?: QueryTaskFilterDto) {
@@ -323,147 +326,6 @@ export class TaskService {
 
   async findByProject(projectId: string) {
     return this.findAll({ projectId });
-  }
-
-  async updateStatus(id: string, updateTaskStatusDto: UpdateTaskStatusDto, user?: any) {
-    // Atomic Transaction to guarantee race condition prevention
-    const updatedTask = await this.prisma.$transaction(async (tx) => {
-      const task = await tx.task.findUnique({
-        where: { id },
-        include: {
-          subtasks: true,
-          project: { select: { id: true, managerId: true, createdById: true } },
-        },
-      });
-      if (!task || task.isDeleted) {
-        throw new NotFoundException('Task không tồn tại hoặc đã bị xóa vào thùng rác');
-      }
-
-      // 🔒 [LC-77] KHÓA ĐỔI TRẠNG THÁI TASK ĐÃ LƯU TRỮ
-      if (task.isArchived) {
-        throw new BadRequestException('Task đã được lưu trữ vào kho (Archived). Không thể thay đổi trạng thái!');
-      }
-
-      // 🔒 [LC-67] PHÂN QUYỀN ĐIỀU PHỐI KANBAN:
-      // Admin, Manager (toàn cục hoặc dự án), Người tạo Task (Creator) hoặc Người được giao việc (Assignee)
-      if (user) {
-        const isAdminOrManager = Boolean(
-          user.role === 'ADMIN' ||
-          user.role === 'MANAGER' ||
-          user.globalRole === 'ADMIN' ||
-          user.globalRole === 'MANAGER' ||
-          task.project?.managerId === user.id ||
-          task.project?.createdById === user.id ||
-          task.createdById === user.id
-        );
-        const isAssignee = task.assigneeId ? task.assigneeId === user.id : task.createdById === user.id;
-
-        if (!isAdminOrManager && !isAssignee) {
-          throw new ForbiddenException(
-            'Task này thuộc về người được giao, bạn không có quyền chỉnh sửa trạng thái của người khác'
-          );
-        }
-      }
-
-      // 🔒 [LC-31] CHẶN ĐỔI TRẠNG THÁI KHI TASK ĐANG IN_REVIEW VÀ CÓ YÊU CẦU BÀN GIAO PENDING
-      if (task.status === 'IN_REVIEW' && updateTaskStatusDto.status !== 'IN_REVIEW') {
-        const pendingTransfer = await tx.taskRequest.findFirst({
-          where: { taskId: id, type: 'TRANSFER', status: 'PENDING' },
-        });
-        if (pendingTransfer) {
-          throw new BadRequestException(
-            'Task đang trong trạng thái Chờ Duyệt Bàn Giao (IN_REVIEW). Vui lòng duyệt hoặc hủy yêu cầu bàn giao trước khi chuyển đổi trạng thái.'
-          );
-        }
-      }
-
-      // 🔒 CHẶN KÉO SANG DONE KHI CHƯA HOÀN THÀNH TOÀN BỘ TASK CON
-      if (updateTaskStatusDto.status === 'DONE') {
-        const hasUnfinishedSubtasks =
-          task.subtasks && task.subtasks.length > 0 && task.subtasks.some((st) => !st.isDone);
-        if (hasUnfinishedSubtasks) {
-          throw new BadRequestException(
-            'Không thể chuyển Task sang Hoàn Thành khi vẫn còn Task con chưa được Quản lý phê duyệt hoàn tất.'
-          );
-        }
-      }
-
-      return tx.task.update({
-        where: { id },
-        data: {
-          status: updateTaskStatusDto.status,
-          stageId: updateTaskStatusDto.stageId !== undefined ? updateTaskStatusDto.stageId : undefined,
-          description:
-            (updateTaskStatusDto as any).description !== undefined
-              ? (updateTaskStatusDto as any).description
-              : undefined,
-          progress:
-            updateTaskStatusDto.progress !== undefined
-              ? updateTaskStatusDto.progress
-              : updateTaskStatusDto.status === 'DONE'
-                ? 100
-                : task.progress,
-          completedAt: updateTaskStatusDto.status === 'DONE' ? task.completedAt || new Date() : null,
-        },
-        include: {
-          project: { select: { id: true, name: true } },
-          assignee: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-              avatar: true,
-              profession: true,
-            },
-          },
-          tags: { include: { tag: true } },
-          attachments: true,
-        },
-      });
-    });
-
-    const result = {
-      id: updatedTask.id,
-      title: updatedTask.title,
-      description: updatedTask.description || undefined,
-      status: updatedTask.status,
-      priority: updatedTask.priority,
-      progress: updatedTask.progress,
-      dueDate: updatedTask.dueDate ? updatedTask.dueDate.toISOString().slice(0, 10) : undefined,
-      projectName: updatedTask.project?.name || 'Solaris Core',
-      assigneeId: updatedTask.assigneeId || undefined,
-      assignee: updatedTask.assignee
-        ? {
-            id: updatedTask.assignee.id,
-            fullName: updatedTask.assignee.fullName,
-            avatar: updatedTask.assignee.avatar || undefined,
-            profession: updatedTask.assignee.profession,
-          }
-        : undefined,
-      tags: updatedTask.tags.map((tt) => ({
-        id: tt.tag.id,
-        name: tt.tag.name,
-        color: 'amber',
-      })),
-      commentsCount: 0,
-      stageId: updatedTask.stageId || undefined,
-      attachments: updatedTask.attachments
-        ? updatedTask.attachments.map((att) => ({
-            id: att.id,
-            name: att.name,
-            url: att.url,
-            type: att.type,
-            size: att.size || undefined,
-            createdAt: att.createdAt ? att.createdAt.toISOString() : undefined,
-          }))
-        : [],
-    };
-
-    if (updatedTask.projectId) {
-      this.socketGateway.broadcastToProject(updatedTask.projectId, 'task:updated', result);
-    }
-
-    return result;
   }
 
   async updateDescription(id: string, description: string, user?: any) {
@@ -2542,5 +2404,158 @@ export class TaskService {
     this.socketGateway.broadcastToProject(projectId, 'task:updated', mapped);
 
     return mapped;
+  }
+  async updateStatus(id: string, updateTaskStatusDto: UpdateTaskStatusDto, user?: any) {
+    const updatedTask = await this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.findUnique({
+        where: { id },
+        include: {
+          subtasks: true,
+          project: { select: { id: true, managerId: true, createdById: true } },
+        },
+      });
+      if (!task || task.isDeleted) {
+        throw new NotFoundException('Task không tồn tại hoặc đã bị xóa vào thùng rác');
+      }
+
+      if (task.isArchived) {
+        throw new BadRequestException('Task đã được lưu trữ vào kho (Archived). Không thể thay đổi trạng thái!');
+      }
+      if (user) {
+        const typedUser = user as Record<string, any>;
+        const userRole = typedUser.role as string;
+        const userGlobalRole = typedUser.globalRole as string;
+        const userId = typedUser.id as string;
+
+        const isAdminOrManager = Boolean(
+          userRole === 'ADMIN' ||
+          userRole === 'MANAGER' ||
+          userGlobalRole === 'ADMIN' ||
+          userGlobalRole === 'MANAGER' ||
+          task.project?.managerId === userId ||
+          task.project?.createdById === userId ||
+          task.createdById === userId
+        );
+        const isAssignee = task.assigneeId ? task.assigneeId === userId : task.createdById === userId;
+
+        if (!isAdminOrManager && !isAssignee) {
+          throw new ForbiddenException(
+            'Task này thuộc về người được giao, bạn không có quyền chỉnh sửa trạng thái của người khác'
+          );
+        }
+      }
+      if (task.status === 'IN_REVIEW' && updateTaskStatusDto.status !== 'IN_REVIEW') {
+        const pendingTransfer = await tx.taskRequest.findFirst({
+          where: { taskId: id, type: 'TRANSFER', status: 'PENDING' },
+        });
+        if (pendingTransfer) {
+          throw new BadRequestException(
+            'Task đang trong trạng thái Chờ Duyệt Bàn Giao (IN_REVIEW). Vui lòng duyệt hoặc hủy yêu cầu bàn giao trước khi chuyển đổi trạng thái.'
+          );
+        }
+      }
+
+      if (updateTaskStatusDto.status === 'DONE') {
+        const hasUnfinishedSubtasks =
+          task.subtasks && task.subtasks.length > 0 && task.subtasks.some((st) => !st.isDone);
+        if (hasUnfinishedSubtasks) {
+          throw new BadRequestException(
+            'Không thể chuyển Task sang Hoàn Thành khi vẫn còn Task con chưa được Quản lý phê duyệt hoàn tất.'
+          );
+        }
+      }
+
+      const oldStatus: string = task.status;
+      const newStatus: string = updateTaskStatusDto.status;
+      const dtoDesc = (updateTaskStatusDto as unknown as { description?: string }).description;
+
+      const result = await tx.task.update({
+        where: { id },
+        data: {
+          status: newStatus as TaskStatus,
+          stageId: updateTaskStatusDto.stageId !== undefined ? updateTaskStatusDto.stageId : undefined,
+          description: dtoDesc !== undefined ? String(dtoDesc) : undefined,
+          progress:
+            updateTaskStatusDto.progress !== undefined
+              ? updateTaskStatusDto.progress
+              : newStatus === 'DONE'
+                ? 100
+                : task.progress,
+          completedAt: newStatus === 'DONE' ? task.completedAt || new Date() : null,
+        },
+        include: {
+          project: { select: { id: true, name: true } },
+          assignee: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              avatar: true,
+              profession: true,
+            },
+          },
+          tags: { include: { tag: true } },
+          attachments: true,
+        },
+      });
+      if (oldStatus !== newStatus) {
+        const activeUserId = user ? String((user as Record<string, any>).id) : null;
+        await tx.taskHistory.create({
+          data: {
+            taskId: String(id),
+            userId: activeUserId || task.assigneeId || task.createdById,
+            action: 'changed the Status',
+            field: 'status',
+            oldValue: String(oldStatus),
+            newValue: String(newStatus),
+          },
+        });
+      }
+
+      return result;
+    });
+
+    const result = {
+      id: updatedTask.id,
+      title: updatedTask.title,
+      description: updatedTask.description || undefined,
+      status: updatedTask.status,
+      priority: updatedTask.priority,
+      progress: updatedTask.progress,
+      dueDate: updatedTask.dueDate ? updatedTask.dueDate.toISOString().slice(0, 10) : undefined,
+      projectName: updatedTask.project?.name || 'Solaris Core',
+      assigneeId: updatedTask.assigneeId || undefined,
+      assignee: updatedTask.assignee
+        ? {
+            id: updatedTask.assignee.id,
+            fullName: updatedTask.assignee.fullName,
+            avatar: updatedTask.assignee.avatar || undefined,
+            profession: updatedTask.assignee.profession,
+          }
+        : undefined,
+      tags: updatedTask.tags.map((tt) => ({
+        id: tt.tag.id,
+        name: tt.tag.name,
+        color: 'amber',
+      })),
+      commentsCount: 0,
+      stageId: updatedTask.stageId || undefined,
+      attachments: updatedTask.attachments
+        ? updatedTask.attachments.map((att) => ({
+            id: att.id,
+            name: att.name,
+            url: att.url,
+            type: att.type,
+            size: att.size || undefined,
+            createdAt: att.createdAt ? att.createdAt.toISOString() : undefined,
+          }))
+        : [],
+    };
+
+    if (updatedTask.projectId) {
+      this.socketGateway.broadcastToProject(updatedTask.projectId, 'task:updated', result);
+    }
+
+    return result;
   }
 }
