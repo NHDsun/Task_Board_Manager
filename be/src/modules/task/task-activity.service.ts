@@ -95,4 +95,71 @@ export class TaskActivityService {
       },
     });
   }
+  async logTaskMove(taskId: string, userId: string, oldStatus: string, newStatus: string) {
+    if (oldStatus === newStatus) return null;
+
+    return await this.logTaskHistory(taskId, userId, 'MOVED_TASK', 'status', oldStatus, newStatus);
+  }
+  private formatStatusLabel(status: string | null | undefined): string {
+    if (!status) return '';
+    const labels: Record<string, string> = {
+      TODO: 'Cần làm',
+      IN_PROGRESS: 'Đang thực hiện',
+      PAUSED: 'Tạm dừng',
+      BLOCKED: 'Bị nghẽn',
+      IN_REVIEW: 'Đang duyệt',
+      DONE: 'Hoàn thành',
+    };
+    return labels[status] ?? status;
+  }
+
+  async getUserMoveHistories(userId: string, limit: number = 30) {
+    const moveLogs = await this.prisma.taskHistory.findMany({
+      where: {
+        userId: String(userId),
+        field: 'status',
+      },
+      include: {
+        task: {
+          select: {
+            id: true,
+            title: true,
+            projectId: true,
+            project: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+        user: {
+          select: { id: true, fullName: true, avatar: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    const data = moveLogs.map((item) => {
+      const fromLabel = this.formatStatusLabel(item.oldValue);
+      const toLabel = this.formatStatusLabel(item.newValue);
+      const taskTitle = item.task?.title || 'Công việc không tên';
+
+      return {
+        id: item.id,
+        taskId: item.taskId,
+        taskTitle: taskTitle,
+        projectName: item.task?.project?.name || null,
+        user: item.user,
+        oldStatus: item.oldValue,
+        newStatus: item.newValue,
+        createdAt: item.createdAt,
+        message: `${item.user.fullName} đã kéo task "${taskTitle}" từ "${fromLabel}" sang "${toLabel}"`,
+      };
+    });
+
+    return {
+      success: true,
+      total: data.length,
+      data,
+    };
+  }
 }

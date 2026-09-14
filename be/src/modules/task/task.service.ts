@@ -8,7 +8,13 @@ import { SocketGateway } from '../socket/socket.gateway';
 import { NotificationService } from '../notification/notification.service';
 import { TaskActivityService } from './task-activity.service';
 import { TaskStatus } from '@prisma/client';
-
+interface RequestUserPayload {
+  id?: string;
+  sub?: string;
+  role?: string;
+  globalRole?: string;
+  [key: string]: unknown;
+}
 @Injectable()
 export class TaskService {
   constructor(
@@ -2405,7 +2411,7 @@ export class TaskService {
 
     return mapped;
   }
-  async updateStatus(id: string, updateTaskStatusDto: UpdateTaskStatusDto, user?: any) {
+  async updateStatus(id: string, updateTaskStatusDto: UpdateTaskStatusDto, user?: RequestUserPayload) {
     const updatedTask = await this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findUnique({
         where: { id },
@@ -2421,20 +2427,23 @@ export class TaskService {
       if (task.isArchived) {
         throw new BadRequestException('Task đã được lưu trữ vào kho (Archived). Không thể thay đổi trạng thái!');
       }
+
+      const activeUserId: string | null = user?.id || user?.sub || null;
+
       if (user) {
         const typedUser = user as Record<string, any>;
         const userRole = typedUser.role as string;
         const userGlobalRole = typedUser.globalRole as string;
-        const userId = typedUser.id as string;
+        const userId = activeUserId;
 
         const isAdminOrManager = Boolean(
           userRole === 'ADMIN' ||
           userRole === 'MANAGER' ||
           userGlobalRole === 'ADMIN' ||
           userGlobalRole === 'MANAGER' ||
-          task.project?.managerId === userId ||
-          task.project?.createdById === userId ||
-          task.createdById === userId
+          (userId && task.project?.managerId === userId) ||
+          (userId && task.project?.createdById === userId) ||
+          (userId && task.createdById === userId)
         );
         const isAssignee = task.assigneeId ? task.assigneeId === userId : task.createdById === userId;
 
@@ -2444,6 +2453,7 @@ export class TaskService {
           );
         }
       }
+
       if (task.status === 'IN_REVIEW' && updateTaskStatusDto.status !== 'IN_REVIEW') {
         const pendingTransfer = await tx.taskRequest.findFirst({
           where: { taskId: id, type: 'TRANSFER', status: 'PENDING' },
@@ -2498,13 +2508,15 @@ export class TaskService {
           attachments: true,
         },
       });
+
       if (oldStatus !== newStatus) {
-        const activeUserId = user ? String((user as Record<string, any>).id) : null;
+        const loggerId = activeUserId || task.assigneeId || task.createdById;
+
         await tx.taskHistory.create({
           data: {
             taskId: String(id),
-            userId: activeUserId || task.assigneeId || task.createdById,
-            action: 'changed the Status',
+            userId: String(loggerId),
+            action: 'MOVED_TASK',
             field: 'status',
             oldValue: String(oldStatus),
             newValue: String(newStatus),

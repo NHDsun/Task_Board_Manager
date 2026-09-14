@@ -10,6 +10,6 @@ import { TaskActivityService } from './task-activity.service';
   imports: [PrismaModule, SocketModule, NotificationModule],
   controllers: [TaskController],
   providers: [TaskService, TaskActivityService],
-  exports: [TaskService],
+  exports: [TaskService, TaskActivityService],
 })
 export class TaskModule {}
