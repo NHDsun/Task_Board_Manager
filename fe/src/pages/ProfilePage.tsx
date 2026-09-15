@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useUserStore } from '../store/useUserStore';
+import { useScheduleStore } from '../store/useScheduleStore';
 import { profileService, type PersonalStatsResponse } from '../services/profile';
 import type { UserStatusSignal, Profession } from '../types/auth';
 import { DEFAULT_COVER, getAvatarUrl } from '../utils/avatar';
@@ -158,12 +159,23 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // 6. Work Location State (Interactive for Self)
-  const [currentWorkLocation, setCurrentWorkLocation] = useState<WorkLocationType>(() => {
-    return (localStorage.getItem('solaris_user_work_location') as WorkLocationType) || (user?.workMode as WorkLocationType) || 'OFFICE';
-  });
+  // 6. Work Location State (Interactive for Self & Admin)
+  const { getWorkLocationForDate, setUserDailyWorkLocation } = useScheduleStore();
+  const isAdmin = authUser?.globalRole === 'ADMIN';
+  const targetUserId = user?.id || 'u-self';
+
+  // Lấy vị trí làm việc hôm nay từ schedule store (hoặc fallback)
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const initialLoc = getWorkLocationForDate(targetUserId, todayDateStr).workType;
+  const [currentWorkLocation, setCurrentWorkLocation] = useState<WorkLocationType>(initialLoc);
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   const locationDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Đồng bộ lại khi user thay đổi
+  useEffect(() => {
+    const loc = getWorkLocationForDate(targetUserId, todayDateStr).workType;
+    setCurrentWorkLocation(loc);
+  }, [targetUserId, todayDateStr, getWorkLocationForDate]);
 
   // 7. File Upload Refs & Handlers for Avatar and Cover Image
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
@@ -209,10 +221,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
   const handleSelectWorkLocation = (loc: WorkLocationType) => {
     setCurrentWorkLocation(loc);
-    localStorage.setItem('solaris_user_work_location', loc);
     setIsLocationDropdownOpen(false);
     const locInfo = WORK_LOCATIONS.find((l) => l.id === loc);
-    showToast(`📍 Đã cập nhật vị trí làm việc hôm nay: ${locInfo?.label || loc}`, 'success');
+
+    if (isSelf) {
+      setUserDailyWorkLocation(authUser?.id || targetUserId, loc);
+      showToast(`📍 Đã cập nhật vị trí làm việc hôm nay: ${locInfo?.label || loc}`, 'success');
+    } else if (isAdmin) {
+      setUserDailyWorkLocation(targetUserId, loc, undefined, {
+        adminId: authUser?.id || 'admin',
+        adminName: authUser?.fullName || 'Admin',
+      });
+      showToast(`👑 [Admin] Đã chỉ định vị trí làm việc cho ${user?.fullName}: ${locInfo?.label || loc}`, 'success');
+    }
   };
 
   // Close location dropdown on outside click
@@ -496,72 +517,83 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
           {/* Profile Actions */}
           <div className="flex items-center gap-3 self-stretch md:self-end justify-end flex-wrap">
+            {/* 📍 Work Location Status Badge (Interactive for Self & Admin, View-only for other employees) */}
+            <div className="relative" ref={locationDropdownRef}>
+              <button
+                type="button"
+                onClick={() => (isSelf || isAdmin) && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
+                className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2.5 shadow-inner transition-all ${
+                  WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.badgeBg || 'bg-slate-900 border-slate-700 text-slate-200'
+                } ${isSelf || isAdmin ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}`}
+                title={
+                  isSelf
+                    ? 'Nhấp để đổi vị trí làm việc hôm nay'
+                    : isAdmin
+                    ? `Admin: Nhấp để chỉ định vị trí làm việc cho ${user?.fullName}`
+                    : `Vị trí làm việc hôm nay của ${user?.fullName}`
+                }
+              >
+                <span className={`w-2.5 h-2.5 rounded-full ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.dotColor || 'bg-slate-400'}`} />
+                {(() => {
+                  const activeLoc = WORK_LOCATIONS.find((l) => l.id === currentWorkLocation);
+                  const LocIcon = activeLoc?.icon || Building2;
+                  return (
+                    <span className="flex items-center gap-1.5 font-bold tracking-tight">
+                      <LocIcon className="w-3.5 h-3.5 shrink-0" />
+                      {activeLoc?.label || 'Tại Văn Phòng'}
+                    </span>
+                  );
+                })()}
+                {isSelf && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono font-extrabold border border-amber-500/30 flex items-center gap-0.5">
+                    VỊ TRÍ 📍 <ChevronDown className="w-3 h-3 text-amber-400" />
+                  </span>
+                )}
+                {!isSelf && isAdmin && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 font-mono font-extrabold border border-amber-500/50 flex items-center gap-0.5">
+                    ADMIN SỬA 👑 <ChevronDown className="w-3 h-3 text-amber-400" />
+                  </span>
+                )}
+              </button>
+
+              {/* Location Selection Dropdown (Only for Self or Admin) */}
+              {(isSelf || isAdmin) && isLocationDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 p-2 rounded-2xl bg-[#0F172A] border border-amber-500/50 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-2xl z-50 animate-solar-drop-snap space-y-1">
+                  <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>{isSelf ? 'Vị trí làm việc hôm nay' : `Chỉ định vị trí cho ${user?.fullName}`}</span>
+                    <span className="text-amber-400 font-mono text-[10px]">{isAdmin && !isSelf ? 'Admin Role' : 'Solaris Geo'}</span>
+                  </div>
+                  {WORK_LOCATIONS.map((loc) => {
+                    const Icon = loc.icon;
+                    const isSelected = currentWorkLocation === loc.id;
+                    return (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        onClick={() => handleSelectWorkLocation(loc.id)}
+                        className={`w-full p-2.5 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
+                          isSelected ? 'bg-amber-500/20 border border-amber-500/40 text-white' : 'hover:bg-slate-800/80 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`p-1.5 rounded-lg ${loc.badgeBg}`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold block text-white">{loc.label}</span>
+                            <span className="text-[10px] text-slate-400 block font-mono">{loc.subLabel}</span>
+                          </div>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-amber-400" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {isSelf ? (
               <>
-                {/* 📍 Work Location Status Badge (Interactive for Self) */}
-                <div className="relative" ref={locationDropdownRef}>
-                  <button
-                    type="button"
-                    onClick={() => isSelf && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
-                    className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2.5 shadow-inner transition-all ${
-                      WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.badgeBg || 'bg-slate-900 border-slate-700 text-slate-200'
-                    } ${isSelf ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}`}
-                    title={isSelf ? 'Nhấp để đổi vị trí làm việc hôm nay' : undefined}
-                  >
-                    <span className={`w-2.5 h-2.5 rounded-full ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.dotColor || 'bg-slate-400'}`} />
-                    {(() => {
-                      const activeLoc = WORK_LOCATIONS.find((l) => l.id === currentWorkLocation);
-                      const LocIcon = activeLoc?.icon || Building2;
-                      return (
-                        <span className="flex items-center gap-1.5 font-bold tracking-tight">
-                          <LocIcon className="w-3.5 h-3.5 shrink-0" />
-                          {activeLoc?.label || 'Tại Văn Phòng'}
-                        </span>
-                      );
-                    })()}
-                    {isSelf && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono font-extrabold border border-amber-500/30 flex items-center gap-0.5">
-                        VỊ TRÍ 📍 <ChevronDown className="w-3 h-3 text-amber-400" />
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Location Selection Dropdown */}
-                  {isSelf && isLocationDropdownOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-64 p-2 rounded-2xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_10px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl z-50 animate-solar-drop-snap space-y-1">
-                      <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                        <span>Vị trí làm việc hôm nay</span>
-                        <span className="text-amber-400 font-mono text-[10px]">Solaris Geo</span>
-                      </div>
-                      {WORK_LOCATIONS.map((loc) => {
-                        const Icon = loc.icon;
-                        const isSelected = currentWorkLocation === loc.id;
-                        return (
-                          <button
-                            key={loc.id}
-                            type="button"
-                            onClick={() => handleSelectWorkLocation(loc.id)}
-                            className={`w-full p-2.5 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
-                              isSelected ? 'bg-amber-500/20 border border-amber-500/40 text-white' : 'hover:bg-slate-800/80 text-slate-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <div className={`p-1.5 rounded-lg ${loc.badgeBg}`}>
-                                <Icon className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <span className="text-xs font-bold block text-white">{loc.label}</span>
-                                <span className="text-[10px] text-slate-400 block font-mono">{loc.subLabel}</span>
-                              </div>
-                            </div>
-                            {isSelected && <Check className="w-4 h-4 text-amber-400" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
                 <button
                   onClick={() => setIsEditModalOpen(true)}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] cursor-pointer"
