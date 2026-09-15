@@ -414,9 +414,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       )}
 
       {/* 🌌 Hero Cover & Identity Card */}
-      <div className="solar-glass-card rounded-3xl bg-[#0F172A]/90 border border-amber-500/30 shadow-2xl overflow-hidden relative">
+      <div className="solar-glass-card rounded-3xl bg-[#0F172A]/90 border border-amber-500/30 shadow-2xl relative z-20">
         {/* Cover Photo */}
-        <div className="h-48 sm:h-64 w-full relative overflow-hidden bg-slate-900">
+        <div className="h-48 sm:h-64 w-full relative overflow-hidden bg-slate-900 rounded-t-3xl">
           <img
             src={user?.coverImage || DEFAULT_COVER}
             alt="Cover"
