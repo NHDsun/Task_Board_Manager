@@ -235,7 +235,7 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
 
             <button
               onClick={() => onSelectTask(heroTask)}
-              className="solar-corona-btn w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg cursor-pointer transition-all mt-4"
+              className="solar-corona-btn w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all mt-4"
             >
               <span>Mở Chi Tiết Tác Nghiệp</span>
               <ArrowUpRight className="w-4 h-4" />

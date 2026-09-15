@@ -52,7 +52,7 @@ export const DeleteTaskConfirmModal: React.FC<DeleteTaskConfirmModalProps> = ({
             "{taskTitle}"
           </p>
           <p className="text-[11px] text-slate-400 italic">
-            ⚠️ Lưu ý: Hành động này sẽ xóa hoàn toàn Task và toàn bộ bình luận, lịch sử chuyển giao khỏi CSDL PostgreSQL và không thể hoàn tác!
+            ⚠️ Lưu ý: Hành động này sẽ xóa hoàn toàn Task và toàn bộ bình luận, lịch sử chuyển giao khỏi hệ thống và không thể hoàn tác!
           </p>
         </div>
 
@@ -71,7 +71,7 @@ export const DeleteTaskConfirmModal: React.FC<DeleteTaskConfirmModalProps> = ({
             type="button"
             onClick={onConfirm}
             disabled={isSubmitting}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-extrabold text-xs shadow-lg shadow-rose-950/50 flex items-center gap-2 cursor-pointer transition-all border border-rose-400/30"
+            className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md flex items-center gap-2 cursor-pointer transition-all border border-rose-400/30"
           >
             <Trash2 className="w-4 h-4" />
             {isSubmitting ? 'Đang Xóa...' : 'Xác Nhận Xóa Vĩnh Viễn'}

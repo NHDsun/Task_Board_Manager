@@ -1629,7 +1629,7 @@ export const BoardPage: React.FC = () => {
                             ) : (
                               <button
                                 onClick={() => handleCompleteTodaySubtask(heroTask, activeSubtask, firstPendingIdx)}
-                                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" /> ✓ Xong Việc Con Này
                               </button>
@@ -1880,7 +1880,7 @@ export const BoardPage: React.FC = () => {
               <button
                 disabled={isDeleting}
                 onClick={handleConfirmDeleteProject}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-xs font-black shadow-lg shadow-rose-500/30 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{isDeleting ? 'Đang Xử Lý...' : 'Xác Nhận Xóa'}</span>
@@ -1920,7 +1920,7 @@ export const BoardPage: React.FC = () => {
         onClose={() => setIsCreateProjectModalOpen(false)}
         existingProjects={dbProjects.map((p) => p.name)}
         onSuccess={(newProj) => {
-          showNotification('🟢 Khởi tạo Dự Án Mới vào CSDL PostgreSQL thành công!', 'success', 'Tạo Dự Án');
+          showNotification('🟢 Khởi tạo Dự Án Mới thành công!', 'success', 'Tạo Dự Án');
           if (newProj && newProj.id) {
             setDbProjects((prev) => [newProj, ...prev]);
           }
@@ -1934,7 +1934,7 @@ export const BoardPage: React.FC = () => {
         isOpen={isCreateTaskModalOpen}
         onClose={() => setIsCreateTaskModalOpen(false)}
         onSuccess={(newTask) => {
-          showNotification('🟢 Khởi tạo Task Mới vào CSDL PostgreSQL thành công!', 'success', 'Tạo Task');
+          showNotification('🟢 Khởi tạo Task Mới thành công!', 'success', 'Tạo Task');
           if (newTask && newTask.id) {
             setTasks((prev) => [newTask, ...prev]);
           }
@@ -1961,7 +1961,7 @@ export const BoardPage: React.FC = () => {
             <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
 
             <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-purple-600 flex items-center justify-center text-2xl shadow-lg">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-2xl shadow-md">
                 🎉
               </div>
               <div>
@@ -2026,7 +2026,7 @@ export const BoardPage: React.FC = () => {
                     'Tiến Hành Task Con Ngày Mai'
                   );
                 }}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-slate-950 font-black text-xs cursor-pointer shadow-lg transition-all flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer shadow-md transition-all flex items-center gap-1.5"
               >
                 <Sparkles className="w-4 h-4" /> ✨ Tiến Hành Luôn Task Con Ngày Mai
               </button>

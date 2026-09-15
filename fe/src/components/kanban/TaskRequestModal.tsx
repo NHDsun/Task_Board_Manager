@@ -279,7 +279,7 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
             type="button"
             onClick={handleSendRequest}
             disabled={isSubmitting}
-            className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg flex items-center gap-2 cursor-pointer transition-all"
+            className="solar-corona-btn px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs tracking-wider shadow-md flex items-center gap-2 cursor-pointer transition-all"
           >
             <Send className="w-4 h-4" />
             <span>{isSubmitting ? 'Đang Gửi...' : 'Xác Nhận & Đổi Sang IN_REVIEW'}</span>

@@ -324,7 +324,7 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
                         <button
                           onClick={() => handleRespond(r.id, 'APPROVED')}
                           disabled={processingId === r.id}
-                          className="solar-corona-btn px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-extrabold flex items-center gap-1.5 cursor-pointer transition-all shadow-md disabled:opacity-50"
+                          className="solar-corona-btn px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md disabled:opacity-50"
                         >
                           <CheckCircle2 className="w-4 h-4 text-slate-950" />
                           {isApproval ? '✓ Phê Duyệt Nghiệm Thu' : isAssist ? '✓ Đồng Ý Hỗ Trợ' : '✓ Tiếp Nhận Task'}

@@ -377,7 +377,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               <button
                 type="button"
                 onClick={handleAddDraftSubtask}
-                className="px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition-all shadow-md shrink-0"
+                className="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1 cursor-pointer transition-all shadow-sm shrink-0"
               >
                 <Plus className="w-4 h-4" /> Thêm Task Con
               </button>
@@ -453,7 +453,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer flex items-center gap-2"
+              className="solar-corona-btn px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs tracking-wider shadow-md transition-all cursor-pointer flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               {isSubmitting ? 'Đang Tạo...' : 'Tạo Task Mới'}

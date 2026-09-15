@@ -382,7 +382,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="flex items-center gap-2.5">
             <button
               onClick={handleOpenFullProfile}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
             >
               <ExternalLink className="w-3.5 h-3.5" /> Mở Trang Profile Toàn Diện
             </button>

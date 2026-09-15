@@ -272,7 +272,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               <button
                 type="button"
                 onClick={handleAddCustomStage}
-                className="px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shrink-0 cursor-pointer"
+                className="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0 cursor-pointer shadow-sm transition-all"
               >
                 + Thêm
               </button>
@@ -281,7 +281,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               {customStages.map((st, idx) => (
                 <span
                   key={idx}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-purple-500/30 text-purple-300 font-mono text-[11px] flex items-center gap-1.5"
+                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 font-mono text-[11px] flex items-center gap-1.5"
                 >
                   {st}
                   <button
@@ -312,7 +312,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     onClick={() => toggleMemberSelect(user.id)}
                     className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-purple-500/20 border-purple-500/50 text-white'
+                        ? 'bg-amber-500/10 border-amber-500/40 text-white'
                         : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -327,9 +327,9 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     </div>
 
                     <div className={`w-5 h-5 rounded-lg border flex items-center justify-center ${
-                      isSelected ? 'bg-purple-500 border-purple-400 text-white' : 'border-slate-700 bg-slate-950'
+                      isSelected ? 'bg-amber-500 border-amber-400 text-slate-950' : 'border-slate-700 bg-slate-950'
                     }`}>
-                      {isSelected && <Check className="w-3.5 h-3.5" />}
+                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
                   </div>
                 );
@@ -348,7 +348,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer flex items-center gap-2"
+              className="solar-corona-btn px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs tracking-wider shadow-md transition-all cursor-pointer flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               {isSubmitting ? 'Đang Khởi Tạo...' : 'Khởi Tạo Dự Án'}
