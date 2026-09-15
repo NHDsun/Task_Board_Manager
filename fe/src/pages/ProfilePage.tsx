@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useUserStore } from '../store/useUserStore';
 import { profileService, type PersonalStatsResponse } from '../services/profile';
@@ -25,7 +25,64 @@ import {
   Users,
   MessageSquare,
   AlertTriangle,
+  Home,
+  Plane,
+  Palmtree,
+  UploadCloud,
+  Image as ImageIcon,
+  ChevronDown,
+  Check,
+  Trash2,
 } from 'lucide-react';
+
+export type WorkLocationType = 'OFFICE' | 'WFH' | 'ON_SITE' | 'LEAVE';
+
+const WORK_LOCATIONS: Array<{
+  id: WorkLocationType;
+  label: string;
+  subLabel: string;
+  icon: React.ElementType;
+  badgeBg: string;
+  textColor: string;
+  dotColor: string;
+}> = [
+  {
+    id: 'OFFICE',
+    label: 'Tại Văn Phòng',
+    subLabel: 'Office HQ',
+    icon: Building2,
+    badgeBg: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
+    textColor: 'text-emerald-300',
+    dotColor: 'bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.8)]',
+  },
+  {
+    id: 'WFH',
+    label: 'Làm Từ Xa (WFH)',
+    subLabel: 'Remote Working',
+    icon: Home,
+    badgeBg: 'bg-amber-500/15 border-amber-500/30 text-amber-300',
+    textColor: 'text-amber-300',
+    dotColor: 'bg-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.8)]',
+  },
+  {
+    id: 'ON_SITE',
+    label: 'Đi Công Tác',
+    subLabel: 'On-Site / Business Trip',
+    icon: Plane,
+    badgeBg: 'bg-blue-500/15 border-blue-500/30 text-blue-300',
+    textColor: 'text-blue-300',
+    dotColor: 'bg-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.8)]',
+  },
+  {
+    id: 'LEAVE',
+    label: 'Nghỉ Phép',
+    subLabel: 'On Leave',
+    icon: Palmtree,
+    badgeBg: 'bg-rose-500/15 border-rose-500/30 text-rose-300',
+    textColor: 'text-rose-300',
+    dotColor: 'bg-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.8)]',
+  },
+];
 
 interface ProfilePageProps {
   onNavigate?: (route: string) => void;
@@ -100,6 +157,74 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   });
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+
+  // 6. Work Location State (Interactive for Self)
+  const [currentWorkLocation, setCurrentWorkLocation] = useState<WorkLocationType>(() => {
+    return (localStorage.getItem('solaris_user_work_location') as WorkLocationType) || (user?.workMode as WorkLocationType) || 'OFFICE';
+  });
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
+
+  // 7. File Upload Refs & Handlers for Avatar and Cover Image
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Tệp ảnh đại diện vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFormData((prev) => ({ ...prev, avatarUrl: reader.result as string }));
+        showToast('📸 Đã tải tệp ảnh đại diện lên thành công!', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Tệp ảnh bìa vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFormData((prev) => ({ ...prev, coverImage: reader.result as string }));
+        showToast('🖼️ Đã tải tệp ảnh bìa lên thành công!', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSelectWorkLocation = (loc: WorkLocationType) => {
+    setCurrentWorkLocation(loc);
+    localStorage.setItem('solaris_user_work_location', loc);
+    setIsLocationDropdownOpen(false);
+    const locInfo = WORK_LOCATIONS.find((l) => l.id === loc);
+    showToast(`📍 Đã cập nhật vị trí làm việc hôm nay: ${locInfo?.label || loc}`, 'success');
+  };
+
+  // Close location dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target as Node)) {
+        setIsLocationDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Synchronize Form Data whenever `user` changes
   useEffect(() => {
@@ -373,19 +498,68 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-3 self-stretch md:self-end justify-end flex-wrap">
             {isSelf ? (
               <>
-                {/* 🤖 Automated Real-Time Status Signal Badge */}
-                <div className="px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-xs font-mono font-bold flex items-center gap-2 shadow-inner">
-                  <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${getStatusColor(user?.statusSignal as UserStatusSignal)}`} />
-                  <span className="text-slate-200">
-                    {user?.statusSignal === 'ONLINE' && 'Trực Tuyến'}
-                    {user?.statusSignal === 'AWAY' && 'Vắng Mặt (Tạm Rời)'}
-                    {user?.statusSignal === 'BUSY' && 'Đang Bận'}
-                    {user?.statusSignal === 'IN_MEETING' && 'Đang Họp'}
-                    {(!user?.statusSignal || user?.statusSignal === 'OFFLINE') && 'Ngoại Tuyến'}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-sans font-extrabold border border-emerald-500/30">
-                    AUTO ⚡
-                  </span>
+                {/* 📍 Work Location Status Badge (Interactive for Self) */}
+                <div className="relative" ref={locationDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => isSelf && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
+                    className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2.5 shadow-inner transition-all ${
+                      WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.badgeBg || 'bg-slate-900 border-slate-700 text-slate-200'
+                    } ${isSelf ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}`}
+                    title={isSelf ? 'Nhấp để đổi vị trí làm việc hôm nay' : undefined}
+                  >
+                    <span className={`w-2.5 h-2.5 rounded-full ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.dotColor || 'bg-slate-400'}`} />
+                    {(() => {
+                      const activeLoc = WORK_LOCATIONS.find((l) => l.id === currentWorkLocation);
+                      const LocIcon = activeLoc?.icon || Building2;
+                      return (
+                        <span className="flex items-center gap-1.5 font-bold tracking-tight">
+                          <LocIcon className="w-3.5 h-3.5 shrink-0" />
+                          {activeLoc?.label || 'Tại Văn Phòng'}
+                        </span>
+                      );
+                    })()}
+                    {isSelf && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono font-extrabold border border-amber-500/30 flex items-center gap-0.5">
+                        VỊ TRÍ 📍 <ChevronDown className="w-3 h-3 text-amber-400" />
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Location Selection Dropdown */}
+                  {isSelf && isLocationDropdownOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-64 p-2 rounded-2xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_10px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl z-50 animate-solar-drop-snap space-y-1">
+                      <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Vị trí làm việc hôm nay</span>
+                        <span className="text-amber-400 font-mono text-[10px]">Solaris Geo</span>
+                      </div>
+                      {WORK_LOCATIONS.map((loc) => {
+                        const Icon = loc.icon;
+                        const isSelected = currentWorkLocation === loc.id;
+                        return (
+                          <button
+                            key={loc.id}
+                            type="button"
+                            onClick={() => handleSelectWorkLocation(loc.id)}
+                            className={`w-full p-2.5 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
+                              isSelected ? 'bg-amber-500/20 border border-amber-500/40 text-white' : 'hover:bg-slate-800/80 text-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className={`p-1.5 rounded-lg ${loc.badgeBg}`}>
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <span className="text-xs font-bold block text-white">{loc.label}</span>
+                                <span className="text-[10px] text-slate-400 block font-mono">{loc.subLabel}</span>
+                              </div>
+                            </div>
+                            {isSelected && <Check className="w-4 h-4 text-amber-400" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -471,8 +645,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
           <div className="pt-2 border-t border-slate-800/80 space-y-2 text-xs font-mono">
             <div className="flex items-center justify-between text-slate-400">
-              <span>Chế độ làm việc:</span>
-              <span className="text-emerald-400 font-bold">Văn phòng (Office HQ)</span>
+              <span>Vị trí hôm nay:</span>
+              <span className={`font-bold flex items-center gap-1.5 ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.textColor || 'text-emerald-400'}`}>
+                {(() => {
+                  const loc = WORK_LOCATIONS.find((l) => l.id === currentWorkLocation);
+                  const Icon = loc?.icon || Building2;
+                  return (
+                    <>
+                      <Icon className="w-3.5 h-3.5" />
+                      {loc?.label || 'Văn phòng (Office HQ)'}
+                    </>
+                  );
+                })()}
+              </span>
             </div>
             <div className="flex items-center justify-between text-slate-400">
               <span>Khối phòng ban:</span>
@@ -576,26 +761,117 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-slate-300 font-bold">Link Ảnh Đại Diện (Avatar URL)</label>
+              {/* 📸 Avatar File Upload */}
+              <div className="space-y-2 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800">
+                <label className="text-slate-300 font-bold block flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-amber-400" /> Ảnh Đại Diện (Avatar)
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">Tối đa 5MB</span>
+                </label>
+
                 <input
-                  type="url"
-                  value={formData.avatarUrl}
-                  onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                  type="file"
+                  ref={avatarFileInputRef}
+                  onChange={handleAvatarFileChange}
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                  className="hidden"
                 />
+
+                <div className="flex items-center gap-4">
+                  <div className="relative group shrink-0">
+                    <img
+                      src={formData.avatarUrl || DEFAULT_COVER}
+                      alt="Avatar Preview"
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500/50 shadow-md bg-slate-950"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer"
+                    >
+                      <UploadCloud className="w-5 h-5 text-amber-400" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 space-y-1.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => avatarFileInputRef.current?.click()}
+                        className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" /> Chọn Tệp Ảnh Từ Máy Tính
+                      </button>
+                      {formData.avatarUrl && formData.avatarUrl !== getAvatarUrl(user) && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData((prev) => ({ ...prev, avatarUrl: getAvatarUrl(user) }))}
+                          className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-300 border border-slate-700 text-xs font-medium transition-all cursor-pointer"
+                          title="Đặt lại ảnh ban đầu"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 truncate">
+                      Hỗ trợ định dạng: <span className="font-mono text-slate-300">PNG, JPG, WEBP, GIF</span>
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-slate-300 font-bold">Link Ảnh Bìa (Cover Image URL)</label>
+              {/* 🖼️ Cover Image File Upload */}
+              <div className="space-y-2 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800">
+                <label className="text-slate-300 font-bold block flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-amber-400" /> Ảnh Bìa Cá Nhân (Cover Image)
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">Tối đa 5MB</span>
+                </label>
+
                 <input
-                  type="url"
-                  value={formData.coverImage}
-                  onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                  type="file"
+                  ref={coverFileInputRef}
+                  onChange={handleCoverFileChange}
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                  className="hidden"
                 />
+
+                <div className="space-y-2">
+                  <div className="h-24 w-full rounded-2xl overflow-hidden relative border border-slate-700 bg-slate-950 group">
+                    <img
+                      src={formData.coverImage || DEFAULT_COVER}
+                      alt="Cover Preview"
+                      className="w-full h-full object-cover brightness-90"
+                    />
+                    <div
+                      onClick={() => coverFileInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-2 cursor-pointer backdrop-blur-[2px]"
+                    >
+                      <UploadCloud className="w-4 h-4 text-amber-400" /> Nhấp để chọn ảnh bìa mới từ máy tính
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => coverFileInputRef.current?.click()}
+                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5 text-amber-400" /> Chọn Tệp Ảnh Bìa
+                    </button>
+                    {formData.coverImage !== DEFAULT_COVER && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, coverImage: DEFAULT_COVER }))}
+                        className="text-[11px] text-slate-400 hover:text-amber-400 underline cursor-pointer"
+                      >
+                        Đặt lại ảnh bìa mặc định
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1">
