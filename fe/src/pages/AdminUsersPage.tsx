@@ -1061,7 +1061,7 @@ export const AdminUsersPage: React.FC = () => {
           {isLoadingDepartments ? (
             <div className="py-24 flex flex-col items-center justify-center gap-3 text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-              <p className="text-xs font-medium">Đang tải danh sách phòng ban từ CSDL...</p>
+              <p className="text-xs font-medium">Đang tải danh sách phòng ban...</p>
             </div>
           ) : filteredDepartments.length === 0 ? (
             <div className="py-16 text-center solar-glass-card rounded-3xl bg-[#0F172A]/80 border border-slate-800 space-y-3">
@@ -1362,7 +1362,7 @@ export const AdminUsersPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingCreate}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg cursor-pointer hover:from-amber-400 hover:to-amber-500 transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md cursor-pointer transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   {isSubmittingCreate && <Loader2 className="w-4 h-4 animate-spin" />}
                   Xác Nhận Tạo Mới
@@ -1389,7 +1389,7 @@ export const AdminUsersPage: React.FC = () => {
 
             <p className="text-xs text-slate-300">
               Chọn cấp độ đặc quyền mới cho nhân sự. Lưu ý: Cấp quyền{' '}
-              <span className="text-rose-400 font-bold">ADMIN</span> sẽ cho phép người dùng truy cập toàn bộ CSDL và Thùng rác hệ thống.
+              <span className="text-rose-400 font-bold">ADMIN</span> sẽ cho phép người dùng truy cập toàn bộ dữ liệu và Thùng rác hệ thống.
             </p>
 
             <div className="space-y-2 text-xs">
@@ -1431,7 +1431,7 @@ export const AdminUsersPage: React.FC = () => {
 
 
 
-      {/* 🗑️ MODAL 4: PERMANENT DELETE USER MODAL */}
+      {/* 👤 MODAL 4: DELETE USER CONFIRM MODAL */}
       {selectedUserForDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-md solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-rose-500/50 p-6 space-y-5 relative animate-solar-warp-in text-center shadow-[0_0_60px_rgba(244,63,94,0.3)]">
@@ -1441,16 +1441,15 @@ export const AdminUsersPage: React.FC = () => {
 
             <div className="space-y-1">
               <h3 className="text-base font-extrabold text-white">
-                Xác Nhận Xóa Vĩnh Viễn Tài Khoản?
+                Xác Nhận Xóa Vĩnh Viễn?
               </h3>
               <p className="text-xs text-slate-400">
-                Nhân sự: <span className="text-white font-bold">{selectedUserForDelete.fullName}</span>{' '}
-                ({selectedUserForDelete.email})
+                Thành viên: <span className="text-white font-bold">{selectedUserForDelete.fullName}</span> ({selectedUserForDelete.email})
               </p>
             </div>
 
             <p className="text-xs text-rose-300/90 bg-rose-950/40 p-3 rounded-2xl border border-rose-500/30 leading-relaxed">
-              ⚠️ Hành động này sẽ xóa hoàn toàn tài khoản nhân sự khỏi hệ thống danh bạ. Dữ liệu này không thể khôi phục!
+              ⚠️ Hành động này sẽ xóa vĩnh viễn tài khoản người dùng khỏi hệ thống CSDL và không thể hoàn tác.
             </p>
 
             <div className="flex items-center justify-center gap-3 pt-2">
@@ -1463,7 +1462,7 @@ export const AdminUsersPage: React.FC = () => {
               <button
                 disabled={actionLoadingId === selectedUserForDelete.id}
                 onClick={() => handleDeleteUser(selectedUserForDelete)}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs cursor-pointer shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all flex items-center gap-1.5 disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {actionLoadingId === selectedUserForDelete.id ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1480,10 +1479,10 @@ export const AdminUsersPage: React.FC = () => {
       {/* 🏢 MODAL 5: CREATE DEPARTMENT MODAL */}
       {isCreateDeptModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-lg solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-purple-500/40 shadow-[0_0_60px_rgba(168,85,247,0.25)] p-6 sm:p-8 space-y-6 relative overflow-hidden animate-solar-warp-in">
+          <div className="w-full max-w-lg solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-slate-700 shadow-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden animate-solar-warp-in">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div>
@@ -1510,7 +1509,7 @@ export const AdminUsersPage: React.FC = () => {
                   value={deptName}
                   onChange={(e) => setDeptName(e.target.value)}
                   placeholder="VD: Engineering & Architecture"
-                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-purple-500"
+                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -1522,7 +1521,7 @@ export const AdminUsersPage: React.FC = () => {
                   value={deptCode}
                   onChange={(e) => setDeptCode(e.target.value.toUpperCase())}
                   placeholder="VD: ENG, QA, UX, OPS..."
-                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono uppercase placeholder-slate-600 focus:outline-none focus:border-purple-500"
+                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono uppercase placeholder-slate-600 focus:outline-none focus:border-amber-500"
                 />
                 <span className="text-[10px] text-slate-500">Mã định danh viết tắt, duy nhất trong hệ thống.</span>
               </div>
@@ -1534,7 +1533,7 @@ export const AdminUsersPage: React.FC = () => {
                   value={deptDescription}
                   onChange={(e) => setDeptDescription(e.target.value)}
                   placeholder="Mô tả chức năng, nhiệm vụ chính của phòng ban..."
-                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-purple-500 resize-none"
+                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 resize-none"
                 />
               </div>
 
@@ -1549,7 +1548,7 @@ export const AdminUsersPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingDept}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-amber-500 text-slate-950 font-black shadow-lg cursor-pointer hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md cursor-pointer transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   {isSubmittingDept && <Loader2 className="w-4 h-4 animate-spin" />}
                   Khởi Tạo Phòng Ban
@@ -1563,16 +1562,16 @@ export const AdminUsersPage: React.FC = () => {
       {/* 🏢 MODAL 6: EDIT DEPARTMENT MODAL */}
       {editingDept && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-lg solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_0_60px_rgba(245,158,11,0.25)] p-6 sm:p-8 space-y-6 relative overflow-hidden animate-solar-warp-in">
+          <div className="w-full max-w-lg solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-slate-700 shadow-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden animate-solar-warp-in">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
                   <Edit2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-extrabold text-white">Chỉnh Sửa Khối Phòng Ban</h2>
+                  <h2 className="text-lg font-extrabold text-white">Chỉnh Sửa Phòng Ban</h2>
                   <p className="text-xs text-slate-400">
-                    Cập nhật tên, mã code và mô tả chức năng
+                    Cập nhật thông tin chi tiết của khối phòng ban
                   </p>
                 </div>
               </div>
@@ -1631,7 +1630,7 @@ export const AdminUsersPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingDept}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg cursor-pointer hover:from-amber-400 hover:to-amber-500 transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md cursor-pointer transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   {isSubmittingDept && <Loader2 className="w-4 h-4 animate-spin" />}
                   Lưu Thay Đổi
@@ -1673,7 +1672,7 @@ export const AdminUsersPage: React.FC = () => {
               <button
                 disabled={isSubmittingDept}
                 onClick={handleConfirmDeleteDept}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs cursor-pointer shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all flex items-center gap-1.5 disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isSubmittingDept ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1690,17 +1689,17 @@ export const AdminUsersPage: React.FC = () => {
       {/* 🏢 MODAL 8: TRANSFER PERSONNEL MODAL */}
       {isTransferModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-xl solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-cyan-500/40 shadow-[0_0_60px_rgba(6,182,212,0.25)] p-6 sm:p-8 space-y-6 relative overflow-hidden animate-solar-warp-in">
+          <div className="w-full max-w-xl solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-slate-700 shadow-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden animate-solar-warp-in">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/40">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
                   <ArrowRightLeft className="w-5 h-5" />
                 </div>
                 <div>
                   <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
                     Điều Chuyển Khối Phòng Ban
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono font-bold border border-cyan-500/40">
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 font-mono font-bold border border-amber-500/30">
                       {transferUserList.length} Nhân Sự
                     </span>
                   </h2>
@@ -1750,7 +1749,7 @@ export const AdminUsersPage: React.FC = () => {
               {/* Target Department Selection */}
               <div className="space-y-2">
                 <label className="text-slate-300 font-bold flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-cyan-400" /> Chọn Khối Phòng Ban Tiếp Nhận *
+                  <Building2 className="w-4 h-4 text-amber-400" /> Chọn Khối Phòng Ban Tiếp Nhận *
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-52 overflow-y-auto pr-1">
                   {departments.map((dept) => {
@@ -1762,7 +1761,7 @@ export const AdminUsersPage: React.FC = () => {
                         onClick={() => setTransferTargetDeptId(dept.id)}
                         className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           isTarget
-                            ? 'bg-cyan-950/40 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/50'
+                            ? 'bg-amber-500/10 border-amber-400 shadow-md ring-1 ring-amber-400/50'
                             : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'
                         }`}
                       >
@@ -1770,7 +1769,7 @@ export const AdminUsersPage: React.FC = () => {
                           <div
                             className={`w-9 h-9 rounded-xl flex items-center justify-center font-mono font-black text-xs shrink-0 border ${
                               isTarget
-                                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/60'
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-400/60'
                                 : 'bg-slate-800 text-slate-400 border-slate-700'
                             }`}
                           >
@@ -1779,7 +1778,7 @@ export const AdminUsersPage: React.FC = () => {
                           <div className="min-w-0">
                             <span
                               className={`font-bold block truncate text-xs ${
-                                isTarget ? 'text-cyan-300' : 'text-white'
+                                isTarget ? 'text-amber-300' : 'text-white'
                               }`}
                             >
                               {dept.name}
@@ -1794,7 +1793,7 @@ export const AdminUsersPage: React.FC = () => {
                           <span
                             className={`w-4 h-4 rounded-full border flex items-center justify-center ${
                               isTarget
-                                ? 'border-cyan-400 bg-cyan-400 text-slate-950'
+                                ? 'border-amber-400 bg-amber-400 text-slate-950'
                                 : 'border-slate-600 bg-transparent'
                             }`}
                           >
@@ -1819,7 +1818,7 @@ export const AdminUsersPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingTransfer || !transferTargetDeptId}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-amber-500 hover:opacity-95 text-slate-950 font-black shadow-lg cursor-pointer transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md cursor-pointer transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   {isSubmittingTransfer && <Loader2 className="w-4 h-4 animate-spin" />}
                   <ArrowRightLeft className="w-4 h-4" />

@@ -169,7 +169,7 @@ export const SolarisVoiceAssistantWidget: React.FC<SolarisVoiceAssistantWidgetPr
             <button
               onClick={handleSendAction}
               disabled={!transcript.trim() && !interimTranscript.trim()}
-              className="px-4 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="px-4 sm:px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               <Sparkles className="w-3.5 h-3.5 fill-current" />
               Thực Thi Khẩu Lệnh

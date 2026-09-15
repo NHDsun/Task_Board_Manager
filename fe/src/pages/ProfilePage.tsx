@@ -274,13 +274,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-2 self-end sm:self-center">
             <button
               onClick={() => showToast(`💬 Đang mở hộp thoại trò chuyện với ${user?.fullName}...`, 'info')}
-              className="px-4 py-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+              className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
             >
               <MessageSquare className="w-3.5 h-3.5" /> Gửi Tin Nhắn
             </button>
             <button
               onClick={() => setViewingUserId(null)}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-lg transition-all"
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Quay Lại Hồ Sơ Của Tôi
             </button>
@@ -620,7 +620,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg cursor-pointer hover:from-amber-400 hover:to-amber-500 transition-all flex items-center gap-1.5"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md cursor-pointer transition-all flex items-center gap-1.5"
                 >
                   {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                   Lưu &amp; Đồng Bộ
@@ -716,7 +716,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 <button
                   type="submit"
                   disabled={isChangingPassword}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg cursor-pointer hover:from-amber-400 hover:to-amber-500"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md cursor-pointer transition-all"
                 >
                   {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xác Nhận Đổi'}
                 </button>
