@@ -64,6 +64,36 @@ enum WorkMode {
   REMOTE
 }
 
+enum WorkType {
+  OFFICE
+  WFH
+  ON_SITE
+  LEAVE
+}
+
+enum WorkShift {
+  FULL_DAY
+  MORNING
+  AFTERNOON
+}
+
+enum LeaveType {
+  WFH
+  ANNUAL_LEAVE
+  SICK_LEAVE
+  UNPAID_LEAVE
+  MATERNITY_LEAVE
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  APPROVED_MODIFIED
+  REJECTED
+  CANCELLED
+}
+
 enum TaskRequestType {
   TRANSFER
   ASSIST
@@ -90,6 +120,10 @@ enum NotificationType {
   TASK_COMMENT
   MENTION
   SYSTEM
+  LEAVE_REQUEST_SUBMITTED
+  LEAVE_REQUEST_APPROVED
+  LEAVE_REQUEST_REJECTED
+  WORK_SCHEDULE_ASSIGNED
 }
 
 model Department {
@@ -144,6 +178,10 @@ model User {
   assignedSubtasks       Subtask[]       @relation("SubtaskAssignee")
   notifications          Notification[]  @relation("UserNotifications")
   actorNotifications     Notification[]  @relation("ActorNotifications")
+  workSchedules          WorkSchedule[]  @relation("UserWorkSchedules")
+  createdWorkSchedules   WorkSchedule[]  @relation("CreatedWorkSchedules")
+  leaveRequests          LeaveRequest[]  @relation("UserLeaveRequests")
+  approvedLeaveRequests  LeaveRequest[]  @relation("ApprovedLeaveRequests")
 
   @@map("users")
 }
@@ -383,4 +421,53 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model WorkSchedule {
+  id             String    @id @default(uuid())
+  userId         String    @map("user_id")
+  date           DateTime  @db.Date
+  workType       WorkType  @default(OFFICE) @map("work_type")
+  shift          WorkShift @default(FULL_DAY)
+  note           String?
+  createdById    String?   @map("created_by_id")
+  leaveRequestId String?   @map("leave_request_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user         User          @relation("UserWorkSchedules", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation("CreatedWorkSchedules", fields: [createdById], references: [id], onDelete: SetNull)
+  leaveRequest LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, date, shift])
+  @@index([userId, date])
+  @@index([date, workType])
+  @@map("work_schedules")
+}
+
+model LeaveRequest {
+  id                String      @id @default(uuid())
+  userId            String      @map("user_id")
+  type              LeaveType   @default(WFH)
+  startDate         DateTime    @map("start_date") @db.Date
+  endDate           DateTime    @map("end_date") @db.Date
+  shift             WorkShift   @default(FULL_DAY)
+  reason            String
+  status            LeaveStatus @default(PENDING)
+  handoverPlan      String?     @map("handover_plan")
+  approverId        String?     @map("approver_id")
+  responseNote      String?     @map("response_note")
+  approvedStartDate DateTime?   @map("approved_start_date") @db.Date
+  approvedEndDate   DateTime?   @map("approved_end_date") @db.Date
+  modifiedTasksPlan String?     @map("modified_tasks_plan")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  user          User           @relation("UserLeaveRequests", fields: [userId], references: [id], onDelete: Cascade)
+  approver      User?          @relation("ApprovedLeaveRequests", fields: [approverId], references: [id], onDelete: SetNull)
+  workSchedules WorkSchedule[]
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("leave_requests")
 }
