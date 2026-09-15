@@ -153,7 +153,7 @@ model User {
   jobTitle     String?          @map("job_title")
   phone        String?
   bio          String?
-  isActive     Boolean          @default(true) @map("is_active")         
+  isActive     Boolean          @default(true) @map("is_active")
   isFirstLogin Boolean          @default(false) @map("is_first_login")
   statusSignal UserStatusSignal @default(ONLINE) @map("status_signal")
   customStatus String?          @map("custom_status")
@@ -178,6 +178,7 @@ model User {
   assignedSubtasks       Subtask[]       @relation("SubtaskAssignee")
   notifications          Notification[]  @relation("UserNotifications")
   actorNotifications     Notification[]  @relation("ActorNotifications")
+  taskHistories          TaskHistory[]
   workSchedules          WorkSchedule[]  @relation("UserWorkSchedules")
   createdWorkSchedules   WorkSchedule[]  @relation("CreatedWorkSchedules")
   leaveRequests          LeaveRequest[]  @relation("UserLeaveRequests")
@@ -264,6 +265,7 @@ model Task {
   taskRequests  TaskRequest[]
   attachments   Attachment[]
   notifications Notification[]
+  histories     TaskHistory[]
 
   @@index([projectId, status])
   @@index([assigneeId, status])
@@ -421,6 +423,23 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model TaskHistory {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  action    String
+  field     String?
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@map("task_histories")
 }
 
 model WorkSchedule {

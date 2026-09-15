@@ -25,7 +25,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaService
   ) {}
 
   private extractUserFromSocket(client: Socket): { id: string; email: string; role?: string } | null {
@@ -67,7 +67,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('joinProject')
   async handleJoinProject(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { projectId: string; token?: string },
+    @MessageBody() data: { projectId: string; token?: string }
   ) {
     if (!data?.projectId) {
       return { status: 'error', message: 'Invalid projectId' };
@@ -102,10 +102,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('leaveProject')
-  handleLeaveProject(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { projectId: string },
-  ) {
+  handleLeaveProject(@ConnectedSocket() client: Socket, @MessageBody() data: { projectId: string }) {
     if (data?.projectId) {
       const room = `project:${data.projectId}`;
       client.leave(room);
@@ -116,10 +113,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('joinUser')
-  handleJoinUser(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { userId: string; token?: string },
-  ) {
+  handleJoinUser(@ConnectedSocket() client: Socket, @MessageBody() data: { userId: string; token?: string }) {
     if (!data?.userId) {
       return { status: 'error', message: 'Invalid userId' };
     }
@@ -140,10 +134,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('leaveUser')
-  handleLeaveUser(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { userId: string },
-  ) {
+  handleLeaveUser(@ConnectedSocket() client: Socket, @MessageBody() data: { userId: string }) {
     if (data?.userId) {
       const room = `user:${data.userId}`;
       client.leave(room);

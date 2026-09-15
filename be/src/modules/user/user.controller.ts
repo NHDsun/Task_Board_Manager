@@ -77,7 +77,7 @@ export class UserController {
     const adminId = req.user.id;
     return this.userService.remove(id, adminId);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: AuthenticatedRequest) {
     const currentUserId = req.user.id;

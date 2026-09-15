@@ -4,11 +4,12 @@ import { TaskController } from './task.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { SocketModule } from '../socket/socket.module';
 import { NotificationModule } from '../notification/notification.module';
+import { TaskActivityService } from './task-activity.service';
 
 @Module({
   imports: [PrismaModule, SocketModule, NotificationModule],
   controllers: [TaskController],
-  providers: [TaskService],
-  exports: [TaskService],
+  providers: [TaskService, TaskActivityService],
+  exports: [TaskService, TaskActivityService],
 })
 export class TaskModule {}

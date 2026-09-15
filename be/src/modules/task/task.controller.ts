@@ -21,18 +21,26 @@ import { UpdateTaskDescriptionDto } from './dto/update-task-description.dto';
 import { QueryTaskFilterDto } from './dto/query-task-filter.dto';
 import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
+import { TaskActivityService } from './task-activity.service';
+interface AuthenticatedRequest extends Request {
+  user: {
+    id: string;
+    email?: string;
+    role?: string;
+  };
+}
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
 export class TaskController {
-  constructor(private readonly taskService: TaskService) {}
+  constructor(
+    private readonly taskService: TaskService,
+    private readonly taskActivityService: TaskActivityService
+  ) {}
 
-  private extractUserId(req: any): string {
-    const userId = req.user?.id || req.user?.sub || req.user?.userId;
+  private extractUserId(req: AuthenticatedRequest): string {
+    const userId = req.user?.id;
     if (!userId) {
-      throw new UnauthorizedException(
-        'Phiên đăng nhập không hợp lệ hoặc đã hết hạn',
-      );
+      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ hoặc đã hết hạn');
     }
     return userId;
   }
@@ -53,10 +61,10 @@ export class TaskController {
   }
 
   @Patch(':id/status')
-  updateStatus(
+  async updateStatus(
     @Param('id') id: string,
-    @Request() req: any,
     @Body() updateTaskStatusDto: UpdateTaskStatusDto,
+    @Request() req: AuthenticatedRequest
   ) {
     return this.taskService.updateStatus(id, updateTaskStatusDto, req.user);
   }
@@ -64,14 +72,14 @@ export class TaskController {
   @Patch(':id/description')
   updateDescription(
     @Param('id') id: string,
-    @Request() req: any,
-    @Body() body: UpdateTaskDescriptionDto,
+    @Request() req: AuthenticatedRequest,
+    @Body() body: UpdateTaskDescriptionDto
   ) {
     return this.taskService.updateDescription(id, body.description, req.user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Request() req: any, @Body() body: any) {
+  update(@Param('id') id: string, @Request() req: AuthenticatedRequest, @Body() body: any) {
     if (body.description !== undefined) {
       return this.taskService.updateDescription(id, body.description, req.user);
     }
@@ -79,73 +87,65 @@ export class TaskController {
   }
 
   @Get(':id/comments')
-  getComments(@Param('id') id: string, @Request() req: any) {
+  getComments(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.taskService.getComments(id, req.user);
   }
 
   @Post(':id/comments')
-  addComment(
-    @Param('id') id: string,
-    @Request() req: any,
-    @Body() dto: CreateTaskCommentDto,
-  ) {
+  addComment(@Param('id') id: string, @Request() req: AuthenticatedRequest, @Body() dto: CreateTaskCommentDto) {
     return this.taskService.addComment(id, this.extractUserId(req), dto);
   }
 
   @Post('requests')
   createTaskRequest(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body()
     dto: {
       taskId: string;
       receiverId: string;
       type?: 'TRANSFER' | 'ASSIST' | 'REVIEW';
       note?: string;
-    },
+    }
   ) {
     return this.taskService.createTaskRequest(this.extractUserId(req), dto);
   }
 
   @Get('requests/incoming')
-  getIncomingRequests(@Request() req: any) {
+  getIncomingRequests(@Request() req: AuthenticatedRequest) {
     return this.taskService.getIncomingRequests(this.extractUserId(req));
   }
 
   @Get('requests/outgoing')
-  getOutgoingRequests(@Request() req: any) {
+  getOutgoingRequests(@Request() req: AuthenticatedRequest) {
     return this.taskService.getOutgoingRequests(this.extractUserId(req));
   }
 
   @Patch('requests/:id/cancel')
-  cancelTaskRequest(@Param('id') id: string, @Request() req: any) {
+  cancelTaskRequest(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.taskService.cancelTaskRequest(id, this.extractUserId(req));
   }
 
   @Patch('requests/:id/respond')
   respondToRequest(
     @Param('id') id: string,
-    @Request() req: any,
-    @Body() body: { action: 'APPROVED' | 'REJECTED' },
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { action: 'APPROVED' | 'REJECTED' }
   ) {
-    return this.taskService.respondToRequest(
-      id,
-      this.extractUserId(req),
-      body.action,
-    );
+    return this.taskService.respondToRequest(id, this.extractUserId(req), body.action);
   }
 
   @Get('archived')
-  getArchivedTasks(@Request() req: any) {
+  getArchivedTasks(@Request() req: AuthenticatedRequest) {
     return this.taskService.getArchivedTasks(req.user);
   }
 
   @Post(':id/restore')
-  restoreTask(@Param('id') id: string, @Request() req: any) {
+  restoreTask(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.taskService.restoreTask(id, req.user);
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string, @Request() req: any) {
+  delete(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.taskService.deleteTask(id, this.extractUserId(req));
   }
 
@@ -153,25 +153,22 @@ export class TaskController {
   @UseInterceptors(FileInterceptor('file'))
   addAttachment(
     @Param('id') id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @UploadedFile() file: any,
-    @Body() body: { name?: string; url?: string; type?: string },
+    @Body() body: { name?: string; url?: string; type?: string }
   ) {
     return this.taskService.addAttachment(id, file, body, req.user);
   }
 
   @Delete('attachments/:attachmentId')
-  deleteAttachment(
-    @Param('attachmentId') attachmentId: string,
-    @Request() req: any,
-  ) {
+  deleteAttachment(@Param('attachmentId') attachmentId: string, @Request() req: AuthenticatedRequest) {
     return this.taskService.deleteAttachment(attachmentId, req.user);
   }
 
   @Post(':id/subtasks')
   addSubtask(
     @Param('id') id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body()
     body: {
       title: string;
@@ -180,7 +177,7 @@ export class TaskController {
       estimatedDays?: number;
       dueDate?: string;
       isUrgent?: boolean;
-    },
+    }
   ) {
     return this.taskService.addSubtask(id, body, req.user);
   }
@@ -188,7 +185,7 @@ export class TaskController {
   @Patch('subtasks/:subtaskId')
   updateSubtask(
     @Param('subtaskId') subtaskId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body()
     body: {
       isDone?: boolean;
@@ -198,7 +195,7 @@ export class TaskController {
       estimatedDays?: number;
       dueDate?: string;
       isUrgent?: boolean;
-    },
+    }
   ) {
     return this.taskService.updateSubtask(subtaskId, body, req.user);
   }
@@ -206,14 +203,23 @@ export class TaskController {
   @Patch('subtasks/:subtaskId/review')
   reviewSubtask(
     @Param('subtaskId') subtaskId: string,
-    @Request() req: any,
-    @Body() body: { action: 'APPROVE' | 'REJECT'; reason?: string },
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { action: 'APPROVE' | 'REJECT'; reason?: string }
   ) {
     return this.taskService.reviewSubtask(subtaskId, body, req.user);
   }
 
   @Delete('subtasks/:subtaskId')
-  deleteSubtask(@Param('subtaskId') subtaskId: string, @Request() req: any) {
+  deleteSubtask(@Param('subtaskId') subtaskId: string, @Request() req: AuthenticatedRequest) {
     return this.taskService.deleteSubtask(subtaskId, req.user);
+  }
+  @Get(':id/activities')
+  async getActivities(@Param('id') taskId: string, @Query('filter') filter: 'all' | 'comments' | 'history' = 'all') {
+    return this.taskActivityService.getTaskActivities(taskId, filter);
+  }
+  @Get('user/:userId/moves')
+  async getUserMoves(@Param('userId') userId: string, @Query('limit') limit?: string) {
+    const take = limit ? parseInt(limit, 10) : 30;
+    return await this.taskActivityService.getUserMoveHistories(userId, take);
   }
 }
