@@ -488,7 +488,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                     {st.approvalStatus === 'PENDING' ? (
                       <div className="flex items-center gap-1 shrink-0">
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold animate-pulse">
-                          ⏳ Chờ Duyệt
+                           Chờ Duyệt
                         </span>
                         {isAdminOrManager && (
                           <>
@@ -535,7 +535,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                       </div>
                     ) : st.isUrgent && !st.isDone ? (
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500 text-white font-mono font-black shrink-0 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]">
-                        🚨 GẤP
+                         GẤP
                       </span>
                     ) : st.isDone ? (
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono shrink-0">
@@ -547,7 +547,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                           ? 'bg-amber-500 text-slate-950 animate-pulse'
                           : 'bg-slate-800 text-amber-300 border border-amber-500/30'
                       }`}>
-                        {idx === 0 ? `🔥 HÔM NAY (${sched})` : `📅 LỊCH: ${sched}`}
+                        {idx === 0 ? ` HÔM NAY (${sched})` : `📅 LỊCH: ${sched}`}
                       </span>
                     ) : (
                       <span className="text-[9px] px-1 py-0.2 rounded bg-slate-900 text-slate-500 font-mono shrink-0">
@@ -685,7 +685,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
         </div>
       </div>
 
-      {/* 🌟 UNIVERSAL USER PROFILE MODAL */}
+      {/*  UNIVERSAL USER PROFILE MODAL */}
       <UserProfileModal
         user={profileUser}
         isOpen={!!profileUser}
