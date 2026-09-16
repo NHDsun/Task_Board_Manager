@@ -214,8 +214,12 @@ export class TaskController {
     return this.taskService.deleteSubtask(subtaskId, req.user);
   }
   @Get(':id/activities')
-  async getActivities(@Param('id') taskId: string, @Query('filter') filter: 'all' | 'comments' | 'history' = 'all') {
-    return this.taskActivityService.getTaskActivities(taskId, filter);
+  async getActivities(
+    @Param('id') taskId: string,
+    @Query('filter') filter: 'all' | 'comments' | 'history' = 'all',
+    @Request() req: AuthenticatedRequest
+  ) {
+    return this.taskActivityService.getTaskActivities(taskId, filter, req.user);
   }
   @Get('user/:userId/moves')
   async getUserMoves(@Param('userId') userId: string, @Query('limit') limit?: string) {

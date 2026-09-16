@@ -395,11 +395,16 @@ export const BoardPage: React.FC = () => {
       (user as any)?.role === 'MANAGER'
     );
     const hasAssignee = Boolean(taskToMove.assigneeId || taskToMove.assignee?.id || taskToMove.assignee?.email);
+    const isSubtaskAssignee = Boolean(
+      taskToMove.subtasks &&
+      taskToMove.subtasks.some((st) => st.assigneeId === user?.id || st.assignee?.id === user?.id)
+    );
     const isTaskOwner = hasAssignee
       ? (taskToMove.assigneeId === user?.id ||
          taskToMove.assignee?.id === user?.id ||
-         taskToMove.assignee?.email === user?.email)
-      : (taskToMove as any).createdById === user?.id;
+         taskToMove.assignee?.email === user?.email ||
+         isSubtaskAssignee)
+      : (taskToMove as any).createdById === user?.id || isSubtaskAssignee;
 
     if (!isManagerOrAdmin && !isTaskOwner) {
       showNotification(
@@ -446,12 +451,12 @@ export const BoardPage: React.FC = () => {
       setRecentlyMovedTaskId(null);
     }, 800);
 
+    const safeProgress = Math.round(targetStatus === 'TODO' ? 0 : (taskToMove.progress || 0));
+
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === draggableId) {
-          let newProgress = t.progress;
-          if (targetStatus === 'TODO') newProgress = 0;
-          return { ...t, status: targetStatus, progress: newProgress };
+          return { ...t, status: targetStatus, progress: safeProgress };
         }
         return t;
       })
@@ -460,9 +465,13 @@ export const BoardPage: React.FC = () => {
     // 🚀 Cập nhật CSDL ngầm
     api.patch(`/tasks/${draggableId}/status`, {
       status: targetStatus,
-      progress: targetStatus === 'TODO' ? 0 : taskToMove.progress,
-    }).catch(() => {
-      // Khôi phục giao diện theo dữ liệu chuẩn từ CSDL nếu có lỗi
+      progress: safeProgress,
+    }).catch((err: any) => {
+      const respMsg = err.response?.data?.message;
+      const errMsg = Array.isArray(respMsg)
+        ? respMsg.join(', ')
+        : (respMsg || err.message || 'Không thể cập nhật trạng thái Task');
+      showNotification(errMsg, 'warning', 'Lỗi Cập Nhật Trạng Thái');
       fetchTasksFromBackend();
     });
   };
@@ -486,11 +495,16 @@ export const BoardPage: React.FC = () => {
       (user as any)?.role === 'MANAGER'
     );
     const hasAssignee = Boolean(taskToMove.assigneeId || taskToMove.assignee?.id || taskToMove.assignee?.email);
+    const isSubtaskAssignee = Boolean(
+      taskToMove.subtasks &&
+      taskToMove.subtasks.some((st) => st.assigneeId === user?.id || st.assignee?.id === user?.id)
+    );
     const isTaskOwner = hasAssignee
       ? (taskToMove.assigneeId === user?.id ||
          taskToMove.assignee?.id === user?.id ||
-         taskToMove.assignee?.email === user?.email)
-      : (taskToMove as any).createdById === user?.id;
+         taskToMove.assignee?.email === user?.email ||
+         isSubtaskAssignee)
+      : (taskToMove as any).createdById === user?.id || isSubtaskAssignee;
 
     if (!isManagerOrAdmin && !isTaskOwner) {
       showNotification(
@@ -923,11 +937,16 @@ export const BoardPage: React.FC = () => {
                             (user as any)?.role === 'MANAGER'
                           );
                           const hasAssignee = Boolean(t.assigneeId || t.assignee?.id || t.assignee?.email);
+                          const isSubtaskAssignee = Boolean(
+                            t.subtasks &&
+                            t.subtasks.some((st) => st.assigneeId === user?.id || st.assignee?.id === user?.id)
+                          );
                           const isMyOwnTask = hasAssignee
                             ? (t.assigneeId === user?.id ||
                                t.assignee?.id === user?.id ||
-                               t.assignee?.email === user?.email)
-                            : (t as any).createdById === user?.id;
+                               t.assignee?.email === user?.email ||
+                               isSubtaskAssignee)
+                            : (t as any).createdById === user?.id || isSubtaskAssignee;
                           const isDragDisabled = t.status === 'IN_REVIEW' || (!isManagerOrAdmin && !isMyOwnTask);
 
                           return (
@@ -1798,14 +1817,28 @@ export const BoardPage: React.FC = () => {
                               })
                             );
                             if (heroTask) {
-                              api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' });
+                              api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' }).catch((err) => {
+                                console.error('Lỗi khi hạ status hero task cũ:', err);
+                                fetchTasksFromBackend();
+                              });
                             }
-                            api.patch(`/tasks/${t.id}/status`, { status: 'IN_PROGRESS' });
-                            showNotification(
-                              `🟢 Đã đưa Task "${t.title}" lên HERO FOCUS!`,
-                              'success',
-                              'Today Focus'
-                            );
+                            api.patch(`/tasks/${t.id}/status`, { status: 'IN_PROGRESS' })
+                              .then(() => {
+                                showNotification(
+                                  `🟢 Đã đưa Task "${t.title}" lên HERO FOCUS!`,
+                                  'success',
+                                  'Today Focus'
+                                );
+                              })
+                              .catch((err) => {
+                                console.error('Lỗi khi kích hoạt Hero Task:', err);
+                                showNotification(
+                                  `❌ Không thể cập nhật trạng thái Task: ${err.response?.data?.message || err.message}`,
+                                  'warning',
+                                  'Today Focus'
+                                );
+                                fetchTasksFromBackend();
+                              });
                           }}
                           className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all shadow-sm shrink-0"
                         >
