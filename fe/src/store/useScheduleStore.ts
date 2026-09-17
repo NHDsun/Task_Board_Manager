@@ -89,6 +89,7 @@ interface ScheduleStoreState {
 
   // 📝 Quản lý Đơn xin nghỉ / WFH
   addLeaveRequest: (request: Omit<LeaveRequestRecord, 'id' | 'createdAt' | 'status'>) => void;
+  cancelLeaveRequest: (requestId: string, userId: string) => void;
   reviewLeaveRequest: (
     requestId: string,
     status: 'APPROVED' | 'APPROVED_MODIFIED' | 'REJECTED',
@@ -254,6 +255,23 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
   },
 
   addLeaveRequest: (reqData) => {
+    const state = get();
+    // 🔒 [LC-114] CHẶN TRÙNG LẶP ĐƠN NGHỈ PHÉP / WFH TRONG KHOẢNG THỜI GIAN ĐÃ CÓ ĐƠN ĐANG CHỜ DUYỆT HOẶC ĐÃ DUYỆT
+    const hasOverlap = state.leaveRequests.some((existing) => {
+      if (existing.userId !== reqData.userId) return false;
+      if (existing.status === 'REJECTED' || existing.status === 'CANCELLED') return false;
+
+      const existingStart = existing.approvedStartDate || existing.startDate;
+      const existingEnd = existing.approvedEndDate || existing.endDate;
+
+      // Overlap condition: max(start1, start2) <= min(end1, end2)
+      return reqData.startDate <= existingEnd && reqData.endDate >= existingStart;
+    });
+
+    if (hasOverlap) {
+      throw new Error('Bạn đã có đơn xin nghỉ / WFH (đang chờ duyệt hoặc đã duyệt) trong khoảng thời gian này!');
+    }
+
     const newReq: LeaveRequestRecord = {
       ...reqData,
       id: `lr-${Date.now()}`,
@@ -272,6 +290,46 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
     });
   },
 
+  cancelLeaveRequest: (requestId: string, userId: string) => {
+    set((state) => {
+      const targetReq = state.leaveRequests.find((r) => r.id === requestId);
+      if (!targetReq) return state;
+
+      // Chỉ chủ đơn hoặc Admin mới có quyền hủy
+      if (targetReq.userId !== userId) {
+        return state;
+      }
+
+      const updatedRequests = state.leaveRequests.map((r) =>
+        r.id === requestId ? { ...r, status: 'CANCELLED' as const } : r
+      );
+
+      // Nếu đơn trước đó đã duyệt -> Xóa hoặc khôi phục các bản ghi lịch làm việc đã sinh
+      let updatedSchedules = [...state.workSchedules];
+      if (targetReq.status === 'APPROVED' || targetReq.status === 'APPROVED_MODIFIED') {
+        const start = targetReq.approvedStartDate || targetReq.startDate;
+        const end = targetReq.approvedEndDate || targetReq.endDate;
+
+        updatedSchedules = updatedSchedules.filter((s) => {
+          if (s.userId !== targetReq.userId) return true;
+          return !(s.date >= start && s.date <= end && s.note?.includes(targetReq.reason));
+        });
+      }
+
+      try {
+        localStorage.setItem('solaris_leave_requests', JSON.stringify(updatedRequests));
+        localStorage.setItem('solaris_work_schedules', JSON.stringify(updatedSchedules));
+      } catch (err) {
+        console.error('Lỗi lưu cancel leave request storage:', err);
+      }
+
+      return {
+        leaveRequests: updatedRequests,
+        workSchedules: updatedSchedules,
+      };
+    });
+  },
+
   reviewLeaveRequest: (
     requestId,
     status,
@@ -284,6 +342,16 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
     set((state) => {
       const targetReq = state.leaveRequests.find((r) => r.id === requestId);
       if (!targetReq) return state;
+
+      // 🔒 [LC-170] KHÓA TỰ PHÊ DUYỆT ĐƠN NGHỈ PHÉP & KHÓA ĐƠN ĐÃ CÓ KẾT QUẢ
+      if (targetReq.userId === approverId) {
+        console.warn('Không thể tự phê duyệt đơn xin nghỉ/WFH của chính mình!');
+        return state;
+      }
+      if (targetReq.status !== 'PENDING') {
+        console.warn('Đơn này đã được xử lý trước đó và không còn ở trạng thái chờ duyệt.');
+        return state;
+      }
 
       const effectiveShift = modifiedShift || targetReq.shift || 'FULL_DAY';
 

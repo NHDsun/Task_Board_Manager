@@ -22,13 +22,8 @@ import { QueryTaskFilterDto } from './dto/query-task-filter.dto';
 import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TaskActivityService } from './task-activity.service';
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
+import { AuthenticatedRequest } from '../../common/interfaces/auth-user.interface';
+
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
 export class TaskController {
