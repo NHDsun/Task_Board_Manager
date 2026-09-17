@@ -333,7 +333,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                         <span>{m.email}</span>
                         <span>•</span>
                         <span className="text-amber-300 font-bold">
-                          📋 {m.activeTasksCount} Task đang phụ trách
+                           {m.activeTasksCount} Task đang phụ trách
                         </span>
                       </div>
                     </div>
@@ -358,7 +358,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
 
         {/* Footer */}
         <div className="px-6 py-3.5 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-xs text-slate-500 font-mono">
-          <span>💡 Khi xóa thành viên, toàn bộ Task đang làm sẽ tự động chuyển giao về Quản lý dự án.</span>
+          <span> Khi xóa thành viên, toàn bộ Task đang làm sẽ tự động chuyển giao về Quản lý dự án.</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold cursor-pointer transition-colors"
@@ -389,7 +389,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                 dự án này không?
               </p>
               <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px]">
-                ⚡ <strong>Quy tắc hệ thống:</strong> Toàn bộ{' '}
+                 <strong>Quy tắc hệ thống:</strong> Toàn bộ{' '}
                 <strong>{confirmDeleteMember.activeTasksCount} Task</strong> đang được giao cho nhân sự này sẽ{' '}
                 <strong>tự động chuyển giao về cho Quản lý dự án</strong> để đảm bảo không bị gián đoạn tiến độ.
               </div>

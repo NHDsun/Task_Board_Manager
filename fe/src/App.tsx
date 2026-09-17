@@ -2,7 +2,7 @@ import React, { useState, useEffect, Component, Suspense, type ReactNode } from 
 import { useAuthStore } from './store/useAuthStore';
 import { useAutoStatusSignal } from './hooks/useAutoStatusSignal';
 import { MainLayout } from './layouts/MainLayout';
-import { Video, MessageSquare, Inbox, AlertTriangle, RotateCcw, Loader2 } from 'lucide-react';
+import { MessageSquare, Inbox, AlertTriangle, RotateCcw, Loader2 } from 'lucide-react';
 
 const LoginPage = React.lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
@@ -174,20 +174,7 @@ export default function App() {
             </div>
           </div>
         );
-      case '/meetings':
-        return (
-          <div className="p-8 max-w-7xl mx-auto space-y-6">
-            <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-purple-500/30">
-              <h1 className="text-3xl font-extrabold text-purple-300 flex items-center gap-3">
-                <Video className="w-8 h-8 text-purple-400" />
-                Phòng Họp Trực Tuyến WebRTC
-              </h1>
-              <p className="text-slate-300 mt-2">
-                Hệ thống Video Call WebRTC HD, Chia sẻ Màn hình 1-Click và tự động cập nhật quầng sáng trạng thái.
-              </p>
-            </div>
-          </div>
-        );
+
       case '/messages':
         return (
           <div className="p-8 max-w-7xl mx-auto space-y-6">

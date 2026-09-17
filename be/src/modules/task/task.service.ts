@@ -2445,7 +2445,12 @@ export class TaskService {
           (userId && task.project?.createdById === userId) ||
           (userId && task.createdById === userId)
         );
-        const isAssignee = task.assigneeId ? task.assigneeId === userId : task.createdById === userId;
+        const isSubtaskAssignee = Boolean(
+          task.subtasks && task.subtasks.some((st) => st.assigneeId === userId)
+        );
+        const isAssignee = task.assigneeId
+          ? task.assigneeId === userId || isSubtaskAssignee
+          : task.createdById === userId || isSubtaskAssignee;
 
         if (!isAdminOrManager && !isAssignee) {
           throw new ForbiddenException(
@@ -2512,16 +2517,22 @@ export class TaskService {
       if (oldStatus !== newStatus) {
         const loggerId = activeUserId || task.assigneeId || task.createdById;
 
-        await tx.taskHistory.create({
-          data: {
-            taskId: String(id),
-            userId: String(loggerId),
-            action: 'MOVED_TASK',
-            field: 'status',
-            oldValue: String(oldStatus),
-            newValue: String(newStatus),
-          },
-        });
+        if (loggerId) {
+          try {
+            await tx.taskHistory.create({
+              data: {
+                taskId: String(id),
+                userId: String(loggerId),
+                action: 'MOVED_TASK',
+                field: 'status',
+                oldValue: String(oldStatus),
+                newValue: String(newStatus),
+              },
+            });
+          } catch {
+            // Safe fallback to prevent task update transaction failure
+          }
+        }
       }
 
       return result;
