@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useUserStore } from '../store/useUserStore';
+import { useScheduleStore } from '../store/useScheduleStore';
 import { profileService, type PersonalStatsResponse } from '../services/profile';
 import type { UserStatusSignal, Profession } from '../types/auth';
 import { DEFAULT_COVER, getAvatarUrl } from '../utils/avatar';
@@ -26,8 +27,65 @@ import {
   MessageSquare,
   AlertTriangle,
   Upload,
+  Home,
+  Plane,
+  Palmtree,
+  UploadCloud,
   Image as ImageIcon,
+  ChevronDown,
+  Check,
+  Trash2,
 } from 'lucide-react';
+import { useScheduleStore } from '../store/useScheduleStore';
+
+export type WorkLocationType = 'OFFICE' | 'WFH' | 'ON_SITE' | 'LEAVE';
+
+const WORK_LOCATIONS: Array<{
+  id: WorkLocationType;
+  label: string;
+  subLabel: string;
+  icon: React.ElementType;
+  badgeBg: string;
+  textColor: string;
+  dotColor: string;
+}> = [
+  {
+    id: 'OFFICE',
+    label: 'Tại Văn Phòng',
+    subLabel: 'Office HQ',
+    icon: Building2,
+    badgeBg: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
+    textColor: 'text-emerald-300',
+    dotColor: 'bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.8)]',
+  },
+  {
+    id: 'WFH',
+    label: 'Làm Từ Xa (WFH)',
+    subLabel: 'Remote Working',
+    icon: Home,
+    badgeBg: 'bg-amber-500/15 border-amber-500/30 text-amber-300',
+    textColor: 'text-amber-300',
+    dotColor: 'bg-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.8)]',
+  },
+  {
+    id: 'ON_SITE',
+    label: 'Đi Công Tác',
+    subLabel: 'On-Site / Business Trip',
+    icon: Plane,
+    badgeBg: 'bg-blue-500/15 border-blue-500/30 text-blue-300',
+    textColor: 'text-blue-300',
+    dotColor: 'bg-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.8)]',
+  },
+  {
+    id: 'LEAVE',
+    label: 'Nghỉ Phép',
+    subLabel: 'On Leave',
+    icon: Palmtree,
+    badgeBg: 'bg-rose-500/15 border-rose-500/30 text-rose-300',
+    textColor: 'text-rose-300',
+    dotColor: 'bg-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.8)]',
+  },
+];
 
 interface ProfilePageProps {
   onNavigate?: (route: string) => void;
@@ -103,7 +161,25 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // 6. File Upload Handlers for Avatar and Cover Image (Direct Upload, No Raw URL needed)
+  // 6. Work Location State (Interactive for Self & Admin)
+  const { getWorkLocationForDate, setUserDailyWorkLocation } = useScheduleStore();
+  const isAdmin = authUser?.globalRole === 'ADMIN';
+  const targetUserId = user?.id || 'u-self';
+
+  // Lấy vị trí làm việc hôm nay từ schedule store (hoặc fallback)
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const initialLoc = getWorkLocationForDate(targetUserId, todayDateStr).workType;
+  const [currentWorkLocation, setCurrentWorkLocation] = useState<WorkLocationType>(initialLoc);
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Đồng bộ lại khi user thay đổi
+  useEffect(() => {
+    const loc = getWorkLocationForDate(targetUserId, todayDateStr).workType;
+    setCurrentWorkLocation(loc);
+  }, [targetUserId, todayDateStr, getWorkLocationForDate]);
+
+  // 7. File Upload Refs & Handlers for Avatar and Cover Image (Direct Upload, No Raw URL needed)
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -145,6 +221,35 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     reader.readAsDataURL(file);
   };
 
+  const handleSelectWorkLocation = (loc: WorkLocationType) => {
+    setCurrentWorkLocation(loc);
+    setIsLocationDropdownOpen(false);
+    const locInfo = WORK_LOCATIONS.find((l) => l.id === loc);
+
+    if (isSelf) {
+      setUserDailyWorkLocation(authUser?.id || targetUserId, loc);
+      showToast(`📍 Đã cập nhật vị trí làm việc hôm nay: ${locInfo?.label || loc}`, 'success');
+    } else if (isAdmin) {
+      setUserDailyWorkLocation(targetUserId, loc, undefined, {
+        adminId: authUser?.id || 'admin',
+        adminName: authUser?.fullName || 'Admin',
+      });
+      showToast(`👑 [Admin] Đã chỉ định vị trí làm việc cho ${user?.fullName}: ${locInfo?.label || loc}`, 'success');
+    }
+  };
+
+  // Close location dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target as Node)) {
+        setIsLocationDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+>>>>>>> feature/work-schedule-leave-management
   // Synchronize Form Data whenever `user` changes
   useEffect(() => {
     if (user) {
@@ -333,9 +438,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       )}
 
       {/* 🌌 Hero Cover & Identity Card */}
-      <div className="solar-glass-card rounded-3xl bg-[#0F172A]/90 border border-amber-500/30 shadow-2xl overflow-hidden relative">
+      <div className="solar-glass-card rounded-3xl bg-[#0F172A]/90 border border-amber-500/30 shadow-2xl relative z-20">
         {/* Cover Photo */}
-        <div className="h-48 sm:h-64 w-full relative overflow-hidden bg-slate-900">
+        <div className="h-48 sm:h-64 w-full relative overflow-hidden bg-slate-900 rounded-t-3xl">
           <img
             src={user?.coverImage || DEFAULT_COVER}
             alt="Cover"
@@ -415,23 +520,83 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
           {/* Profile Actions */}
           <div className="flex items-center gap-3 self-stretch md:self-end justify-end flex-wrap">
+            {/* 📍 Work Location Status Badge (Interactive for Self & Admin, View-only for other employees) */}
+            <div className="relative" ref={locationDropdownRef}>
+              <button
+                type="button"
+                onClick={() => (isSelf || isAdmin) && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
+                className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2.5 shadow-inner transition-all ${
+                  WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.badgeBg || 'bg-slate-900 border-slate-700 text-slate-200'
+                } ${isSelf || isAdmin ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}`}
+                title={
+                  isSelf
+                    ? 'Nhấp để đổi vị trí làm việc hôm nay'
+                    : isAdmin
+                    ? `Admin: Nhấp để chỉ định vị trí làm việc cho ${user?.fullName}`
+                    : `Vị trí làm việc hôm nay của ${user?.fullName}`
+                }
+              >
+                <span className={`w-2.5 h-2.5 rounded-full ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.dotColor || 'bg-slate-400'}`} />
+                {(() => {
+                  const activeLoc = WORK_LOCATIONS.find((l) => l.id === currentWorkLocation);
+                  const LocIcon = activeLoc?.icon || Building2;
+                  return (
+                    <span className="flex items-center gap-1.5 font-bold tracking-tight">
+                      <LocIcon className="w-3.5 h-3.5 shrink-0" />
+                      {activeLoc?.label || 'Tại Văn Phòng'}
+                    </span>
+                  );
+                })()}
+                {isSelf && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono font-extrabold border border-amber-500/30 flex items-center gap-0.5">
+                    VỊ TRÍ 📍 <ChevronDown className="w-3 h-3 text-amber-400" />
+                  </span>
+                )}
+                {!isSelf && isAdmin && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 font-mono font-extrabold border border-amber-500/50 flex items-center gap-0.5">
+                    ADMIN SỬA 👑 <ChevronDown className="w-3 h-3 text-amber-400" />
+                  </span>
+                )}
+              </button>
+
+              {/* Location Selection Dropdown (Only for Self or Admin) */}
+              {(isSelf || isAdmin) && isLocationDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 p-2 rounded-2xl bg-[#0F172A] border border-amber-500/50 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-2xl z-50 animate-solar-drop-snap space-y-1">
+                  <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>{isSelf ? 'Vị trí làm việc hôm nay' : `Chỉ định vị trí cho ${user?.fullName}`}</span>
+                    <span className="text-amber-400 font-mono text-[10px]">{isAdmin && !isSelf ? 'Admin Role' : 'Solaris Geo'}</span>
+                  </div>
+                  {WORK_LOCATIONS.map((loc) => {
+                    const Icon = loc.icon;
+                    const isSelected = currentWorkLocation === loc.id;
+                    return (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        onClick={() => handleSelectWorkLocation(loc.id)}
+                        className={`w-full p-2.5 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
+                          isSelected ? 'bg-amber-500/20 border border-amber-500/40 text-white' : 'hover:bg-slate-800/80 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`p-1.5 rounded-lg ${loc.badgeBg}`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold block text-white">{loc.label}</span>
+                            <span className="text-[10px] text-slate-400 block font-mono">{loc.subLabel}</span>
+                          </div>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-amber-400" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {isSelf ? (
               <>
-                {/* 🤖 Automated Real-Time Status Signal Badge */}
-                <div className="px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-xs font-mono font-bold flex items-center gap-2 shadow-inner">
-                  <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${getStatusColor(user?.statusSignal as UserStatusSignal)}`} />
-                  <span className="text-slate-200">
-                    {user?.statusSignal === 'ONLINE' && 'Trực Tuyến'}
-                    {user?.statusSignal === 'AWAY' && 'Vắng Mặt (Tạm Rời)'}
-                    {user?.statusSignal === 'BUSY' && 'Đang Bận'}
-                    {user?.statusSignal === 'IN_MEETING' && 'Đang Họp'}
-                    {(!user?.statusSignal || user?.statusSignal === 'OFFLINE') && 'Ngoại Tuyến'}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-sans font-extrabold border border-emerald-500/30">
-                    AUTO ⚡
-                  </span>
-                </div>
-
                 <button
                   onClick={() => setIsEditModalOpen(true)}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] cursor-pointer"
@@ -515,9 +680,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
           <div className="pt-2 border-t border-slate-800/80 space-y-2 text-xs font-mono">
             <div className="flex items-center justify-between text-slate-400">
-              <span>Chế độ làm việc:</span>
-              <span className="text-emerald-400 font-bold">
-                {user?.workMode === 'REMOTE' ? 'Làm Từ Xa (Remote)' : 'Văn phòng (Office HQ)'}
+              <span>Vị trí hôm nay:</span>
+              <span className={`font-bold flex items-center gap-1.5 ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.textColor || 'text-emerald-400'}`}>
+                {(() => {
+                  const loc = WORK_LOCATIONS.find((l) => l.id === currentWorkLocation);
+                  const Icon = loc?.icon || Building2;
+                  return (
+                    <>
+                      <Icon className="w-3.5 h-3.5" />
+                      {loc?.label || 'Văn phòng (Office HQ)'}
+                    </>
+                  );
+                })()}
               </span>
             </div>
             <div className="flex items-center justify-between text-slate-400">
@@ -525,7 +699,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
               <span className="text-white font-bold">
                 {typeof user?.department === 'string'
                   ? user.department
-                  : (user?.department as any)?.name || viewingDirectoryUser?.department || 'Chưa phân bổ'}
+                  : (user?.department && typeof user.department === 'object' ? user.department.name : '') || viewingDirectoryUser?.department || 'Chưa phân bổ'}
               </span>
             </div>
           </div>
