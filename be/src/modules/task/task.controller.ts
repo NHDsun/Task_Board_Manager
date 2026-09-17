@@ -51,7 +51,7 @@ export class TaskController {
   }
 
   @Post()
-  create(@Request() req: any, @Body() createTaskDto: CreateTaskDto) {
+  create(@Request() req: AuthenticatedRequest, @Body() createTaskDto: CreateTaskDto) {
     return this.taskService.create(this.extractUserId(req), createTaskDto);
   }
 

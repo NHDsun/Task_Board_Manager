@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useUserStore } from '../store/useUserStore';
 import { profileService, type PersonalStatsResponse } from '../services/profile';
@@ -25,6 +25,8 @@ import {
   Users,
   MessageSquare,
   AlertTriangle,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface ProfilePageProps {
@@ -100,6 +102,48 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   });
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+
+  // 6. File Upload Handlers for Avatar and Cover Image (Direct Upload, No Raw URL needed)
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Tệp ảnh đại diện vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFormData((prev) => ({ ...prev, avatarUrl: reader.result as string }));
+        showToast('📸 Đã tải ảnh đại diện lên thành công!', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Tệp ảnh bìa vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFormData((prev) => ({ ...prev, coverImage: reader.result as string }));
+        showToast('🖼️ Đã tải ảnh bìa lên thành công!', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Synchronize Form Data whenever `user` changes
   useEffect(() => {
@@ -472,11 +516,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div className="pt-2 border-t border-slate-800/80 space-y-2 text-xs font-mono">
             <div className="flex items-center justify-between text-slate-400">
               <span>Chế độ làm việc:</span>
-              <span className="text-emerald-400 font-bold">Văn phòng (Office HQ)</span>
+              <span className="text-emerald-400 font-bold">
+                {user?.workMode === 'REMOTE' ? 'Làm Từ Xa (Remote)' : 'Văn phòng (Office HQ)'}
+              </span>
             </div>
             <div className="flex items-center justify-between text-slate-400">
               <span>Khối phòng ban:</span>
-              <span className="text-white font-bold">Engineering Department</span>
+              <span className="text-white font-bold">
+                {typeof user?.department === 'string'
+                  ? user.department
+                  : (user?.department as any)?.name || viewingDirectoryUser?.department || 'Chưa phân bổ'}
+              </span>
             </div>
           </div>
         </div>
@@ -485,36 +535,70 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         <div className="lg:col-span-2 solar-glass-card p-6 rounded-3xl bg-[#0F172A]/90 border border-slate-800 space-y-5">
           <h3 className="text-sm font-extrabold text-white flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <FolderKanban className="w-4 h-4 text-amber-400" /> Các Dự Án &amp; Nhiệm Vụ Phụ Trách
+              <FolderKanban className="w-4 h-4 text-amber-400" /> Các Dự Án Phụ Trách &amp; Tham Gia
             </span>
-            <span className="text-xs text-amber-400 font-mono">Active Sprint 2026</span>
+            <span className="text-xs text-amber-400 font-mono">
+              {((user as any)?.assignedProjects || viewingDirectoryUser?.assignedProjects || []).length} Dự án
+            </span>
           </h3>
 
-          <div className="space-y-3">
-            {(viewingDirectoryUser?.assignedProjects || [
-              'Solaris Core Task Board Engine',
-              'Enterprise RBAC & Authentication Module',
-              'Voice Assistant & WebRTC Integration',
-            ]).map((proj, idx) => (
-              <div
-                key={idx}
-                className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-amber-500/40 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
-                    #{idx + 1}
+          {(() => {
+            const rawProjects = (user as any)?.assignedProjects || viewingDirectoryUser?.assignedProjects || [];
+            if (!rawProjects || rawProjects.length === 0) {
+              return (
+                <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-800/60 border border-slate-700 flex items-center justify-center text-slate-400 mx-auto">
+                    <FolderKanban className="w-6 h-6" />
                   </div>
-                  <div>
-                    <h4 className="font-extrabold text-white text-xs">{proj}</h4>
-                    <span className="text-[10px] text-slate-400 font-mono">Vai trò: Thành viên cốt lõi</span>
-                  </div>
+                  <p className="text-xs text-slate-400">Chưa tham gia dự án nào trong hệ thống.</p>
+                  {isSelf && (
+                    <button
+                      onClick={() => onNavigate?.('/tasks')}
+                      className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <FolderKanban className="w-3.5 h-3.5" /> Khám Phá Bảng Nhiệm Vụ
+                    </button>
+                  )}
                 </div>
-                <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
-                  Đang hoạt động
-                </span>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {rawProjects.map((proj: any, idx: number) => {
+                  const isObj = typeof proj === 'object' && proj !== null;
+                  const projName = isObj ? proj.name : proj;
+                  const projRole = isObj ? proj.roleInProject || 'Thành viên cốt lõi' : 'Thành viên cốt lõi';
+                  const projDesc = isObj ? proj.description : '';
+
+                  return (
+                    <div
+                      key={isObj ? proj.id || idx : idx}
+                      className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-amber-500/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
+                          #{idx + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-white text-xs truncate">{projName}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-amber-400/90 font-mono">Vai trò: {projRole}</span>
+                            {projDesc && (
+                              <span className="text-[10px] text-slate-400 truncate hidden sm:inline">• {projDesc}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold shrink-0">
+                        Đang hoạt động
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -576,26 +660,60 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-slate-300 font-bold">Link Ảnh Đại Diện (Avatar URL)</label>
-                <input
-                  type="url"
-                  value={formData.avatarUrl}
-                  onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
-                />
-              </div>
+              {/* 📸 DIRECT FILE UPLOADS: AVATAR & COVER IMAGE (NO URL REQUIRED) */}
+              <input
+                type="file"
+                ref={avatarFileInputRef}
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleAvatarFileChange}
+              />
+              <input
+                type="file"
+                ref={coverFileInputRef}
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleCoverFileChange}
+              />
 
-              <div className="space-y-1">
-                <label className="text-slate-300 font-bold">Link Ảnh Bìa (Cover Image URL)</label>
-                <input
-                  type="url"
-                  value={formData.coverImage}
-                  onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Avatar Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold block">Ảnh Đại Diện</label>
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800">
+                    <img
+                      src={formData.avatarUrl || DEFAULT_COVER}
+                      alt="Avatar Preview"
+                      className="w-12 h-12 rounded-xl object-cover border border-amber-500/40 shrink-0 bg-slate-950"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="flex-1 py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer truncate"
+                    >
+                      <Upload className="w-3.5 h-3.5 shrink-0" /> Tải Ảnh Lên
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cover Image Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold block">Ảnh Bìa Hồ Sơ</label>
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800">
+                    <img
+                      src={formData.coverImage || DEFAULT_COVER}
+                      alt="Cover Preview"
+                      className="w-12 h-12 rounded-xl object-cover border border-slate-700 shrink-0 bg-slate-950"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => coverFileInputRef.current?.click()}
+                      className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer truncate"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5 shrink-0" /> Tải Ảnh Bìa
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1">

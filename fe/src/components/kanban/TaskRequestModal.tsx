@@ -69,7 +69,7 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
       ? (t.assigneeId === currentUser?.id ||
          t.assignee?.id === currentUser?.id ||
          t.assignee?.email === currentUser?.email)
-      : (t as any).createdById === currentUser?.id;
+      : t.createdById === currentUser?.id;
   });
 
   useEffect(() => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, Component, Suspense, type ReactNode } from 
 import { useAuthStore } from './store/useAuthStore';
 import { useAutoStatusSignal } from './hooks/useAutoStatusSignal';
 import { MainLayout } from './layouts/MainLayout';
-import { MessageSquare, Inbox, AlertTriangle, RotateCcw, Loader2 } from 'lucide-react';
+import { AlertTriangle, RotateCcw, Loader2 } from 'lucide-react';
 
 const LoginPage = React.lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
@@ -160,35 +160,6 @@ export default function App() {
         return <BoardPage />;
       case '/schedule':
         return <SchedulePage />;
-      case '/remote-requests':
-        return (
-          <div className="p-8 max-w-7xl mx-auto space-y-6">
-            <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-emerald-500/30">
-              <h1 className="text-3xl font-extrabold text-emerald-300 flex items-center gap-3">
-                <Inbox className="w-8 h-8 text-emerald-400" />
-                Yêu Cầu Làm Việc Từ Xa (Remote Work Requests)
-              </h1>
-              <p className="text-slate-300 mt-2">
-                Gửi Đơn xin làm Remote chọn ngày, nhập lý do &amp; kế hoạch công việc. Trạng thái PENDING chờ Manager/Admin duyệt.
-              </p>
-            </div>
-          </div>
-        );
-
-      case '/messages':
-        return (
-          <div className="p-8 max-w-7xl mx-auto space-y-6">
-            <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-cyan-500/30">
-              <h1 className="text-3xl font-extrabold text-cyan-300 flex items-center gap-3">
-                <MessageSquare className="w-8 h-8 text-cyan-400" />
-                Tin Nhắn Chat 1-1 &amp; Cuộc Gọi
-              </h1>
-              <p className="text-slate-300 mt-2">
-                Hệ thống DirectMessage real-time và nhật ký cuộc gọi CallLog.
-              </p>
-            </div>
-          </div>
-        );
       case '/admin/users':
       case '/admin/departments':
         if (!isAdmin) {

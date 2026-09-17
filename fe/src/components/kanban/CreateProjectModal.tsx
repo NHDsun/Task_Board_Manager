@@ -215,7 +215,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             >
               {currentUser && (
                 <option value={currentUser.id} className="bg-slate-950 text-amber-300 font-bold py-1">
-                  👑 Chính tôi ({currentUser.fullName} - {currentUser.globalRole || (currentUser as any)?.role || 'ADMIN'})
+                  👑 Chính tôi ({currentUser.fullName} - {currentUser.globalRole || currentUser.role || 'ADMIN'})
                 </option>
               )}
               {availableUsers.filter((u) => u.id !== currentUser?.id && (u.role === 'MANAGER' || u.role === 'ADMIN')).length > 0 && (

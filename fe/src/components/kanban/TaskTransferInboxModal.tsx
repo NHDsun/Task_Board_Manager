@@ -96,8 +96,9 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
   if (!isOpen) return null;
 
   const roleName = (() => {
-    if (currentUser?.globalRole === 'ADMIN' || (currentUser as any)?.role === 'ADMIN') return 'Quản Trị Viên (Admin)';
-    if (currentUser?.globalRole === 'MANAGER' || (currentUser as any)?.role === 'MANAGER') return 'Quản Lý Dự Án';
+    const role = currentUser?.globalRole || currentUser?.role;
+    if (role === 'ADMIN') return 'Quản Trị Viên (Admin)';
+    if (role === 'MANAGER') return 'Quản Lý Dự Án';
     return 'Nhân Viên';
   })();
 

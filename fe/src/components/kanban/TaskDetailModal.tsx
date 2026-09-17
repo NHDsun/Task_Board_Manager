@@ -95,29 +95,21 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       task &&
       (task.createdById === currentUser.id ||
         task.createdBy?.id === currentUser.id ||
-        ((task.createdBy as any)?.email && currentUser.email === (task.createdBy as any).email))
+        (task.createdBy?.email && currentUser.email === task.createdBy.email))
   );
 
-  const isAdminOrManager = Boolean(
-    currentUser &&
-      (currentUser.globalRole === 'ADMIN' ||
-        currentUser.globalRole === 'MANAGER' ||
-        (currentUser as any).role === 'ADMIN' ||
-        (currentUser as any).role === 'MANAGER')
-  );
+  const role = currentUser?.globalRole || currentUser?.role;
+  const isAdminOrManager = Boolean(role === 'ADMIN' || role === 'MANAGER');
 
   const isMyTask = Boolean(
     currentUser &&
       (isAdminOrManager || (hasAssignee ? isAssignee : isCreator))
   );
 
-  //  Quyền thêm việc con: CHỈ người trực tiếp đảm nhiệm Task (Assignee) hoặc Admin/Manager mới được tạo
+  // Quyền thêm việc con: CHỈ người trực tiếp đảm nhiệm Task (Assignee) hoặc Admin/Manager mới được tạo
   const canManageSubtasks = Boolean(
     currentUser &&
-      (currentUser.globalRole === 'ADMIN' ||
-        currentUser.globalRole === 'MANAGER' ||
-        (currentUser as any).role === 'ADMIN' ||
-        (currentUser as any).role === 'MANAGER' ||
+      (isAdminOrManager ||
         isAssignee ||
         (!hasAssignee && isCreator))
   );
@@ -970,11 +962,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   >
                     {(() => {
                       const schedStr = (() => {
-                        const currentDays = Number((st as any).estimatedDays || 1);
+                        const currentDays = Number(st.estimatedDays || 1);
                         let sDate: Date;
 
-                        if ((st as any).startDate) {
-                          sDate = new Date((st as any).startDate);
+                        if (st.startDate) {
+                          sDate = new Date(st.startDate);
                           sDate.setHours(0, 0, 0, 0);
                         } else {
                           const base = task.startDate ? new Date(task.startDate) : new Date(task.createdAt || Date.now());
@@ -982,7 +974,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                           let startOffset = 0;
                           const list = task.subtasks || [];
                           for (let i = 0; i < idx; i++) {
-                            startOffset += Number((list[i] as any)?.estimatedDays || 1);
+                            startOffset += Number(list[i]?.estimatedDays || 1);
                           }
                           sDate = new Date(base);
                           sDate.setDate(sDate.getDate() + startOffset);
