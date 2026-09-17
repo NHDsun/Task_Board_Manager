@@ -1440,8 +1440,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               Bình Luận & Lịch Sử Tác Nghiệp ({comments.length})
             </h3>
 
-            {/* Comments List */}
-            <div className="space-y-3">
+            {/* Comments List với thanh cuộn */}
+            <div className="max-h-60 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-thumb-slate-700">
               {comments.map((c) => (
                 <div
                   key={c.id}
