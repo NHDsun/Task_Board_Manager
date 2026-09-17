@@ -3,7 +3,12 @@ import {
   CheckCircle2,
   Clock,
   Flame,
+  Home,
+  Plane,
+  Palmtree,
 } from 'lucide-react';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useScheduleStore } from '../../store/useScheduleStore';
 import type { TaskItem } from '../kanban/KanbanCard';
 
 interface MonthCalendarViewProps {
@@ -19,6 +24,9 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
   onSelectTask,
   onSelectDate,
 }) => {
+  const authUser = useAuthStore((state) => state.user);
+  const { getWorkLocationForDate } = useScheduleStore();
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -156,6 +164,10 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
             (t) => t.status !== 'DONE' && t.dueDate && new Date(t.dueDate) < today
           );
 
+          // Lấy vị trí làm việc của user cho ngày này (Nguồn sự thật)
+          const dateKey = `${item.date.getFullYear()}-${String(item.date.getMonth() + 1).padStart(2, '0')}-${String(item.date.getDate()).padStart(2, '0')}`;
+          const locInfo = getWorkLocationForDate(authUser?.id || 'u-self', dateKey);
+
           return (
             <div
               key={idx}
@@ -167,18 +179,51 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
               } ${item.isToday ? 'ring-2 ring-amber-500/80 bg-amber-500/10 shadow-[inset_0_0_25px_rgba(245,158,11,0.15)]' : ''}`}
             >
               {/* Header của ngày */}
-              <div className="flex items-center justify-between">
-                <span
-                  className={`w-7 h-7 flex items-center justify-center rounded-xl text-xs font-black transition-all ${
-                    item.isToday
-                      ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/30 scale-110'
-                      : item.isCurrentMonth
-                      ? 'text-slate-200 group-hover:text-amber-300'
-                      : 'text-slate-500'
-                  }`}
-                >
-                  {item.dayNumber}
-                </span>
+              <div className="flex items-center justify-between gap-1 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`w-7 h-7 flex items-center justify-center rounded-xl text-xs font-black transition-all ${
+                      item.isToday
+                        ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/30 scale-110'
+                        : item.isCurrentMonth
+                        ? 'text-slate-200 group-hover:text-amber-300'
+                        : 'text-slate-500'
+                    }`}
+                  >
+                    {item.dayNumber}
+                  </span>
+
+                  {/* Work location chip for active user (including shift info) */}
+                  {locInfo.workType !== 'OFFICE' && (
+                    <span
+                      className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold border flex items-center gap-1 ${
+                        locInfo.workType === 'WFH'
+                          ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                          : locInfo.workType === 'LEAVE'
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                          : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      }`}
+                      title={`${locInfo.sourceTitle}${locInfo.note ? `: ${locInfo.note}` : ''}`}
+                    >
+                      {locInfo.workType === 'WFH' ? (
+                        <>
+                          <Home className="w-2.5 h-2.5" />
+                          <span>WFH{locInfo.shift && locInfo.shift !== 'FULL_DAY' ? ` (${locInfo.shift === 'MORNING' ? 'Sáng' : 'Chiều'})` : ''}</span>
+                        </>
+                      ) : locInfo.workType === 'LEAVE' ? (
+                        <>
+                          <Palmtree className="w-2.5 h-2.5" />
+                          <span>Nghỉ{locInfo.shift && locInfo.shift !== 'FULL_DAY' ? ` (${locInfo.shift === 'MORNING' ? 'Sáng' : 'Chiều'})` : ''}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plane className="w-2.5 h-2.5" />
+                          <span>OnSite{locInfo.shift && locInfo.shift !== 'FULL_DAY' ? ` (${locInfo.shift === 'MORNING' ? 'Sáng' : 'Chiều'})` : ''}</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
 
                 {dayTasks.length > 0 && (
                   <div className="flex items-center gap-1">

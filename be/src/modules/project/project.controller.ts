@@ -15,13 +15,14 @@ import { ProjectService } from './project.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../../common/interfaces/auth-user.interface';
 
 @Controller('projects')
 @UseGuards(JwtAuthGuard)
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
-  private extractUserId(req: any): string {
+  private extractUserId(req: AuthenticatedRequest): string {
     const userId = req.user?.id || req.user?.sub || req.user?.userId;
     if (!userId) {
       throw new UnauthorizedException(
@@ -32,7 +33,7 @@ export class ProjectController {
   }
 
   @Post()
-  create(@Request() req: any, @Body() createProjectDto: CreateProjectDto) {
+  create(@Request() req: AuthenticatedRequest, @Body() createProjectDto: CreateProjectDto) {
     if (req.user?.role !== 'ADMIN') {
       throw new ForbiddenException(
         'Chỉ Quản trị viên (Admin) mới có quyền tạo dự án mới!',
@@ -46,7 +47,7 @@ export class ProjectController {
   }
 
   @Get()
-  findAll(@Request() req: any) {
+  findAll(@Request() req: AuthenticatedRequest) {
     return this.projectService.findAll(this.extractUserId(req));
   }
 
@@ -58,14 +59,14 @@ export class ProjectController {
   @Patch(':id')
   update(
     @Param('id') id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() updateProjectDto: UpdateProjectDto,
   ) {
     return this.projectService.update(id, updateProjectDto, req.user);
   }
 
   @Delete(':id')
-  softDelete(@Request() req: any, @Param('id') id: string) {
+  softDelete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.projectService.softDelete(
       id,
       this.extractUserId(req),
@@ -74,7 +75,7 @@ export class ProjectController {
   }
 
   @Post(':id/restore')
-  restore(@Request() req: any, @Param('id') id: string) {
+  restore(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.projectService.restore(
       id,
       this.extractUserId(req),
@@ -83,7 +84,7 @@ export class ProjectController {
   }
 
   @Delete(':id/permanent')
-  hardDelete(@Request() req: any, @Param('id') id: string) {
+  hardDelete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.projectService.hardDelete(
       id,
       this.extractUserId(req),
@@ -99,7 +100,7 @@ export class ProjectController {
   @Post(':id/members')
   addMember(
     @Param('id') id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() body: { userId: string },
   ) {
     return this.projectService.addMember(id, body.userId, req.user);
@@ -109,7 +110,7 @@ export class ProjectController {
   removeMember(
     @Param('id') id: string,
     @Param('userId') userId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.projectService.removeMember(id, userId, req.user);
   }

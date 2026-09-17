@@ -26,15 +26,15 @@ import {
   Users,
   MessageSquare,
   AlertTriangle,
+  Upload,
   Home,
   Plane,
   Palmtree,
-  UploadCloud,
   Image as ImageIcon,
   ChevronDown,
   Check,
-  Trash2,
 } from 'lucide-react';
+import { CreateLeaveRequestModal } from '../components/schedule/CreateLeaveRequestModal';
 
 export type WorkLocationType = 'OFFICE' | 'WFH' | 'ON_SITE' | 'LEAVE';
 
@@ -159,25 +159,26 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // 6. Work Location State (Interactive for Self & Admin)
+  // 6. Work Location State (Auto-displayed for Employee, Editable for Admin only)
   const { getWorkLocationForDate, setUserDailyWorkLocation } = useScheduleStore();
   const isAdmin = authUser?.globalRole === 'ADMIN';
   const targetUserId = user?.id || 'u-self';
 
-  // Lấy vị trí làm việc hôm nay từ schedule store (hoặc fallback)
+  // Lấy vị trí làm việc hôm nay từ schedule store (Lịch làm việc là Nguồn Sự Thật)
   const todayDateStr = new Date().toISOString().split('T')[0];
-  const initialLoc = getWorkLocationForDate(targetUserId, todayDateStr).workType;
-  const [currentWorkLocation, setCurrentWorkLocation] = useState<WorkLocationType>(initialLoc);
+  const [locationResult, setLocationResult] = useState(() => getWorkLocationForDate(targetUserId, todayDateStr));
+  const currentWorkLocation = locationResult.workType;
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const locationDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Đồng bộ lại khi user thay đổi
+  // Đồng bộ tự động khi user hoặc store thay đổi (Lịch duyệt/xếp bởi Admin -> Tự động hiển thị ra Profile)
   useEffect(() => {
-    const loc = getWorkLocationForDate(targetUserId, todayDateStr).workType;
-    setCurrentWorkLocation(loc);
+    const res = getWorkLocationForDate(targetUserId, todayDateStr);
+    setLocationResult(res);
   }, [targetUserId, todayDateStr, getWorkLocationForDate]);
 
-  // 7. File Upload Refs & Handlers for Avatar and Cover Image
+  // 7. File Upload Refs & Handlers for Avatar and Cover Image (Direct Upload, No Raw URL needed)
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -194,7 +195,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setFormData((prev) => ({ ...prev, avatarUrl: reader.result as string }));
-        showToast('📸 Đã tải tệp ảnh đại diện lên thành công!', 'success');
+        showToast('📸 Đã tải ảnh đại diện lên thành công!', 'success');
       }
     };
     reader.readAsDataURL(file);
@@ -213,27 +214,26 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setFormData((prev) => ({ ...prev, coverImage: reader.result as string }));
-        showToast('🖼️ Đã tải tệp ảnh bìa lên thành công!', 'success');
+        showToast('🖼️ Đã tải ảnh bìa lên thành công!', 'success');
       }
     };
     reader.readAsDataURL(file);
   };
 
+  // Chỉ Admin được chỉ định vị trí trực tiếp
   const handleSelectWorkLocation = (loc: WorkLocationType) => {
-    setCurrentWorkLocation(loc);
+    if (!isAdmin) return;
     setIsLocationDropdownOpen(false);
     const locInfo = WORK_LOCATIONS.find((l) => l.id === loc);
 
-    if (isSelf) {
-      setUserDailyWorkLocation(authUser?.id || targetUserId, loc);
-      showToast(`📍 Đã cập nhật vị trí làm việc hôm nay: ${locInfo?.label || loc}`, 'success');
-    } else if (isAdmin) {
-      setUserDailyWorkLocation(targetUserId, loc, undefined, {
-        adminId: authUser?.id || 'admin',
-        adminName: authUser?.fullName || 'Admin',
-      });
-      showToast(`👑 [Admin] Đã chỉ định vị trí làm việc cho ${user?.fullName}: ${locInfo?.label || loc}`, 'success');
-    }
+    setUserDailyWorkLocation(targetUserId, loc, undefined, {
+      adminId: authUser?.id || 'admin',
+      adminName: authUser?.fullName || 'Admin',
+    });
+    showToast(`👑 [Admin] Đã chỉ định vị trí làm việc cho ${user?.fullName || 'nhân sự'}: ${locInfo?.label || loc}`, 'success');
+
+    const updated = getWorkLocationForDate(targetUserId, todayDateStr);
+    setLocationResult(updated);
   };
 
   // Close location dropdown on outside click
@@ -517,20 +517,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
           {/* Profile Actions */}
           <div className="flex items-center gap-3 self-stretch md:self-end justify-end flex-wrap">
-            {/* 📍 Work Location Status Badge (Interactive for Self & Admin, View-only for other employees) */}
+            {/* 📍 Work Location Status Badge (Interactive for Admin only, Auto-displayed for Employees) */}
             <div className="relative" ref={locationDropdownRef}>
-              <button
-                type="button"
-                onClick={() => (isSelf || isAdmin) && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
+              <div
                 className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2.5 shadow-inner transition-all ${
                   WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.badgeBg || 'bg-slate-900 border-slate-700 text-slate-200'
-                } ${isSelf || isAdmin ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}`}
+                } ${isAdmin ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}`}
+                onClick={() => isAdmin && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
                 title={
-                  isSelf
-                    ? 'Nhấp để đổi vị trí làm việc hôm nay'
-                    : isAdmin
-                    ? `Admin: Nhấp để chỉ định vị trí làm việc cho ${user?.fullName}`
-                    : `Vị trí làm việc hôm nay của ${user?.fullName}`
+                  isAdmin
+                    ? `Admin: Nhấp để chỉ định vị trí làm việc cho ${user?.fullName || 'nhân sự'}`
+                    : `Vị trí hôm nay của ${user?.fullName || 'bạn'} (Tự động cập nhật theo lịch làm việc đã duyệt)`
                 }
               >
                 <span className={`w-2.5 h-2.5 rounded-full ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.dotColor || 'bg-slate-400'}`} />
@@ -544,24 +541,27 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                     </span>
                   );
                 })()}
-                {isSelf && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono font-extrabold border border-amber-500/30 flex items-center gap-0.5">
-                    VỊ TRÍ 📍 <ChevronDown className="w-3 h-3 text-amber-400" />
+
+                {/* Source Badge Title (Ví dụ: [Đã Duyệt WFH], [Lịch Phân Công]) */}
+                {locationResult.sourceTitle && locationResult.source !== 'DEFAULT' && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono font-bold border border-amber-500/30">
+                    ✓ {locationResult.sourceTitle}
                   </span>
                 )}
-                {!isSelf && isAdmin && (
+
+                {isAdmin && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 font-mono font-extrabold border border-amber-500/50 flex items-center gap-0.5">
                     ADMIN SỬA 👑 <ChevronDown className="w-3 h-3 text-amber-400" />
                   </span>
                 )}
-              </button>
+              </div>
 
-              {/* Location Selection Dropdown (Only for Self or Admin) */}
-              {(isSelf || isAdmin) && isLocationDropdownOpen && (
+              {/* Location Selection Dropdown (Only for Admin) */}
+              {isAdmin && isLocationDropdownOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 p-2 rounded-2xl bg-[#0F172A] border border-amber-500/50 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-2xl z-50 animate-solar-drop-snap space-y-1">
                   <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>{isSelf ? 'Vị trí làm việc hôm nay' : `Chỉ định vị trí cho ${user?.fullName}`}</span>
-                    <span className="text-amber-400 font-mono text-[10px]">{isAdmin && !isSelf ? 'Admin Role' : 'Solaris Geo'}</span>
+                    <span>{`Chỉ định vị trí cho ${user?.fullName || 'nhân sự'}`}</span>
+                    <span className="text-amber-400 font-mono text-[10px]">Admin Role</span>
                   </div>
                   {WORK_LOCATIONS.map((loc) => {
                     const Icon = loc.icon;
@@ -591,6 +591,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 </div>
               )}
             </div>
+
+            {/* Nộp đơn xin nghỉ phép / WFH (Dành cho Employee tự gửi đơn cho Manager) */}
+            {isSelf && !isAdmin && (
+              <button
+                onClick={() => setIsLeaveModalOpen(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                title="Gửi đơn xin nghỉ hoặc WFH đến Quản lý"
+              >
+                <Palmtree className="w-3.5 h-3.5 text-amber-400" />
+                <span>Nộp Đơn Phép / WFH</span>
+              </button>
+            )}
 
             {isSelf ? (
               <>
@@ -693,7 +705,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             </div>
             <div className="flex items-center justify-between text-slate-400">
               <span>Khối phòng ban:</span>
-              <span className="text-white font-bold">Engineering Department</span>
+              <span className="text-white font-bold">
+                {typeof user?.department === 'string'
+                  ? user.department
+                  : (user?.department && typeof user.department === 'object' ? user.department.name : '') || viewingDirectoryUser?.department || 'Chưa phân bổ'}
+              </span>
             </div>
           </div>
         </div>
@@ -702,36 +718,70 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         <div className="lg:col-span-2 solar-glass-card p-6 rounded-3xl bg-[#0F172A]/90 border border-slate-800 space-y-5">
           <h3 className="text-sm font-extrabold text-white flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <FolderKanban className="w-4 h-4 text-amber-400" /> Các Dự Án &amp; Nhiệm Vụ Phụ Trách
+              <FolderKanban className="w-4 h-4 text-amber-400" /> Các Dự Án Phụ Trách &amp; Tham Gia
             </span>
-            <span className="text-xs text-amber-400 font-mono">Active Sprint 2026</span>
+            <span className="text-xs text-amber-400 font-mono">
+              {((user as any)?.assignedProjects || viewingDirectoryUser?.assignedProjects || []).length} Dự án
+            </span>
           </h3>
 
-          <div className="space-y-3">
-            {(viewingDirectoryUser?.assignedProjects || [
-              'Solaris Core Task Board Engine',
-              'Enterprise RBAC & Authentication Module',
-              'Voice Assistant & WebRTC Integration',
-            ]).map((proj, idx) => (
-              <div
-                key={idx}
-                className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-amber-500/40 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
-                    #{idx + 1}
+          {(() => {
+            const rawProjects = (user as any)?.assignedProjects || viewingDirectoryUser?.assignedProjects || [];
+            if (!rawProjects || rawProjects.length === 0) {
+              return (
+                <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-800/60 border border-slate-700 flex items-center justify-center text-slate-400 mx-auto">
+                    <FolderKanban className="w-6 h-6" />
                   </div>
-                  <div>
-                    <h4 className="font-extrabold text-white text-xs">{proj}</h4>
-                    <span className="text-[10px] text-slate-400 font-mono">Vai trò: Thành viên cốt lõi</span>
-                  </div>
+                  <p className="text-xs text-slate-400">Chưa tham gia dự án nào trong hệ thống.</p>
+                  {isSelf && (
+                    <button
+                      onClick={() => onNavigate?.('/tasks')}
+                      className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <FolderKanban className="w-3.5 h-3.5" /> Khám Phá Bảng Nhiệm Vụ
+                    </button>
+                  )}
                 </div>
-                <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
-                  Đang hoạt động
-                </span>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {rawProjects.map((proj: any, idx: number) => {
+                  const isObj = typeof proj === 'object' && proj !== null;
+                  const projName = isObj ? proj.name : proj;
+                  const projRole = isObj ? proj.roleInProject || 'Thành viên cốt lõi' : 'Thành viên cốt lõi';
+                  const projDesc = isObj ? proj.description : '';
+
+                  return (
+                    <div
+                      key={isObj ? proj.id || idx : idx}
+                      className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-amber-500/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
+                          #{idx + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-white text-xs truncate">{projName}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-amber-400/90 font-mono">Vai trò: {projRole}</span>
+                            {projDesc && (
+                              <span className="text-[10px] text-slate-400 truncate hidden sm:inline">• {projDesc}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold shrink-0">
+                        Đang hoạt động
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -793,115 +843,58 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 </div>
               </div>
 
-              {/* 📸 Avatar File Upload */}
-              <div className="space-y-2 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800">
-                <label className="text-slate-300 font-bold block flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Camera className="w-4 h-4 text-amber-400" /> Ảnh Đại Diện (Avatar)
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-mono">Tối đa 5MB</span>
-                </label>
+              {/* 📸 DIRECT FILE UPLOADS: AVATAR & COVER IMAGE (NO URL REQUIRED) */}
+              <input
+                type="file"
+                ref={avatarFileInputRef}
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleAvatarFileChange}
+              />
+              <input
+                type="file"
+                ref={coverFileInputRef}
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleCoverFileChange}
+              />
 
-                <input
-                  type="file"
-                  ref={avatarFileInputRef}
-                  onChange={handleAvatarFileChange}
-                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-                  className="hidden"
-                />
-
-                <div className="flex items-center gap-4">
-                  <div className="relative group shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Avatar Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold block">Ảnh Đại Diện</label>
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800">
                     <img
                       src={formData.avatarUrl || DEFAULT_COVER}
                       alt="Avatar Preview"
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500/50 shadow-md bg-slate-950"
+                      className="w-12 h-12 rounded-xl object-cover border border-amber-500/40 shrink-0 bg-slate-950"
                     />
                     <button
                       type="button"
                       onClick={() => avatarFileInputRef.current?.click()}
-                      className="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer"
+                      className="flex-1 py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer truncate"
                     >
-                      <UploadCloud className="w-5 h-5 text-amber-400" />
+                      <Upload className="w-3.5 h-3.5 shrink-0" /> Tải Ảnh Lên
                     </button>
                   </div>
-
-                  <div className="flex-1 space-y-1.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => avatarFileInputRef.current?.click()}
-                        className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-                      >
-                        <UploadCloud className="w-3.5 h-3.5" /> Chọn Tệp Ảnh Từ Máy Tính
-                      </button>
-                      {formData.avatarUrl && formData.avatarUrl !== getAvatarUrl(user) && (
-                        <button
-                          type="button"
-                          onClick={() => setFormData((prev) => ({ ...prev, avatarUrl: getAvatarUrl(user) }))}
-                          className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-300 border border-slate-700 text-xs font-medium transition-all cursor-pointer"
-                          title="Đặt lại ảnh ban đầu"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-400 truncate">
-                      Hỗ trợ định dạng: <span className="font-mono text-slate-300">PNG, JPG, WEBP, GIF</span>
-                    </p>
-                  </div>
                 </div>
-              </div>
 
-              {/* 🖼️ Cover Image File Upload */}
-              <div className="space-y-2 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800">
-                <label className="text-slate-300 font-bold block flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4 text-amber-400" /> Ảnh Bìa Cá Nhân (Cover Image)
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-mono">Tối đa 5MB</span>
-                </label>
-
-                <input
-                  type="file"
-                  ref={coverFileInputRef}
-                  onChange={handleCoverFileChange}
-                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-                  className="hidden"
-                />
-
-                <div className="space-y-2">
-                  <div className="h-24 w-full rounded-2xl overflow-hidden relative border border-slate-700 bg-slate-950 group">
+                {/* Cover Image Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold block">Ảnh Bìa Hồ Sơ</label>
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800">
                     <img
                       src={formData.coverImage || DEFAULT_COVER}
                       alt="Cover Preview"
-                      className="w-full h-full object-cover brightness-90"
+                      className="w-12 h-12 rounded-xl object-cover border border-slate-700 shrink-0 bg-slate-950"
                     />
-                    <div
-                      onClick={() => coverFileInputRef.current?.click()}
-                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-2 cursor-pointer backdrop-blur-[2px]"
-                    >
-                      <UploadCloud className="w-4 h-4 text-amber-400" /> Nhấp để chọn ảnh bìa mới từ máy tính
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <button
                       type="button"
                       onClick={() => coverFileInputRef.current?.click()}
-                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                      className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer truncate"
                     >
-                      <UploadCloud className="w-3.5 h-3.5 text-amber-400" /> Chọn Tệp Ảnh Bìa
+                      <ImageIcon className="w-3.5 h-3.5 shrink-0" /> Tải Ảnh Bìa
                     </button>
-                    {formData.coverImage !== DEFAULT_COVER && (
-                      <button
-                        type="button"
-                        onClick={() => setFormData((prev) => ({ ...prev, coverImage: DEFAULT_COVER }))}
-                        className="text-[11px] text-slate-400 hover:text-amber-400 underline cursor-pointer"
-                      >
-                        Đặt lại ảnh bìa mặc định
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1033,6 +1026,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           </div>
         </div>
       )}
+
+      {/* 📝 Modal Nộp Đơn Nghỉ / WFH (Dành cho Employee) */}
+      <CreateLeaveRequestModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        onSuccess={() => {
+          const res = getWorkLocationForDate(targetUserId, todayDateStr);
+          setLocationResult(res);
+          showToast('✅ Đã gửi đơn thành công! Đang chờ Quản lý duyệt.', 'success');
+        }}
+      />
     </div>
   );
 };

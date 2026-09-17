@@ -58,12 +58,11 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
     if (projectId) setActiveProjectId(projectId);
   }, [projectId]);
 
+  const userRole = user?.globalRole || user?.role;
   const isAdminOrManager = Boolean(
     user &&
-      (user.globalRole === 'ADMIN' ||
-        user.globalRole === 'MANAGER' ||
-        (user as any).role === 'ADMIN' ||
-        (user as any).role === 'MANAGER' ||
+      (userRole === 'ADMIN' ||
+        userRole === 'MANAGER' ||
         managerInfo?.id === user.id)
   );
 

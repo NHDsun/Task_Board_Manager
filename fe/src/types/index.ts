@@ -57,13 +57,15 @@ export interface Task {
   recurrenceRule?: string | null;
   isArchived: boolean;
   projectId: string;
-  creatorId: string;
-  assigneeId?: string | null;
+  creatorId?: string;
+  createdById?: string;
   creator?: User;
+  assigneeId?: string | null;
   assignee?: User | null;
   assignees?: User[];
   subtasks?: Subtask[];
   tags?: Tag[];
+  progress?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +76,7 @@ export interface Project {
   description?: string | null;
   ownerId: string;
   owner?: User;
+  _count?: { members?: number };
   createdAt: string;
 }
 
