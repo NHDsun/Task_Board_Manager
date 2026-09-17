@@ -38,16 +38,46 @@ export interface LeaveRequestRecord {
   createdAt: string;
 }
 
+export interface WorkLocationInfo {
+  workType: WorkLocationType;
+  shift?: WorkShift;
+  shiftLabel?: string;
+  source: 'LEAVE_REQUEST' | 'SCHEDULE' | 'MANUAL_OVERRIDE' | 'DEFAULT';
+  sourceTitle: string;
+  approverName?: string;
+  note?: string;
+}
+
+export const getShiftLabel = (shift?: WorkShift): string => {
+  switch (shift) {
+    case 'MORNING':
+      return 'Buổi Sáng (0.5 ngày)';
+    case 'AFTERNOON':
+      return 'Buổi Chiều (0.5 ngày)';
+    case 'FULL_DAY':
+    default:
+      return 'Cả Ngày';
+  }
+};
+
+export const getShiftShortLabel = (shift?: WorkShift): string => {
+  switch (shift) {
+    case 'MORNING':
+      return 'Sáng';
+    case 'AFTERNOON':
+      return 'Chiều';
+    case 'FULL_DAY':
+    default:
+      return 'Cả ngày';
+  }
+};
+
 interface ScheduleStoreState {
   workSchedules: WorkScheduleRecord[];
   leaveRequests: LeaveRequestRecord[];
 
-  // 📍 Hàm lấy trạng thái vị trí làm việc của một User tại một ngày bất kỳ
-  getWorkLocationForDate: (userId: string, dateStr: string) => {
-    workType: WorkLocationType;
-    source: 'LEAVE_REQUEST' | 'SCHEDULE' | 'MANUAL_OVERRIDE' | 'DEFAULT';
-    note?: string;
-  };
+  // 📍 Hàm lấy trạng thái vị trí làm việc của một User tại một ngày bất kỳ (Lịch là nguồn sự thật)
+  getWorkLocationForDate: (userId: string, dateStr: string) => WorkLocationInfo;
 
   // 👑 Admin hoặc User tự cập nhật vị trí làm việc trong ngày
   setUserDailyWorkLocation: (
@@ -65,7 +95,8 @@ interface ScheduleStoreState {
     approverId: string,
     approverName: string,
     responseNote?: string,
-    modifiedDates?: { startDate: string; endDate: string }
+    modifiedDates?: { startDate: string; endDate: string },
+    modifiedShift?: WorkShift
   ) => void;
 
   // 📅 Lấy thống kê quân số trong ngày
@@ -111,11 +142,11 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
   workSchedules: getInitialSchedules(),
   leaveRequests: getInitialLeaveRequests(),
 
-  getWorkLocationForDate: (userId: string, dateStr: string) => {
+  getWorkLocationForDate: (userId: string, dateStr: string): WorkLocationInfo => {
     const state = get();
     const targetDateKey = dateStr.split('T')[0];
 
-    // 1. Kiểm tra xem có Đơn xin phép APPROVED bao phủ ngày này không
+    // 1. 🌟 NGUỒN ƯU TIÊN 1: Đơn xin WFH / Nghỉ phép đã được Admin Duyệt
     const matchingApprovedLeave = state.leaveRequests.find((req) => {
       if (req.userId !== userId) return false;
       if (req.status !== 'APPROVED' && req.status !== 'APPROVED_MODIFIED') return false;
@@ -127,42 +158,49 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
     });
 
     if (matchingApprovedLeave) {
+      const shiftShort = matchingApprovedLeave.shift && matchingApprovedLeave.shift !== 'FULL_DAY'
+        ? ` (${getShiftShortLabel(matchingApprovedLeave.shift)})`
+        : '';
       return {
         workType: matchingApprovedLeave.type === 'WFH' ? 'WFH' : 'LEAVE',
+        shift: matchingApprovedLeave.shift,
+        shiftLabel: getShiftLabel(matchingApprovedLeave.shift),
         source: 'LEAVE_REQUEST',
+        sourceTitle: `${matchingApprovedLeave.type === 'WFH' ? 'Đã Duyệt WFH' : 'Đã Duyệt Phép'}${shiftShort}`,
+        approverName: matchingApprovedLeave.approverName || 'Quản lý',
         note: matchingApprovedLeave.reason,
       };
     }
 
-    // 2. Kiểm tra bản ghi WorkSchedule chính thức
+    // 2. 🌟 NGUỒN ƯU TIÊN 2: Bản ghi Lịch Làm Việc chính thức (Admin Xếp hoặc Điều chỉnh Lịch)
     const matchingSchedule = state.workSchedules.find(
       (s) => s.userId === userId && s.date === targetDateKey
     );
 
     if (matchingSchedule) {
+      const shiftShort = matchingSchedule.shift && matchingSchedule.shift !== 'FULL_DAY'
+        ? ` (${getShiftShortLabel(matchingSchedule.shift)})`
+        : '';
       return {
         workType: matchingSchedule.workType,
+        shift: matchingSchedule.shift,
+        shiftLabel: getShiftLabel(matchingSchedule.shift),
         source: 'SCHEDULE',
+        sourceTitle: matchingSchedule.createdByName
+          ? `Lịch do ${matchingSchedule.createdByName} xếp${shiftShort}`
+          : `Lịch Làm Việc${shiftShort}`,
+        approverName: matchingSchedule.createdByName,
         note: matchingSchedule.note,
       };
     }
 
-    // 3. Kiểm tra override nhanh từ localStorage cho User hôm nay
-    const todayKey = formatDateToKey();
-    if (targetDateKey === todayKey) {
-      const storedOverride = localStorage.getItem(`solaris_user_work_location_${userId}`);
-      if (storedOverride) {
-        return {
-          workType: storedOverride as WorkLocationType,
-          source: 'MANUAL_OVERRIDE',
-        };
-      }
-    }
-
-    // 4. Mặc định tại Văn Phòng
+    // 3. 🌟 NGUỒN MẶC ĐỊNH: Làm việc tại Văn Phòng
     return {
       workType: 'OFFICE',
+      shift: 'FULL_DAY',
+      shiftLabel: 'Cả Ngày',
       source: 'DEFAULT',
+      sourceTitle: 'Tại Văn Phòng',
     };
   },
 
@@ -234,16 +272,27 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
     });
   },
 
-  reviewLeaveRequest: (requestId, status, approverId, approverName, responseNote, modifiedDates) => {
+  reviewLeaveRequest: (
+    requestId,
+    status,
+    approverId,
+    approverName,
+    responseNote,
+    modifiedDates,
+    modifiedShift
+  ) => {
     set((state) => {
       const targetReq = state.leaveRequests.find((r) => r.id === requestId);
       if (!targetReq) return state;
+
+      const effectiveShift = modifiedShift || targetReq.shift || 'FULL_DAY';
 
       const updatedRequests = state.leaveRequests.map((r) =>
         r.id === requestId
           ? {
               ...r,
               status,
+              shift: effectiveShift,
               approverId,
               approverName,
               responseNote,
@@ -270,6 +319,7 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
             updatedSchedules[existingIdx] = {
               ...updatedSchedules[existingIdx],
               workType,
+              shift: effectiveShift,
               note: `Đơn đã duyệt: ${targetReq.reason}`,
               updatedAt: new Date().toISOString(),
             };
@@ -279,7 +329,7 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
               userId: targetReq.userId,
               date: dateKey,
               workType,
-              shift: targetReq.shift || 'FULL_DAY',
+              shift: effectiveShift,
               note: `Đơn đã duyệt: ${targetReq.reason}`,
               createdById: approverId,
               createdByName: approverName,

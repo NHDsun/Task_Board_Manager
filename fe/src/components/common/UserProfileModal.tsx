@@ -127,7 +127,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const isSelf = !!user && !!authUser && user.id === authUser.id;
   const isAdmin = authUser?.globalRole === 'ADMIN';
-  const canEditLocation = isSelf || isAdmin;
+  const canEditLocation = isAdmin;
 
   const todayDateStr = new Date().toISOString().split('T')[0];
   const userLocation = user
@@ -168,16 +168,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   const handleSelectWorkLocation = (loc: WorkLocationType) => {
+    if (!isAdmin) return;
     setCurrentWorkLocation(loc);
     setIsLocationDropdownOpen(false);
-    if (isSelf) {
-      setUserDailyWorkLocation(authUser.id, loc);
-    } else if (isAdmin) {
-      setUserDailyWorkLocation(user.id, loc, undefined, {
-        adminId: authUser?.id || 'admin',
-        adminName: authUser?.fullName || 'Admin',
-      });
-    }
+    setUserDailyWorkLocation(user.id, loc, undefined, {
+      adminId: authUser?.id || 'admin',
+      adminName: authUser?.fullName || 'Admin',
+    });
   };
 
   // Status Signal Dot & Label

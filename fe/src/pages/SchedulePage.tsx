@@ -7,6 +7,12 @@ import { WeekTimelineView } from '../components/calendar/WeekTimelineView';
 import { DayScheduleView } from '../components/calendar/DayScheduleView';
 import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
 import { NotificationCenter } from '../components/navigation/NotificationCenter';
+import { CreateLeaveRequestModal } from '../components/schedule/CreateLeaveRequestModal';
+import { ReviewLeaveRequestsModal } from '../components/schedule/ReviewLeaveRequestsModal';
+import { AssignScheduleModal } from '../components/schedule/AssignScheduleModal';
+import { useAuthStore } from '../store/useAuthStore';
+import { useScheduleStore } from '../store/useScheduleStore';
+import { Plus, CalendarPlus, FileCheck2 } from 'lucide-react';
 import type { TaskItem } from '../components/kanban/KanbanCard';
 
 interface MemberUser {
@@ -23,6 +29,12 @@ interface ProjectOption {
 }
 
 export const SchedulePage: React.FC = () => {
+  const authUser = useAuthStore((state) => state.user);
+  const { leaveRequests } = useScheduleStore();
+  const isAdmin = authUser?.globalRole === 'ADMIN';
+  const isManager = authUser?.globalRole === 'MANAGER' || isAdmin;
+  const pendingRequestsCount = leaveRequests.filter((r) => r.status === 'PENDING').length;
+
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [members, setMembers] = useState<MemberUser[]>([]);
@@ -37,9 +49,12 @@ export const SchedulePage: React.FC = () => {
   const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>('ALL');
   const [selectedPriority, setSelectedPriority] = useState<string>('ALL');
 
-  // 🎯 Modal Chi Tiết Task
+  // 🎯 Modal State
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<TaskItem | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isCreateLeaveModalOpen, setIsCreateLeaveModalOpen] = useState(false);
+  const [isReviewLeaveModalOpen, setIsReviewLeaveModalOpen] = useState(false);
+  const [isAssignScheduleModalOpen, setIsAssignScheduleModalOpen] = useState(false);
 
   // 🔄 Tải Dữ Liệu Ban Đầu
   const fetchData = async () => {
@@ -155,12 +170,49 @@ export const SchedulePage: React.FC = () => {
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in pb-16">
       {/* 🚀 Top Action Bar & Notification Center */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 shadow-sm">
             ⚡ SOLARIS WORK SCHEDULE
           </span>
+
+          {/* Nộp đơn xin phép / WFH */}
+          <button
+            onClick={() => setIsCreateLeaveModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,158,11,0.25)] cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Nộp Đơn Phép / WFH</span>
+          </button>
+
+          {/* Duyệt Đơn (Chỉ Manager / Admin) */}
+          {isManager && (
+            <button
+              onClick={() => setIsReviewLeaveModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm relative"
+            >
+              <FileCheck2 className="w-3.5 h-3.5 text-purple-400" />
+              <span>Duyệt Đơn Phép</span>
+              {pendingRequestsCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-mono font-extrabold animate-pulse">
+                  {pendingRequestsCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Xếp lịch (Chỉ Admin / Manager) */}
+          {isManager && (
+            <button
+              onClick={() => setIsAssignScheduleModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <CalendarPlus className="w-3.5 h-3.5 text-amber-400" />
+              <span>Xếp Lịch Trực Tiếp 👑</span>
+            </button>
+          )}
         </div>
+
         <NotificationCenter
           onSelectTaskId={(id) => {
             const target = tasks.find((t) => t.id === id);
@@ -255,6 +307,26 @@ export const SchedulePage: React.FC = () => {
           }}
         />
       )}
+
+      {/* 📝 Modal Tạo Đơn Nghỉ / WFH */}
+      <CreateLeaveRequestModal
+        isOpen={isCreateLeaveModalOpen}
+        onClose={() => setIsCreateLeaveModalOpen(false)}
+      />
+
+      {/* 📋 Modal Phê Duyệt Đơn (Manager / Admin) */}
+      <ReviewLeaveRequestsModal
+        isOpen={isReviewLeaveModalOpen}
+        onClose={() => setIsReviewLeaveModalOpen(false)}
+      />
+
+      {/* 👑 Modal Xếp Lịch Trực Tiếp (Admin / Manager) */}
+      <AssignScheduleModal
+        isOpen={isAssignScheduleModalOpen}
+        onClose={() => setIsAssignScheduleModalOpen(false)}
+        members={members}
+        defaultUserId={selectedAssigneeId !== 'ALL' ? selectedAssigneeId : undefined}
+      />
     </div>
   );
 };

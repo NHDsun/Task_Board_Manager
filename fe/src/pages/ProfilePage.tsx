@@ -30,13 +30,11 @@ import {
   Home,
   Plane,
   Palmtree,
-  UploadCloud,
   Image as ImageIcon,
   ChevronDown,
   Check,
-  Trash2,
 } from 'lucide-react';
-import { useScheduleStore } from '../store/useScheduleStore';
+import { CreateLeaveRequestModal } from '../components/schedule/CreateLeaveRequestModal';
 
 export type WorkLocationType = 'OFFICE' | 'WFH' | 'ON_SITE' | 'LEAVE';
 
@@ -161,22 +159,23 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // 6. Work Location State (Interactive for Self & Admin)
+  // 6. Work Location State (Auto-displayed for Employee, Editable for Admin only)
   const { getWorkLocationForDate, setUserDailyWorkLocation } = useScheduleStore();
   const isAdmin = authUser?.globalRole === 'ADMIN';
   const targetUserId = user?.id || 'u-self';
 
-  // Lấy vị trí làm việc hôm nay từ schedule store (hoặc fallback)
+  // Lấy vị trí làm việc hôm nay từ schedule store (Lịch làm việc là Nguồn Sự Thật)
   const todayDateStr = new Date().toISOString().split('T')[0];
-  const initialLoc = getWorkLocationForDate(targetUserId, todayDateStr).workType;
-  const [currentWorkLocation, setCurrentWorkLocation] = useState<WorkLocationType>(initialLoc);
+  const [locationResult, setLocationResult] = useState(() => getWorkLocationForDate(targetUserId, todayDateStr));
+  const currentWorkLocation = locationResult.workType;
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const locationDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Đồng bộ lại khi user thay đổi
+  // Đồng bộ tự động khi user hoặc store thay đổi (Lịch duyệt/xếp bởi Admin -> Tự động hiển thị ra Profile)
   useEffect(() => {
-    const loc = getWorkLocationForDate(targetUserId, todayDateStr).workType;
-    setCurrentWorkLocation(loc);
+    const res = getWorkLocationForDate(targetUserId, todayDateStr);
+    setLocationResult(res);
   }, [targetUserId, todayDateStr, getWorkLocationForDate]);
 
   // 7. File Upload Refs & Handlers for Avatar and Cover Image (Direct Upload, No Raw URL needed)
@@ -221,21 +220,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     reader.readAsDataURL(file);
   };
 
+  // Chỉ Admin được chỉ định vị trí trực tiếp
   const handleSelectWorkLocation = (loc: WorkLocationType) => {
-    setCurrentWorkLocation(loc);
+    if (!isAdmin) return;
     setIsLocationDropdownOpen(false);
     const locInfo = WORK_LOCATIONS.find((l) => l.id === loc);
 
-    if (isSelf) {
-      setUserDailyWorkLocation(authUser?.id || targetUserId, loc);
-      showToast(`📍 Đã cập nhật vị trí làm việc hôm nay: ${locInfo?.label || loc}`, 'success');
-    } else if (isAdmin) {
-      setUserDailyWorkLocation(targetUserId, loc, undefined, {
-        adminId: authUser?.id || 'admin',
-        adminName: authUser?.fullName || 'Admin',
-      });
-      showToast(`👑 [Admin] Đã chỉ định vị trí làm việc cho ${user?.fullName}: ${locInfo?.label || loc}`, 'success');
-    }
+    setUserDailyWorkLocation(targetUserId, loc, undefined, {
+      adminId: authUser?.id || 'admin',
+      adminName: authUser?.fullName || 'Admin',
+    });
+    showToast(`👑 [Admin] Đã chỉ định vị trí làm việc cho ${user?.fullName || 'nhân sự'}: ${locInfo?.label || loc}`, 'success');
+
+    const updated = getWorkLocationForDate(targetUserId, todayDateStr);
+    setLocationResult(updated);
   };
 
   // Close location dropdown on outside click
@@ -249,7 +247,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
->>>>>>> feature/work-schedule-leave-management
   // Synchronize Form Data whenever `user` changes
   useEffect(() => {
     if (user) {
@@ -520,20 +517,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
           {/* Profile Actions */}
           <div className="flex items-center gap-3 self-stretch md:self-end justify-end flex-wrap">
-            {/* 📍 Work Location Status Badge (Interactive for Self & Admin, View-only for other employees) */}
+            {/* 📍 Work Location Status Badge (Interactive for Admin only, Auto-displayed for Employees) */}
             <div className="relative" ref={locationDropdownRef}>
-              <button
-                type="button"
-                onClick={() => (isSelf || isAdmin) && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
+              <div
                 className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2.5 shadow-inner transition-all ${
                   WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.badgeBg || 'bg-slate-900 border-slate-700 text-slate-200'
-                } ${isSelf || isAdmin ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}`}
+                } ${isAdmin ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}`}
+                onClick={() => isAdmin && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
                 title={
-                  isSelf
-                    ? 'Nhấp để đổi vị trí làm việc hôm nay'
-                    : isAdmin
-                    ? `Admin: Nhấp để chỉ định vị trí làm việc cho ${user?.fullName}`
-                    : `Vị trí làm việc hôm nay của ${user?.fullName}`
+                  isAdmin
+                    ? `Admin: Nhấp để chỉ định vị trí làm việc cho ${user?.fullName || 'nhân sự'}`
+                    : `Vị trí hôm nay của ${user?.fullName || 'bạn'} (Tự động cập nhật theo lịch làm việc đã duyệt)`
                 }
               >
                 <span className={`w-2.5 h-2.5 rounded-full ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.dotColor || 'bg-slate-400'}`} />
@@ -547,24 +541,27 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                     </span>
                   );
                 })()}
-                {isSelf && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono font-extrabold border border-amber-500/30 flex items-center gap-0.5">
-                    VỊ TRÍ 📍 <ChevronDown className="w-3 h-3 text-amber-400" />
+
+                {/* Source Badge Title (Ví dụ: [Đã Duyệt WFH], [Lịch Phân Công]) */}
+                {locationResult.sourceTitle && locationResult.source !== 'DEFAULT' && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono font-bold border border-amber-500/30">
+                    ✓ {locationResult.sourceTitle}
                   </span>
                 )}
-                {!isSelf && isAdmin && (
+
+                {isAdmin && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 font-mono font-extrabold border border-amber-500/50 flex items-center gap-0.5">
                     ADMIN SỬA 👑 <ChevronDown className="w-3 h-3 text-amber-400" />
                   </span>
                 )}
-              </button>
+              </div>
 
-              {/* Location Selection Dropdown (Only for Self or Admin) */}
-              {(isSelf || isAdmin) && isLocationDropdownOpen && (
+              {/* Location Selection Dropdown (Only for Admin) */}
+              {isAdmin && isLocationDropdownOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 p-2 rounded-2xl bg-[#0F172A] border border-amber-500/50 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-2xl z-50 animate-solar-drop-snap space-y-1">
                   <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>{isSelf ? 'Vị trí làm việc hôm nay' : `Chỉ định vị trí cho ${user?.fullName}`}</span>
-                    <span className="text-amber-400 font-mono text-[10px]">{isAdmin && !isSelf ? 'Admin Role' : 'Solaris Geo'}</span>
+                    <span>{`Chỉ định vị trí cho ${user?.fullName || 'nhân sự'}`}</span>
+                    <span className="text-amber-400 font-mono text-[10px]">Admin Role</span>
                   </div>
                   {WORK_LOCATIONS.map((loc) => {
                     const Icon = loc.icon;
@@ -594,6 +591,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 </div>
               )}
             </div>
+
+            {/* Nộp đơn xin nghỉ phép / WFH (Dành cho Employee tự gửi đơn cho Manager) */}
+            {isSelf && !isAdmin && (
+              <button
+                onClick={() => setIsLeaveModalOpen(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                title="Gửi đơn xin nghỉ hoặc WFH đến Quản lý"
+              >
+                <Palmtree className="w-3.5 h-3.5 text-amber-400" />
+                <span>Nộp Đơn Phép / WFH</span>
+              </button>
+            )}
 
             {isSelf ? (
               <>
@@ -1017,6 +1026,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           </div>
         </div>
       )}
+
+      {/* 📝 Modal Nộp Đơn Nghỉ / WFH (Dành cho Employee) */}
+      <CreateLeaveRequestModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        onSuccess={() => {
+          const res = getWorkLocationForDate(targetUserId, todayDateStr);
+          setLocationResult(res);
+          showToast('✅ Đã gửi đơn thành công! Đang chờ Quản lý duyệt.', 'success');
+        }}
+      />
     </div>
   );
 };
