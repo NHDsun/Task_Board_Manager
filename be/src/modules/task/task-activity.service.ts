@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuthUserPayload } from '../../common/interfaces/auth-user.interface';
 
 export interface ActivityItem {
   id: string;
@@ -24,7 +25,7 @@ export class TaskActivityService {
   async getTaskActivities(
     taskId: string,
     filter: 'all' | 'comments' | 'history' = 'all',
-    user?: any
+    user?: AuthUserPayload
   ) {
     const safeTaskId: string = String(taskId);
 
@@ -140,6 +141,24 @@ export class TaskActivityService {
     } catch {
       return null;
     }
+  }
+
+  async createTaskHistory(
+    taskId: string,
+    userId: string,
+    action: string,
+    field?: string | null,
+    oldValue?: string | null,
+    newValue?: string | null
+  ) {
+    return this.logTaskHistory(
+      taskId,
+      userId,
+      action,
+      field || undefined,
+      oldValue ?? undefined,
+      newValue ?? undefined
+    );
   }
 
   async logTaskMove(taskId: string, userId: string, oldStatus: string, newStatus: string) {

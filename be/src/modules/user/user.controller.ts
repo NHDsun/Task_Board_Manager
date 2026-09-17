@@ -21,13 +21,8 @@ import { LockUserDto } from './dto/lock-user.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
+import { AuthenticatedRequest } from '../../common/interfaces/auth-user.interface';
+
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UserController {
@@ -51,8 +46,8 @@ export class UserController {
   @UseGuards(RolesGuard)
   @Patch(':id/role')
   @Roles('ADMIN')
-  updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto) {
-    return this.userService.updateRoleAndDepartment(id, dto);
+  updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto, @Req() req: AuthenticatedRequest) {
+    return this.userService.updateRoleAndDepartment(id, dto, req.user?.id);
   }
 
   @UseGuards(RolesGuard)

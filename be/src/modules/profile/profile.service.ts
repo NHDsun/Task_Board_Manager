@@ -141,6 +141,15 @@ export class ProfileService {
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: dataToUpdate,
+      include: {
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
     });
 
     return {
@@ -151,12 +160,15 @@ export class ProfileService {
       avatarUrl: updatedUser.avatar || '',
       coverImage: updatedUser.coverImage,
       globalRole: updatedUser.role,
+      role: updatedUser.role,
       profession: updatedUser.profession,
       jobTitle: updatedUser.jobTitle,
       phone: updatedUser.phone,
       bio: updatedUser.bio,
       statusSignal: updatedUser.statusSignal,
       customStatus: updatedUser.customStatus,
+      department: updatedUser.department,
+      departmentId: updatedUser.departmentId,
     };
   }
 

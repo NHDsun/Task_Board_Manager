@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SocketGateway } from '../socket/socket.gateway';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { AuthUserPayload } from '../../common/interfaces/auth-user.interface';
 
 @Injectable()
 export class ProjectService {
@@ -11,7 +12,7 @@ export class ProjectService {
     private socketGateway: SocketGateway
   ) {}
 
-  async create(userId: string, createProjectDto: CreateProjectDto, user?: any) {
+  async create(userId: string, createProjectDto: CreateProjectDto, user?: AuthUserPayload) {
     const currentUser = user || (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
       throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền tạo dự án mới!');
@@ -184,6 +185,16 @@ export class ProjectService {
           'Chỉ Quản trị viên (Admin) hoặc Quản lý dự án mới có quyền chỉnh sửa thông tin dự án!'
         );
       }
+
+      // 🔒 [LC-171] CHỈ DUY NHẤT ADMIN MỚI CÓ QUYỀN XÁC NHẬN NGHIỆM THU HOÀN THÀNH HOẶC MỞ LẠI DỰ ÁN
+      if (updateProjectDto.isCompleted !== undefined) {
+        const isAdmin = user.role === 'ADMIN' || user.globalRole === 'ADMIN';
+        if (!isAdmin) {
+          throw new ForbiddenException(
+            'Chỉ Quản trị viên (Admin) mới có quyền xác nhận hoàn thành hoặc mở lại dự án!'
+          );
+        }
+      }
     }
 
     // 🔒 [LC-101] TỰ ĐỘNG CẤP QUYỀN VÀ BẢO ĐẢM QUẢN LÝ MỚI CÓ ROLE MANAGER
@@ -271,16 +282,6 @@ export class ProjectService {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       include: {
-        manager: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            avatar: true,
-            profession: true,
-            role: true,
-          },
-        },
         createdBy: {
           select: {
             id: true,
@@ -288,6 +289,18 @@ export class ProjectService {
             email: true,
             avatar: true,
             profession: true,
+            jobTitle: true,
+            role: true,
+          },
+        },
+        manager: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            avatar: true,
+            profession: true,
+            jobTitle: true,
             role: true,
           },
         },
@@ -300,67 +313,88 @@ export class ProjectService {
                 email: true,
                 avatar: true,
                 profession: true,
-                role: true,
                 jobTitle: true,
+                role: true,
               },
             },
           },
         },
       },
     });
+
     if (!project) {
       throw new NotFoundException('Dự án không tồn tại');
     }
 
-    // Lấy số lượng task đang phụ trách của từng member trong dự án
-    const taskCounts = await this.prisma.task.groupBy({
-      by: ['assigneeId'],
-      where: { projectId, isDeleted: false },
-      _count: { id: true },
-    });
-    const taskCountMap: Record<string, number> = {};
-    taskCounts.forEach((tc) => {
-      if (tc.assigneeId) taskCountMap[tc.assigneeId] = tc._count.id;
-    });
+    const membersMap = new Map<string, any>();
 
-    const list = project.members.map((m) => ({
-      ...m.user,
-      isManager: m.userId === project.managerId,
-      isCreator: m.userId === project.createdById,
-      activeTasksCount: taskCountMap[m.userId] || 0,
-      joinedAt: m.joinedAt,
-    }));
+    if (project.createdBy) {
+      membersMap.set(project.createdBy.id, {
+        ...project.createdBy,
+        roleInProject: 'OWNER',
+        roleLabel: 'Chủ Dự Án',
+      });
+    }
+
+    if (project.manager) {
+      membersMap.set(project.manager.id, {
+        ...project.manager,
+        roleInProject: 'MANAGER',
+        roleLabel: 'Quản Lý Dự Án',
+      });
+    }
+
+    project.members.forEach((m) => {
+      if (m.user && !membersMap.has(m.user.id)) {
+        membersMap.set(m.user.id, {
+          ...m.user,
+          roleInProject: 'MEMBER',
+          roleLabel: 'Thành Viên',
+          joinedAt: m.joinedAt,
+        });
+      }
+    });
 
     return {
       projectId: project.id,
       projectName: project.name,
-      managerId: project.managerId,
-      manager: project.manager,
-      members: list,
+      members: Array.from(membersMap.values()),
     };
   }
 
   // ➕ Thêm thành viên vào dự án
-  async addMember(projectId: string, userIdToAdd: string, user: any) {
+  async addMember(projectId: string, userIdToAdd: string, user: AuthUserPayload) {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
-      select: { id: true, managerId: true, createdById: true },
+      select: { id: true, managerId: true, createdById: true, isCompleted: true },
     });
     if (!project) {
       throw new NotFoundException('Dự án không tồn tại');
+    }
+    if (project.isCompleted) {
+      throw new BadRequestException('Dự án này đã hoàn thành/nghiệm thu và đã đóng. Không thể thêm thành viên mới!');
     }
 
     const isAdminOrManager = Boolean(
       user &&
       (user.role === 'ADMIN' ||
         user.role === 'MANAGER' ||
-        user.globalRole === 'ADMIN' ||
-        user.globalRole === 'MANAGER' ||
         project.managerId === user.id ||
         project.createdById === user.id)
     );
     if (!isAdminOrManager) {
       throw new ForbiddenException('Chỉ Quản lý hoặc Admin mới có quyền thêm thành viên vào dự án');
+    }
+
+    const userToAdd = await this.prisma.user.findUnique({
+      where: { id: userIdToAdd },
+      select: { id: true, isActive: true },
+    });
+    if (!userToAdd) {
+      throw new NotFoundException('Nhân sự không tồn tại trong hệ thống');
+    }
+    if (!userToAdd.isActive) {
+      throw new BadRequestException('Không thể thêm nhân sự đang bị khóa tài khoản (Inactive) vào dự án!');
     }
 
     const existing = await this.prisma.projectMember.findFirst({
@@ -388,21 +422,22 @@ export class ProjectService {
   }
 
   // 🚪 Xóa thành viên khỏi dự án -> Tự động chuyển toàn bộ Task của thành viên đó về cho Manager của Dự án
-  async removeMember(projectId: string, userIdToRemove: string, user: any) {
+  async removeMember(projectId: string, userIdToRemove: string, user: AuthUserPayload) {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
-      select: { id: true, name: true, managerId: true, createdById: true },
+      select: { id: true, name: true, managerId: true, createdById: true, isCompleted: true },
     });
     if (!project) {
       throw new NotFoundException('Dự án không tồn tại');
+    }
+    if (project.isCompleted) {
+      throw new BadRequestException('Dự án này đã hoàn thành/nghiệm thu và đã đóng. Không thể thay đổi thành viên!');
     }
 
     const isAdminOrManager = Boolean(
       user &&
       (user.role === 'ADMIN' ||
         user.role === 'MANAGER' ||
-        user.globalRole === 'ADMIN' ||
-        user.globalRole === 'MANAGER' ||
         project.managerId === user.id ||
         project.createdById === user.id)
     );
@@ -410,76 +445,77 @@ export class ProjectService {
       throw new ForbiddenException('Chỉ Quản lý hoặc Admin mới có quyền xóa thành viên khỏi dự án');
     }
 
+    // Không cho phép xóa Chủ dự án hoặc Manager chính của dự án qua endpoint này
+    if (userIdToRemove === project.createdById) {
+      throw new BadRequestException('Không thể xóa Chủ dự án (Owner) khỏi dự án');
+    }
     if (userIdToRemove === project.managerId) {
-      throw new BadRequestException('Không thể xóa Quản lý chính (Project Manager) ra khỏi dự án!');
+      throw new BadRequestException('Không thể xóa Quản lý chính (Manager) khỏi dự án. Vui lòng đổi Manager trước.');
     }
 
-    const targetManagerId = project.managerId || project.createdById || user.id;
+    const fallbackAssigneeId = project.managerId || project.createdById;
 
-    // 🔒 [LC-68] BỌC TOÀN BỘ QUY TRÌNH BÀN GIAO & XÓA THÀNH VIÊN TRONG ATOMIC TRANSACTION
     await this.prisma.$transaction(async (tx) => {
-      // 🔒 [LC-59] TÌM CÁC TASK LIÊN QUAN ĐẾN THÀNH VIÊN BỊ XÓA ĐỂ CHUYỂN GIAO CHO ĐỒNG NGHIỆP CÒN LẠI (HOẶC MANAGER NẾU KHÔNG CÒN AI)
-      const affectedTasks = await tx.task.findMany({
-        where: {
-          projectId,
-          OR: [{ assigneeId: userIdToRemove }, { subtasks: { some: { assigneeId: userIdToRemove } } }],
-        },
-        include: {
-          subtasks: true,
-        },
-      });
-
-      for (const t of affectedTasks) {
-        // Tìm đồng nghiệp B còn lại đang cùng làm task này
-        const otherCollaborators = t.subtasks
-          .filter((st) => st.assigneeId && st.assigneeId !== userIdToRemove)
-          .map((st) => st.assigneeId);
-
-        // Nếu có đồng nghiệp B còn lại -> chuyển cho B; nếu không còn ai -> chuyển cho Manager
-        const nextAssigneeId = otherCollaborators.length > 0 ? otherCollaborators[0] : targetManagerId;
-
-        // 1. Chuyển các subtask của người bị xóa sang cho B (hoặc Manager)
-        await tx.subtask.updateMany({
-          where: { taskId: t.id, assigneeId: userIdToRemove },
-          data: { assigneeId: nextAssigneeId },
-        });
-
-        // 2. Nếu người bị xóa là người nhận chính của Task cha -> chuyển đại diện sang cho B (hoặc Manager)
-        if (t.assigneeId === userIdToRemove) {
-          await tx.task.update({
-            where: { id: t.id },
-            data: { assigneeId: nextAssigneeId },
-          });
-        }
-      }
-
-      // 3. 🔒 [LC-33] HỦY TOÀN BỘ YÊU CẦU DUYỆT / CHUYỂN GIAO ĐANG TREO CỦA THÀNH VIÊN BỊ XÓA
-      await tx.taskRequest.updateMany({
-        where: {
-          task: { projectId },
-          status: 'PENDING',
-          OR: [{ senderId: userIdToRemove }, { receiverId: userIdToRemove }],
-        },
-        data: {
-          status: 'CANCELLED',
-          responseNote: 'Thành viên liên quan đã bị Quản lý xóa khỏi dự án.',
-        },
-      });
-
-      // 4. Xóa quan hệ thành viên khỏi bảng project_members
+      // 1. Xóa bản ghi thành viên
       await tx.projectMember.deleteMany({
         where: { projectId, userId: userIdToRemove },
       });
 
-      return {
-        success: true,
-        message: 'Đã xóa thành viên và tự động bàn giao phần việc cho đồng nghiệp còn lại (hoặc Quản lý dự án).',
-      };
+      // 2. Tự động chuyển giao toàn bộ Task đang gán cho thành viên này về cho Manager / Creator dự án
+      await tx.task.updateMany({
+        where: {
+          projectId,
+          assigneeId: userIdToRemove,
+          isDeleted: false,
+          isArchived: false,
+        },
+        data: {
+          assigneeId: fallbackAssigneeId,
+        },
+      });
+
+      // 3. Chuyển giao các Subtask con đang gán cho thành viên này về cho Manager
+      await tx.subtask.updateMany({
+        where: {
+          task: { projectId },
+          assigneeId: userIdToRemove,
+        },
+        data: {
+          assigneeId: fallbackAssigneeId,
+        },
+      });
+
+      // 4. 🔒 [LC-115] Tự động hủy toàn bộ TaskRequest đang PENDING liên quan đến thành viên bị xóa
+      await tx.taskRequest.updateMany({
+        where: {
+          task: { projectId },
+          status: 'PENDING',
+          OR: [
+            { senderId: userIdToRemove },
+            { receiverId: userIdToRemove },
+          ],
+        },
+        data: {
+          status: 'REJECTED',
+          responseNote: 'Tự động hủy vì nhân sự đã rời khỏi dự án',
+        },
+      });
     });
+
+    this.socketGateway.broadcastToProject(projectId, 'project:member:removed', {
+      projectId,
+      userId: userIdToRemove,
+      fallbackAssigneeId,
+    });
+
+    return {
+      success: true,
+      message: `Đã xóa thành viên khỏi dự án "${project.name}" và chuyển giao các công việc liên quan cho Quản lý dự án.`,
+    };
   }
 
   // 🗑️ [ADMIN ONLY] Xóa mềm Dự Án (Lưu vào Thùng Rác 14 ngày)
-  async softDelete(id: string, userId: string, user?: any) {
+  async softDelete(id: string, userId: string, user?: AuthUserPayload) {
     const currentUser = user || (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
       throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền xóa dự án!');
@@ -544,7 +580,7 @@ export class ProjectService {
   }
 
   // 🔄 [ADMIN ONLY] Khôi phục Dự Án từ Thùng Rác
-  async restore(id: string, userId: string, user?: any) {
+  async restore(id: string, userId: string, user?: AuthUserPayload) {
     const currentUser = user || (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
       throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền khôi phục dự án!');
@@ -609,7 +645,7 @@ export class ProjectService {
   }
 
   // 💥 [ADMIN ONLY] Xóa Vĩnh Viễn Dự Án Khỏi CSDL
-  async hardDelete(id: string, userId: string, user?: any) {
+  async hardDelete(id: string, userId: string, user?: AuthUserPayload) {
     const currentUser = user || (await this.prisma.user.findUnique({ where: { id: userId } }));
     if (!currentUser || currentUser.role !== 'ADMIN') {
       throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền xóa vĩnh viễn dự án!');
