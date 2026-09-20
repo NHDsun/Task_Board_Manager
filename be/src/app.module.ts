@@ -15,6 +15,7 @@ import { IdempotencyInterceptor } from './common/interceptors/idempotency.interc
 import { UserModule } from './modules/user/user.module';
 import { DepartmentModule } from './modules/department/department.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { AiVoiceModule } from './modules/voice/voice.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ChatModule } from './modules/chat/chat.module';
     TrashModule,
     DepartmentModule,
     ChatModule,
+    AiVoiceModule,
   ],
   controllers: [AppController],
   providers: [
