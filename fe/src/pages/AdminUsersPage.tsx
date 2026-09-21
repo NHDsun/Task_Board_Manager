@@ -101,7 +101,9 @@ export const AdminUsersPage: React.FC = () => {
   const [newDepartment, setNewDepartment] = useState('Engineering');
   const [newProfession, setNewProfession] = useState<Profession>('DEV');
   const [newRole, setNewRole] = useState<GlobalRole>('EMPLOYEE');
-
+  const [selectedUserForLock, setSelectedUserForLock] = useState<DirectoryUser | null>(null);
+  const [selectedUserForWorkload, setSelectedUserForWorkload] = useState<any | null>(null);
+  const [isLoadingWorkload, setIsLoadingWorkload] = useState(false);
   // Fetch Users & Departments on Mount
   useEffect(() => {
     fetchUsers();
@@ -118,7 +120,12 @@ export const AdminUsersPage: React.FC = () => {
     const dbDeptNames = departments.map((d) => d.name);
     const userDeptNames = users.map((u) => u.department).filter(Boolean);
     const combined = Array.from(new Set([...dbDeptNames, ...userDeptNames]));
-    return ['Tất Cả', ...(combined.length > 0 ? combined : ['Engineering', 'Product & Planning', 'Design & UX', 'QA & Testing', 'Operations & SRE'])];
+    return [
+      'Tất Cả',
+      ...(combined.length > 0
+        ? combined
+        : ['Engineering', 'Product & Planning', 'Design & UX', 'QA & Testing', 'Operations & SRE']),
+    ];
   }, [departments, users]);
 
   // Set default selected department for new user when departments load
@@ -237,9 +244,7 @@ export const AdminUsersPage: React.FC = () => {
       joinedDate: u.joinedDate,
       projectsCount: u.projectsCount,
       tasksCount: u.tasksCount,
-      bio:
-        u.bio ||
-        `Chuyên gia ${u.jobTitle} phụ trách các giải pháp phân hệ ${u.department} tại Solaris Platform.`,
+      bio: u.bio || `Chuyên gia ${u.jobTitle} phụ trách các giải pháp phân hệ ${u.department} tại Solaris Platform.`,
       workMode: u.workMode || 'OFFICE',
     });
   };
@@ -363,9 +368,7 @@ export const AdminUsersPage: React.FC = () => {
   // 👥 Multi-Selection Handlers
   const handleToggleSelectUser = (userId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setSelectedUserIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
+    setSelectedUserIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
   };
 
   const isAllFilteredSelected = useMemo(() => {
@@ -440,9 +443,7 @@ export const AdminUsersPage: React.FC = () => {
       );
       setIsTransferModalOpen(false);
       setSelectedUserIds([]);
-      showToast(
-        `✅ Đã điều chuyển ${transferUserList.length} nhân sự sang phòng ban "${targetDept.name}" thành công!`
-      );
+      showToast(`✅ Đã điều chuyển ${transferUserList.length} nhân sự sang phòng ban "${targetDept.name}" thành công!`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Điều chuyển nhân sự thất bại';
       showToast(`❌ Lỗi: ${msg}`);
@@ -462,6 +463,54 @@ export const AdminUsersPage: React.FC = () => {
         return 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border-emerald-500/40';
     }
   };
+  // 🔒 Khóa hoặc Mở khóa tài khoản
+const handleToggleLockUser = async (user: DirectoryUser) => {
+  const nextActiveState = !user.isActive; // Giả sử trong DirectoryUser có trường isActive, nếu chưa có bạn có thể truyền trực tiếp
+  setActionLoadingId(user.id);
+  try {
+    // Gọi API tương ứng với backend: PATCH /users/{id}/lock
+    await api.patch(`/users/${user.id}/lock`, { isActive: nextActiveState });
+    await fetchUsers();
+    setSelectedUserForLock(null);
+    showToast(`🔒 Đã ${nextActiveState ? 'mở khóa' : 'khóa'} tài khoản của ${user.fullName}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Thao tác thất bại';
+    showToast(`❌ Lỗi: ${msg}`);
+  } finally {
+    setActionLoadingId(null);
+  }
+};
+
+const handleToggleLockUser = async (user: DirectoryUser) => {
+  const nextActiveState = !user.isActive; 
+  setActionLoadingId(user.id);
+  try {
+    await api.patch(`/users/${user.id}/lock`, { isActive: nextActiveState });
+    await fetchUsers();
+    setSelectedUserForLock(null);
+    showToast(`🔒 Đã ${nextActiveState ? 'mở khóa' : 'khóa'} tài khoản của ${user.fullName}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Thao tác thất bại';
+    showToast(`❌ Lỗi: ${msg}`);
+  } finally {
+    setActionLoadingId(null);
+  }
+};
+
+
+const handleOpenWorkload = async (user: DirectoryUser) => {
+  setSelectedUserForWorkload(null);
+  setIsLoadingWorkload(true);
+  try {
+    const res = await api.get(`/users/${user.id}/workload`);
+    setSelectedUserForWorkload(res.data);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Không thể tải workload';
+    showToast(`❌ Lỗi: ${msg}`);
+  } finally {
+    setIsLoadingWorkload(false);
+  }
+};
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 animate-fade-in relative pb-16">
@@ -517,9 +566,7 @@ export const AdminUsersPage: React.FC = () => {
         <button
           onClick={() => setActiveMainTab('users')}
           className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
-            activeMainTab === 'users'
-              ? 'bg-slate-800 text-white shadow-sm'
-              : 'text-slate-400 hover:text-white'
+            activeMainTab === 'users' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'
           }`}
         >
           <Users className="w-3.5 h-3.5" />
@@ -528,9 +575,7 @@ export const AdminUsersPage: React.FC = () => {
         <button
           onClick={() => setActiveMainTab('departments')}
           className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
-            activeMainTab === 'departments'
-              ? 'bg-slate-800 text-white shadow-sm'
-              : 'text-slate-400 hover:text-white'
+            activeMainTab === 'departments' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'
           }`}
         >
           <Building2 className="w-3.5 h-3.5" />
@@ -657,9 +702,7 @@ export const AdminUsersPage: React.FC = () => {
                   <button
                     onClick={() => setViewMode('cards')}
                     className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                      viewMode === 'cards'
-                        ? 'bg-slate-800 text-white font-bold'
-                        : 'text-slate-400 hover:text-white'
+                      viewMode === 'cards' ? 'bg-slate-800 text-white font-bold' : 'text-slate-400 hover:text-white'
                     }`}
                     title="Chế độ Thẻ"
                   >
@@ -668,9 +711,7 @@ export const AdminUsersPage: React.FC = () => {
                   <button
                     onClick={() => setViewMode('table')}
                     className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                      viewMode === 'table'
-                        ? 'bg-slate-800 text-white font-bold'
-                        : 'text-slate-400 hover:text-white'
+                      viewMode === 'table' ? 'bg-slate-800 text-white font-bold' : 'text-slate-400 hover:text-white'
                     }`}
                     title="Chế độ Bảng"
                   >
@@ -688,9 +729,7 @@ export const AdminUsersPage: React.FC = () => {
                     {selectedUserIds.length}
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">
-                      Đã chọn {selectedUserIds.length} nhân sự
-                    </span>
+                    <span className="text-xs font-bold text-white block">Đã chọn {selectedUserIds.length} nhân sự</span>
                     <span className="text-[11px] text-slate-400">
                       Sẵn sàng thực hiện điều chuyển khối phòng ban hàng loạt
                     </span>
@@ -759,11 +798,7 @@ export const AdminUsersPage: React.FC = () => {
                             }`}
                             title={isSelected ? 'Bỏ chọn' : 'Tích chọn nhân sự này'}
                           >
-                            {isSelected ? (
-                              <CheckSquare className="w-4 h-4" />
-                            ) : (
-                              <Square className="w-4 h-4" />
-                            )}
+                            {isSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                           </button>
 
                           <div className="relative shrink-0">
@@ -895,9 +930,7 @@ export const AdminUsersPage: React.FC = () => {
                           key={user.id}
                           onClick={() => handleOpenProfile(user)}
                           className={`transition-colors cursor-pointer group ${
-                            isSelected
-                              ? 'bg-amber-500/10 hover:bg-amber-500/15'
-                              : 'hover:bg-slate-800/40'
+                            isSelected ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'hover:bg-slate-800/40'
                           }`}
                         >
                           <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
@@ -1067,7 +1100,9 @@ export const AdminUsersPage: React.FC = () => {
             <div className="py-16 text-center solar-glass-card rounded-3xl bg-[#0F172A]/80 border border-slate-800 space-y-3">
               <Building2 className="w-12 h-12 text-slate-600 mx-auto" />
               <h3 className="text-sm font-bold text-slate-300">Chưa có phòng ban nào được tạo</h3>
-              <p className="text-xs text-slate-500">Bấm nút "Thêm Phòng Ban Mới" ở góc trên để khởi tạo phòng ban đầu tiên.</p>
+              <p className="text-xs text-slate-500">
+                Bấm nút "Thêm Phòng Ban Mới" ở góc trên để khởi tạo phòng ban đầu tiên.
+              </p>
               <button
                 onClick={handleOpenCreateDept}
                 className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs cursor-pointer hover:bg-amber-400"
@@ -1310,11 +1345,13 @@ export const AdminUsersPage: React.FC = () => {
                     onChange={(e) => setNewDepartment(e.target.value)}
                     className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500 cursor-pointer"
                   >
-                    {departmentOptions.filter((d) => d !== 'Tất Cả').map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
+                    {departmentOptions
+                      .filter((d) => d !== 'Tất Cả')
+                      .map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
                   </select>
                 </div>
               </div>
@@ -1389,7 +1426,8 @@ export const AdminUsersPage: React.FC = () => {
 
             <p className="text-xs text-slate-300">
               Chọn cấp độ đặc quyền mới cho nhân sự. Lưu ý: Cấp quyền{' '}
-              <span className="text-rose-400 font-bold">ADMIN</span> sẽ cho phép người dùng truy cập toàn bộ dữ liệu và Thùng rác hệ thống.
+              <span className="text-rose-400 font-bold">ADMIN</span> sẽ cho phép người dùng truy cập toàn bộ dữ liệu và
+              Thùng rác hệ thống.
             </p>
 
             <div className="space-y-2 text-xs">
@@ -1410,9 +1448,7 @@ export const AdminUsersPage: React.FC = () => {
                     {r === 'MANAGER' && 'MANAGER — Quản lý Dự án & Duyệt bài'}
                     {r === 'EMPLOYEE' && 'EMPLOYEE — Nhân viên tác nghiệp'}
                   </span>
-                  {selectedUserForRole.globalRole === r && (
-                    <CheckCircle2 className="w-4 h-4 text-purple-400" />
-                  )}
+                  {selectedUserForRole.globalRole === r && <CheckCircle2 className="w-4 h-4 text-purple-400" />}
                 </button>
               ))}
             </div>
@@ -1429,8 +1465,6 @@ export const AdminUsersPage: React.FC = () => {
         </div>
       )}
 
-
-
       {/* 👤 MODAL 4: DELETE USER CONFIRM MODAL */}
       {selectedUserForDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
@@ -1440,11 +1474,10 @@ export const AdminUsersPage: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-base font-extrabold text-white">
-                Xác Nhận Xóa Vĩnh Viễn?
-              </h3>
+              <h3 className="text-base font-extrabold text-white">Xác Nhận Xóa Vĩnh Viễn?</h3>
               <p className="text-xs text-slate-400">
-                Thành viên: <span className="text-white font-bold">{selectedUserForDelete.fullName}</span> ({selectedUserForDelete.email})
+                Thành viên: <span className="text-white font-bold">{selectedUserForDelete.fullName}</span> (
+                {selectedUserForDelete.email})
               </p>
             </div>
 
@@ -1487,9 +1520,7 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-extrabold text-white">Thêm Khối Phòng Ban Mới</h2>
-                  <p className="text-xs text-slate-400">
-                    Khởi tạo phòng ban để phân nhóm và quản lý cơ cấu nhân sự
-                  </p>
+                  <p className="text-xs text-slate-400">Khởi tạo phòng ban để phân nhóm và quản lý cơ cấu nhân sự</p>
                 </div>
               </div>
               <button
@@ -1570,9 +1601,7 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-extrabold text-white">Chỉnh Sửa Phòng Ban</h2>
-                  <p className="text-xs text-slate-400">
-                    Cập nhật thông tin chi tiết của khối phòng ban
-                  </p>
+                  <p className="text-xs text-slate-400">Cập nhật thông tin chi tiết của khối phòng ban</p>
                 </div>
               </div>
               <button
@@ -1650,16 +1679,15 @@ export const AdminUsersPage: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-base font-extrabold text-white">
-                Xác Nhận Giải Thể / Xóa Phòng Ban?
-              </h3>
+              <h3 className="text-base font-extrabold text-white">Xác Nhận Giải Thể / Xóa Phòng Ban?</h3>
               <p className="text-xs text-slate-400">
                 Phòng ban: <span className="text-white font-bold">{deletingDept.name}</span> ({deletingDept.code})
               </p>
             </div>
 
             <p className="text-xs text-rose-300/90 bg-rose-950/40 p-3 rounded-2xl border border-rose-500/30 leading-relaxed">
-              ⚠️ Khi xóa phòng ban, các nhân sự thuộc phòng ban này sẽ được tự động chuyển về trạng thái &quot;Chưa phân bổ&quot;. Dữ liệu nhân sự và các task liên quan vẫn được bảo toàn nguyên vẹn.
+              ⚠️ Khi xóa phòng ban, các nhân sự thuộc phòng ban này sẽ được tự động chuyển về trạng thái &quot;Chưa phân
+              bổ&quot;. Dữ liệu nhân sự và các task liên quan vẫn được bảo toàn nguyên vẹn.
             </p>
 
             <div className="flex items-center justify-center gap-3 pt-2">
