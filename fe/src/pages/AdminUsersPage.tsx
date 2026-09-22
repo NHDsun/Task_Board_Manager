@@ -24,6 +24,8 @@ import {
   ArrowRightLeft,
   CheckSquare,
   Square,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import type { GlobalRole, Profession } from '../types/auth';
 import { UserProfileModal, type UserProfileData } from '../components/common/UserProfileModal';
@@ -77,6 +79,7 @@ export const AdminUsersPage: React.FC = () => {
   const [selectedProfileUser, setSelectedProfileUser] = useState<UserProfileData | null>(null);
   const [selectedUserForRole, setSelectedUserForRole] = useState<DirectoryUser | null>(null);
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<DirectoryUser | null>(null);
+  const [selectedUserForLock, setSelectedUserForLock] = useState<DirectoryUser | null>(null);
 
   // Department Modals
   const [isCreateDeptModalOpen, setIsCreateDeptModalOpen] = useState(false);
@@ -101,9 +104,7 @@ export const AdminUsersPage: React.FC = () => {
   const [newDepartment, setNewDepartment] = useState('Engineering');
   const [newProfession, setNewProfession] = useState<Profession>('DEV');
   const [newRole, setNewRole] = useState<GlobalRole>('EMPLOYEE');
-  const [selectedUserForLock, setSelectedUserForLock] = useState<DirectoryUser | null>(null);
-  const [selectedUserForWorkload, setSelectedUserForWorkload] = useState<any | null>(null);
-  const [isLoadingWorkload, setIsLoadingWorkload] = useState(false);
+
   // Fetch Users & Departments on Mount
   useEffect(() => {
     fetchUsers();
@@ -291,6 +292,22 @@ export const AdminUsersPage: React.FC = () => {
     }
   };
 
+  const handleToggleLockUser = async (user: DirectoryUser) => {
+    const nextActiveState = !user.isActive;
+    setActionLoadingId(user.id);
+    try {
+      await api.patch(`/users/${user.id}/lock`, { isActive: nextActiveState });
+      await fetchUsers();
+      setSelectedUserForLock(null);
+      showToast(`🔒 Đã ${nextActiveState ? 'mở khóa' : 'khóa'} tài khoản của ${user.fullName}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Thao tác thất bại';
+      showToast(`❌ Lỗi: ${msg}`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   // 🏢 Department Action Handlers
   const handleOpenCreateDept = () => {
     setDeptName('');
@@ -355,7 +372,7 @@ export const AdminUsersPage: React.FC = () => {
     try {
       await deleteDepartment(deletingDept.id);
       setDeletingDept(null);
-      await fetchUsers(); // Refresh users since department was detached
+      await fetchUsers();
       showToast(`🗑️ Đã xóa phòng ban: ${deletingDept.name}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Xóa phòng ban thất bại';
@@ -463,54 +480,6 @@ export const AdminUsersPage: React.FC = () => {
         return 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border-emerald-500/40';
     }
   };
-  // 🔒 Khóa hoặc Mở khóa tài khoản
-const handleToggleLockUser = async (user: DirectoryUser) => {
-  const nextActiveState = !user.isActive; // Giả sử trong DirectoryUser có trường isActive, nếu chưa có bạn có thể truyền trực tiếp
-  setActionLoadingId(user.id);
-  try {
-    // Gọi API tương ứng với backend: PATCH /users/{id}/lock
-    await api.patch(`/users/${user.id}/lock`, { isActive: nextActiveState });
-    await fetchUsers();
-    setSelectedUserForLock(null);
-    showToast(`🔒 Đã ${nextActiveState ? 'mở khóa' : 'khóa'} tài khoản của ${user.fullName}`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Thao tác thất bại';
-    showToast(`❌ Lỗi: ${msg}`);
-  } finally {
-    setActionLoadingId(null);
-  }
-};
-
-const handleToggleLockUser = async (user: DirectoryUser) => {
-  const nextActiveState = !user.isActive; 
-  setActionLoadingId(user.id);
-  try {
-    await api.patch(`/users/${user.id}/lock`, { isActive: nextActiveState });
-    await fetchUsers();
-    setSelectedUserForLock(null);
-    showToast(`🔒 Đã ${nextActiveState ? 'mở khóa' : 'khóa'} tài khoản của ${user.fullName}`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Thao tác thất bại';
-    showToast(`❌ Lỗi: ${msg}`);
-  } finally {
-    setActionLoadingId(null);
-  }
-};
-
-
-const handleOpenWorkload = async (user: DirectoryUser) => {
-  setSelectedUserForWorkload(null);
-  setIsLoadingWorkload(true);
-  try {
-    const res = await api.get(`/users/${user.id}/workload`);
-    setSelectedUserForWorkload(res.data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Không thể tải workload';
-    showToast(`❌ Lỗi: ${msg}`);
-  } finally {
-    setIsLoadingWorkload(false);
-  }
-};
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 animate-fade-in relative pb-16">
@@ -848,11 +817,41 @@ const handleOpenWorkload = async (user: DirectoryUser) => {
 
                     {/* Card Actions Footer */}
                     <div
-                      className="pt-3 border-t border-slate-800/80 flex items-center justify-end gap-2"
+                      className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2"
                       onClick={(e) => e.stopPropagation()}
                     >
+                      {/* Trạng thái Hoạt động / Khóa */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg border inline-block ${
+                            user.isActive === true
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                          }`}
+                        >
+                          {user.isActive === true ? '● Hoạt động' : '■ Đã khóa'}
+                        </span>
+                      </td>
+
                       {/* Action Icon Buttons */}
                       <div className="flex items-center gap-1.5">
+                        {/* Nút Khóa / Mở khóa tài khoản */}
+                        <button
+                          onClick={() => setSelectedUserForLock(user)}
+                          className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                            user.isActive === true
+                              ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30'
+                              : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          }`}
+                          title={user.isActive === true ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                        >
+                          {user.isActive === true ? (
+                            <Lock className="w-3.5 h-3.5" />
+                          ) : (
+                            <Unlock className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+
                         <button
                           onClick={(e) => handleOpenTransferSingle(user, e)}
                           className="p-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-colors cursor-pointer"
@@ -918,6 +917,7 @@ const handleOpenWorkload = async (user: DirectoryUser) => {
                       <th className="py-3.5 px-4">Nhân Sự</th>
                       <th className="py-3.5 px-4">Chức Danh / Khối</th>
                       <th className="py-3.5 px-4">Vai Trò (Role)</th>
+                      <th className="py-3.5 px-4">Trạng Thái</th>
                       <th className="py-3.5 px-5 text-right">Thao Tác</th>
                     </tr>
                   </thead>
@@ -987,8 +987,35 @@ const handleOpenWorkload = async (user: DirectoryUser) => {
                             </span>
                           </td>
 
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg border inline-block ${
+                                user.isActive !== false
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                              }`}
+                            >
+                              {user.isActive !== false ? '● Hoạt động' : '■ Đã khóa'}
+                            </span>
+                          </td>
+
                           <td className="py-3.5 px-5 text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setSelectedUserForLock(user)}
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                  user.isActive !== false
+                                    ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300'
+                                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300'
+                                }`}
+                                title={user.isActive !== false ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                              >
+                                {user.isActive !== false ? (
+                                  <Lock className="w-4 h-4" />
+                                ) : (
+                                  <Unlock className="w-4 h-4" />
+                                )}
+                              </button>
                               <button
                                 onClick={(e) => handleOpenTransferSingle(user, e)}
                                 className="p-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 transition-colors cursor-pointer"
@@ -1101,7 +1128,7 @@ const handleOpenWorkload = async (user: DirectoryUser) => {
               <Building2 className="w-12 h-12 text-slate-600 mx-auto" />
               <h3 className="text-sm font-bold text-slate-300">Chưa có phòng ban nào được tạo</h3>
               <p className="text-xs text-slate-500">
-                Bấm nút "Thêm Phòng Ban Mới" ở góc trên để khởi tạo phòng ban đầu tiên.
+                Bấm nút &quot;Thêm Phòng Ban Mới&quot; ở góc trên để khởi tạo phòng ban đầu tiên.
               </p>
               <button
                 onClick={handleOpenCreateDept}
@@ -1227,6 +1254,59 @@ const handleOpenWorkload = async (user: DirectoryUser) => {
         onClose={() => setSelectedProfileUser(null)}
         onSendMessage={(u) => showToast(`💬 Đang mở hộp thoại chat với ${u.fullName}...`)}
       />
+
+      {/* 🔒 MODAL: CONFIRM LOCK / UNLOCK USER */}
+      {selectedUserForLock && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-amber-500/40 p-6 space-y-5 relative animate-solar-warp-in text-center shadow-xl">
+            <div
+              className={`w-14 h-14 rounded-2xl border flex items-center justify-center mx-auto ${
+                selectedUserForLock.isActive !== false
+                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                  : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+              }`}
+            >
+              {selectedUserForLock.isActive !== false ? <Lock className="w-7 h-7" /> : <Unlock className="w-7 h-7" />}
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-base font-extrabold text-white">
+                {selectedUserForLock.isActive !== false ? 'Xác Nhận Khóa Tài Khoản?' : 'Xác Nhận Mở Khóa Tài Khoản?'}
+              </h3>
+              <p className="text-xs text-slate-400">
+                Nhân sự: <span className="text-white font-bold">{selectedUserForLock.fullName}</span>
+              </p>
+            </div>
+
+            <p className="text-xs text-slate-300 bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+              {selectedUserForLock.isActive !== false
+                ? '⚠️ Sau khi khóa, tài khoản này sẽ tạm thời không thể đăng nhập vào hệ thống Task Board.'
+                : '✅ Sau khi mở khóa, tài khoản này có thể truy cập và làm việc bình thường trở lại.'}
+            </p>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => setSelectedUserForLock(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                disabled={actionLoadingId === selectedUserForLock.id}
+                onClick={() => handleToggleLockUser(selectedUserForLock)}
+                className={`px-5 py-2.5 rounded-xl font-bold text-xs cursor-pointer shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50 text-slate-950 ${
+                  selectedUserForLock.isActive !== false
+                    ? 'bg-amber-500 hover:bg-amber-400'
+                    : 'bg-emerald-400 hover:bg-emerald-300'
+                }`}
+              >
+                {actionLoadingId === selectedUserForLock.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {selectedUserForLock.isActive !== false ? 'Xác Nhận Khóa' : 'Xác Nhận Mở Khóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 🚀 MODAL 1: CREATE NEW USER MODAL */}
       {isCreateModalOpen && (
@@ -1834,7 +1914,6 @@ const handleOpenWorkload = async (user: DirectoryUser) => {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
                 <button
                   type="button"

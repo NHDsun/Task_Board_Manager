@@ -1,7 +1,7 @@
 import { Profession, Role } from '@prisma/client';
 import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
-export class  CreateUserDto {
+export class CreateUserDto {
   @IsEmail({}, { message: 'Email định dạng không hợp lệ' })
   @IsNotEmpty({ message: 'Email không được để trống' })
   email: string;

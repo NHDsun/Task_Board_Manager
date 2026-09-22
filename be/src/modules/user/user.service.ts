@@ -52,6 +52,7 @@ export class UserService {
           profession: true,
           jobTitle: true,
           phone: true,
+          isActive: true,
           statusSignal: true,
           customStatus: true,
           department: {
