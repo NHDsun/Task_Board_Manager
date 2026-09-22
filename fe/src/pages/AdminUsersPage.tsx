@@ -81,6 +81,16 @@ export const AdminUsersPage: React.FC = () => {
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<DirectoryUser | null>(null);
   const [selectedUserForLock, setSelectedUserForLock] = useState<DirectoryUser | null>(null);
 
+  // Edit User Modal
+  const [editingUser, setEditingUser] = useState<DirectoryUser | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editJobTitle, setEditJobTitle] = useState('');
+  const [editProfession, setEditProfession] = useState<Profession>('DEV');
+  const [editDepartmentId, setEditDepartmentId] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [isSubmittingUpdate, setIsSubmittingUpdate] = useState(false);
+
   // Department Modals
   const [isCreateDeptModalOpen, setIsCreateDeptModalOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<DepartmentItem | null>(null);
@@ -248,6 +258,60 @@ export const AdminUsersPage: React.FC = () => {
       bio: u.bio || `Chuyên gia ${u.jobTitle} phụ trách các giải pháp phân hệ ${u.department} tại Solaris Platform.`,
       workMode: u.workMode || 'OFFICE',
     });
+  };
+
+  const handleOpenEditUser = (user: DirectoryUser) => {
+    const resolvedDepartmentId =
+      user.departmentId || departments.find((d) => d.name === user.department)?.id || '';
+
+    setEditingUser(user);
+    setEditFullName(user.fullName || '');
+    setEditPhone(user.phone || '');
+    setEditJobTitle(user.jobTitle || '');
+    setEditProfession(user.profession || 'DEV');
+    setEditDepartmentId(resolvedDepartmentId);
+    setEditBio(user.bio || '');
+  };
+
+  const handleCloseEditUser = () => {
+    if (isSubmittingUpdate) return;
+    setEditingUser(null);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    if (!editFullName.trim()) {
+      showToast('⚠️ Họ và tên không được để trống!');
+      return;
+    }
+
+    setIsSubmittingUpdate(true);
+    try {
+      await api.patch(`/users/${editingUser.id}`, {
+        fullName: editFullName.trim(),
+        phone: editPhone.trim(),
+        jobTitle: editJobTitle.trim(),
+        profession: editProfession,
+        departmentId: editDepartmentId || undefined,
+        bio: editBio.trim(),
+      });
+
+      await fetchUsers();
+      setEditingUser(null);
+
+      if (selectedProfileUser?.id === editingUser.id) {
+        setSelectedProfileUser(null);
+      }
+
+      showToast(`✅ Đã cập nhật thông tin nhân sự: ${editFullName.trim()}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Cập nhật thông tin nhân sự thất bại';
+      showToast(`❌ Lỗi: ${msg}`);
+    } finally {
+      setIsSubmittingUpdate(false);
+    }
   };
 
   const handleUpdateRole = async (userId: string, newRoleValue: GlobalRole) => {
@@ -835,6 +899,14 @@ export const AdminUsersPage: React.FC = () => {
 
                       {/* Action Icon Buttons */}
                       <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditUser(user)}
+                          className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 transition-colors cursor-pointer"
+                          title="Cập nhật thông tin nhân sự"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+
                         {/* Nút Khóa / Mở khóa tài khoản */}
                         <button
                           onClick={() => setSelectedUserForLock(user)}
@@ -1001,6 +1073,13 @@ export const AdminUsersPage: React.FC = () => {
 
                           <td className="py-3.5 px-5 text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditUser(user)}
+                                className="p-1.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 transition-colors cursor-pointer"
+                                title="Cập nhật thông tin nhân sự"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
                               <button
                                 onClick={() => setSelectedUserForLock(user)}
                                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
@@ -1490,6 +1569,148 @@ export const AdminUsersPage: React.FC = () => {
         </div>
       )}
 
+      {/* ✏️ MODAL 2: UPDATE USER MODAL */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-xl solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-blue-500/40 shadow-[0_0_60px_rgba(59,130,246,0.18)] p-6 sm:p-8 space-y-6 relative overflow-hidden animate-solar-warp-in">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                  <Edit2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-white">Cập Nhật Thông Tin Nhân Sự</h2>
+                  <p className="text-xs text-slate-400">
+                    Chỉnh sửa hồ sơ của {editingUser.fullName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseEditUser}
+                disabled={isSubmittingUpdate}
+                className="text-slate-400 hover:text-white p-1 rounded-lg disabled:opacity-50 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateUser} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="text-slate-300 font-bold">Họ Và Tên *</label>
+                <input
+                  type="text"
+                  required
+                  value={editFullName}
+                  onChange={(e) => setEditFullName(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-slate-300 font-bold">Email</label>
+                  <input
+                    type="email"
+                    value={editingUser.email}
+                    disabled
+                    className="w-full p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-500 cursor-not-allowed"
+                  />
+                  <span className="text-[10px] text-slate-500">Email không được cập nhật tại API updateUser hiện tại.</span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-300 font-bold">Số Điện Thoại</label>
+                  <input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    placeholder="0912 345 678"
+                    className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-slate-300 font-bold">Chức Danh Công Việc</label>
+                  <input
+                    type="text"
+                    value={editJobTitle}
+                    onChange={(e) => setEditJobTitle(e.target.value)}
+                    placeholder="VD: Senior Frontend Dev"
+                    className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-300 font-bold">Chuyên Môn</label>
+                  <select
+                    value={editProfession}
+                    onChange={(e) => setEditProfession(e.target.value as Profession)}
+                    className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="DEV">DEV (Lập trình viên)</option>
+                    <option value="TESTER">TESTER (Kiểm thử QA/QC)</option>
+                    <option value="DESIGNER">DESIGNER (Thiết kế UI/UX)</option>
+                    <option value="BA">BA (Phân tích nghiệp vụ)</option>
+                    <option value="PRODUCT_OWNER">PRODUCT_OWNER (Quản trị sản phẩm)</option>
+                    <option value="DEVOPS">DEVOPS (Vận hành hạ tầng)</option>
+                    <option value="MARKETING">MARKETING (Truyền thông)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-300 font-bold">Phòng Ban</label>
+                <select
+                  value={editDepartmentId}
+                  onChange={(e) => setEditDepartmentId(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="">-- Chưa phân bổ / Giữ nguyên nếu API không nhận rỗng --</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name} ({dept.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-300 font-bold">Giới Thiệu / Bio</label>
+                <textarea
+                  rows={4}
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  placeholder="Mô tả ngắn về nhân sự..."
+                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={handleCloseEditUser}
+                  disabled={isSubmittingUpdate}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold cursor-pointer disabled:opacity-50"
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingUpdate}
+                  className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold shadow-md cursor-pointer transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSubmittingUpdate && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Lưu Thay Đổi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* 🛡️ MODAL 2: EDIT ROLE ELEVATION MODAL */}
       {selectedUserForRole && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
@@ -1562,7 +1783,7 @@ export const AdminUsersPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-rose-300/90 bg-rose-950/40 p-3 rounded-2xl border border-rose-500/30 leading-relaxed">
-              ⚠️ Hành động này sẽ xóa vĩnh viễn tài khoản người dùng khỏi hệ thống CSDL và không thể hoàn tác.
+              ⚠️ Xóa tài khoản
             </p>
 
             <div className="flex items-center justify-center gap-3 pt-2">

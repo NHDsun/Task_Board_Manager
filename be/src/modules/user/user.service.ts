@@ -92,6 +92,7 @@ export class UserService {
         jobTitle: true,
         phone: true,
         bio: true,
+        isActive: true,
         statusSignal: true,
         customStatus: true,
         department: true,
@@ -355,6 +356,7 @@ export class UserService {
         jobTitle: true,
         profession: true,
         avatar: true,
+        isActive: true,
         coverImage: true,
         department: {
           select: { id: true, name: true },
