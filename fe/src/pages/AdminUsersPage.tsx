@@ -103,7 +103,6 @@ export const AdminUsersPage: React.FC = () => {
 
   // Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
   // Form State for New User
   const [newFullName, setNewFullName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -111,7 +110,10 @@ export const AdminUsersPage: React.FC = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [newJobTitle, setNewJobTitle] = useState('');
-  const [newDepartment, setNewDepartment] = useState('Engineering');
+
+  // ✅ Để rỗng, không hard-code Engineering
+  const [newDepartment, setNewDepartment] = useState('');
+
   const [newProfession, setNewProfession] = useState<Profession>('DEV');
   const [newRole, setNewRole] = useState<GlobalRole>('EMPLOYEE');
 
@@ -129,8 +131,11 @@ export const AdminUsersPage: React.FC = () => {
   // 🏢 Dynamic Department Dropdown Options
   const departmentOptions = useMemo(() => {
     const dbDeptNames = departments.map((d) => d.name);
+
     const userDeptNames = users.map((u) => u.department).filter(Boolean);
+
     const combined = Array.from(new Set([...dbDeptNames, ...userDeptNames]));
+
     return [
       'Tất Cả',
       ...(combined.length > 0
@@ -138,21 +143,19 @@ export const AdminUsersPage: React.FC = () => {
         : ['Engineering', 'Product & Planning', 'Design & UX', 'QA & Testing', 'Operations & SRE']),
     ];
   }, [departments, users]);
-
-  // Set default selected department for new user when departments load
-  useEffect(() => {
-    if (departments.length > 0 && (!newDepartment || newDepartment === 'Engineering')) {
-      setNewDepartment(departments[0].name);
-    }
-  }, [departments]);
+  // const defaultNewDepartment = newDepartment || departments[0]?.name || '';
 
   const handleGenerateRandomPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+
     let pass = 'Sol@';
+
     for (let i = 0; i < 6; i++) {
       pass += chars.charAt(Math.floor(Math.random() * chars.length));
     }
+
     setNewPassword(pass);
+
     showToast(`🔑 Đã tạo mật khẩu ngẫu nhiên: ${pass}`);
   };
 
@@ -261,8 +264,7 @@ export const AdminUsersPage: React.FC = () => {
   };
 
   const handleOpenEditUser = (user: DirectoryUser) => {
-    const resolvedDepartmentId =
-      user.departmentId || departments.find((d) => d.name === user.department)?.id || '';
+    const resolvedDepartmentId = user.departmentId || departments.find((d) => d.name === user.department)?.id || '';
 
     setEditingUser(user);
     setEditFullName(user.fullName || '');
@@ -1580,9 +1582,7 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-extrabold text-white">Cập Nhật Thông Tin Nhân Sự</h2>
-                  <p className="text-xs text-slate-400">
-                    Chỉnh sửa hồ sơ của {editingUser.fullName}
-                  </p>
+                  <p className="text-xs text-slate-400">Chỉnh sửa hồ sơ của {editingUser.fullName}</p>
                 </div>
               </div>
               <button
@@ -1616,7 +1616,9 @@ export const AdminUsersPage: React.FC = () => {
                     disabled
                     className="w-full p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-500 cursor-not-allowed"
                   />
-                  <span className="text-[10px] text-slate-500">Email không được cập nhật tại API updateUser hiện tại.</span>
+                  <span className="text-[10px] text-slate-500">
+                    Email không được cập nhật hiện tại.
+                  </span>
                 </div>
 
                 <div className="space-y-1">
@@ -1668,7 +1670,7 @@ export const AdminUsersPage: React.FC = () => {
                   onChange={(e) => setEditDepartmentId(e.target.value)}
                   className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-blue-500 cursor-pointer"
                 >
-                  <option value="">-- Chưa phân bổ / Giữ nguyên nếu API không nhận rỗng --</option>
+                  <option value="">-- Chưa phân bổ --</option>
                   {departments.map((dept) => (
                     <option key={dept.id} value={dept.id}>
                       {dept.name} ({dept.code})
@@ -1927,7 +1929,7 @@ export const AdminUsersPage: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-slate-300 font-bold">Mã Phòng Ban (Code) *</label>
+                <label className="text-slate-300 font-bold">Mã Phòng Ban *</label>
                 <input
                   type="text"
                   required
@@ -1971,7 +1973,6 @@ export const AdminUsersPage: React.FC = () => {
         </div>
       )}
 
-      {/* 🏢 MODAL 7: DELETE DEPARTMENT MODAL */}
       {deletingDept && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-md solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-rose-500/50 p-6 space-y-5 relative animate-solar-warp-in text-center shadow-[0_0_60px_rgba(244,63,94,0.3)]">
