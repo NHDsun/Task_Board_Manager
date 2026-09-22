@@ -127,7 +127,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const isSelf = !!user && !!authUser && user.id === authUser.id;
   const isAdmin = authUser?.globalRole === 'ADMIN';
-  const canEditLocation = isSelf || isAdmin;
+  const canEditLocation = isAdmin;
 
   const todayDateStr = new Date().toISOString().split('T')[0];
   const userLocation = user
@@ -168,16 +168,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   const handleSelectWorkLocation = (loc: WorkLocationType) => {
+    if (!isAdmin) return;
     setCurrentWorkLocation(loc);
     setIsLocationDropdownOpen(false);
-    if (isSelf) {
-      setUserDailyWorkLocation(authUser.id, loc);
-    } else if (isAdmin) {
-      setUserDailyWorkLocation(user.id, loc, undefined, {
-        adminId: authUser?.id || 'admin',
-        adminName: authUser?.fullName || 'Admin',
-      });
-    }
+    setUserDailyWorkLocation(user.id, loc, undefined, {
+      adminId: authUser?.id || 'admin',
+      adminName: authUser?.fullName || 'Admin',
+    });
   };
 
   // Status Signal Dot & Label
@@ -208,26 +205,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   const statusInfo = getStatusInfo(user.statusSignal);
-  const tasksTotal = user.tasksCount?.total || 12;
-  const tasksCompleted = user.tasksCount?.completed || 9;
-  const tasksInProgress = user.tasksCount?.inProgress || 3;
-  const tasksOverdue = user.tasksCount?.overdue || 0;
+  const tasksTotal = user.tasksCount?.total ?? 0;
+  const tasksCompleted = user.tasksCount?.completed ?? 0;
+  const tasksInProgress = user.tasksCount?.inProgress ?? 0;
+  const tasksOverdue = user.tasksCount?.overdue ?? 0;
   const tasksOnTime = Math.max(0, tasksCompleted - tasksOverdue);
 
   const defaultCover = user.coverImage || DEFAULT_COVER;
   const defaultAvatar = getAvatarUrl(user);
 
-  const defaultProjects = user.assignedProjects || [
-    'Solaris Core Task Board Engine',
-    'Enterprise RBAC & Authentication Module',
-    'Voice Assistant & WebRTC Integration',
-  ];
-
-  const defaultTasks = user.recentTasks || [
-    { id: 't-1', title: 'Tối ưu hóa hiệu năng render Kanban 60 FPS', status: 'IN_PROGRESS', dueDate: '28/08/2026' },
-    { id: 't-2', title: 'Kiểm thử hộp đen luồng duyệt Subtasks', status: 'DONE', dueDate: '24/08/2026' },
-    { id: 't-3', title: 'Hoàn thiện giao diện Bento Grid cho Lịch Làm Việc', status: 'DONE', dueDate: '22/08/2026' },
-  ];
+  const defaultProjects = user.assignedProjects || [];
+  const defaultTasks = user.recentTasks || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-fade-in">
@@ -457,7 +445,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: TASKS */}
+              {/* TAB 2: TASKS */}
           {activeTab === 'tasks' && (
             <div className="space-y-3 animate-fade-in">
               <h3 className="font-bold text-slate-300 uppercase text-[11px] tracking-wider flex items-center justify-between">
@@ -465,40 +453,47 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <span className="text-amber-400 font-mono">{defaultTasks.length} Task</span>
               </h3>
 
-              <div className="space-y-2">
-                {defaultTasks.map((t) => (
-                  <div
-                    key={t.id}
-                    className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-amber-500/40 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {t.status === 'DONE' ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      ) : (
-                        <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                      )}
-                      <div className="min-w-0">
-                        <span className="font-bold text-white block truncate">{t.title}</span>
-                        {t.dueDate && (
-                          <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> Hạn chót: {t.dueDate}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold border shrink-0 ${
-                        t.status === 'DONE'
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                          : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                      }`}
+              {defaultTasks.length === 0 ? (
+                <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-2">
+                  <Clock className="w-6 h-6 text-slate-500 mx-auto" />
+                  <p className="text-xs text-slate-400">Chưa có công việc nào được giao.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {defaultTasks.map((t) => (
+                    <div
+                      key={t.id}
+                      className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-amber-500/40 transition-colors"
                     >
-                      {t.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                      <div className="flex items-center gap-3 min-w-0">
+                        {t.status === 'DONE' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <span className="font-bold text-white block truncate">{t.title}</span>
+                          {t.dueDate && (
+                            <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> Hạn chót: {t.dueDate}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold border shrink-0 ${
+                          t.status === 'DONE'
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        }`}
+                      >
+                        {t.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -508,22 +503,35 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <h3 className="font-bold text-slate-300 uppercase text-[11px] tracking-wider">
                 Các Dự Án Đang Tham Gia
               </h3>
-              <div className="space-y-2">
-                {defaultProjects.map((pName, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <FolderKanban className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span className="font-bold text-white truncate">{pName}</span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold shrink-0">
-                      Thành Viên
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {defaultProjects.length === 0 ? (
+                <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-2">
+                  <FolderKanban className="w-6 h-6 text-slate-500 mx-auto" />
+                  <p className="text-xs text-slate-400">Chưa tham gia dự án nào.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {defaultProjects.map((p: any, idx: number) => {
+                    const isObj = typeof p === 'object' && p !== null;
+                    const pName = isObj ? p.name : p;
+                    const pRole = isObj ? p.roleInProject || 'Thành Viên' : 'Thành Viên';
+
+                    return (
+                      <div
+                        key={isObj ? p.id || idx : idx}
+                        className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <FolderKanban className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span className="font-bold text-white truncate">{pName}</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold shrink-0">
+                          {pRole}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

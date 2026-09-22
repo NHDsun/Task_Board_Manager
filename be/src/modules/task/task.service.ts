@@ -8,13 +8,8 @@ import { SocketGateway } from '../socket/socket.gateway';
 import { NotificationService } from '../notification/notification.service';
 import { TaskActivityService } from './task-activity.service';
 import { TaskStatus } from '@prisma/client';
-interface RequestUserPayload {
-  id?: string;
-  sub?: string;
-  role?: string;
-  globalRole?: string;
-  [key: string]: unknown;
-}
+import { AuthUserPayload } from '../../common/interfaces/auth-user.interface';
+
 @Injectable()
 export class TaskService {
   constructor(
@@ -334,7 +329,7 @@ export class TaskService {
     return this.findAll({ projectId });
   }
 
-  async updateDescription(id: string, description: string, user?: any) {
+  async updateDescription(id: string, description: string, user?: AuthUserPayload) {
     const updatedTask = await this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findUnique({
         where: { id },
@@ -453,7 +448,7 @@ export class TaskService {
   }
 
   // 💬 [LC-54] Lấy danh sách bình luận (Bảo vệ quyền thành viên dự án)
-  async getComments(taskId: string, user?: any) {
+  async getComments(taskId: string, user?: AuthUserPayload) {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: { project: { include: { members: true } } },
@@ -508,6 +503,17 @@ export class TaskService {
     const cleanContent = (dto.content || dto.text || '').trim();
     if (!cleanContent) {
       throw new BadRequestException('Nội dung bình luận không được để trống!');
+    }
+    if (cleanContent.length > 5000) {
+      throw new BadRequestException('Nội dung bình luận không được vượt quá 5.000 ký tự!');
+    }
+
+    // 🔒 [LC-161] KHÓA BÌNH LUẬN KHI TASK ĐÃ LƯU TRỮ HOẶC DỰ ÁN ĐÃ HOÀN THÀNH
+    if (targetTask.isArchived) {
+      throw new BadRequestException('Task này đã được lưu trữ (Archived). Không thể thêm bình luận mới!');
+    }
+    if (targetTask.project?.isCompleted) {
+      throw new BadRequestException('Dự án này đã hoàn thành/nghiệm thu và đã đóng. Không thể thêm bình luận mới!');
     }
 
     const currentUser = await this.prisma.user.findUnique({
@@ -577,8 +583,30 @@ export class TaskService {
         projectId: targetTask.projectId,
       });
     }
+    // 🔔 [LC-119] TỰ ĐỘNG PHÁT HIỆN @MENTION VÀ GỬI THÔNG BÁO NHẮC TÊN CHO THÀNH VIÊN DỰ ÁN
+    if (targetTask.project?.members && cleanContent.includes('@')) {
+      for (const m of targetTask.project.members) {
+        if (m.userId !== userId && m.userId !== targetTask.assigneeId && m.userId !== targetTask.createdById) {
+          const memberUser = await this.prisma.user.findUnique({
+            where: { id: m.userId },
+            select: { id: true, fullName: true },
+          });
+          if (memberUser && cleanContent.toLowerCase().includes(`@${memberUser.fullName.toLowerCase()}`)) {
+            await this.notificationService.sendNotification({
+              userId: memberUser.id,
+              actorId: userId,
+              title: '📢 Bạn được nhắc tên trong bình luận Task',
+              content: `${comment.user?.fullName || 'Đồng nghiệp'} đã nhắc tên bạn trong Task "${targetTask.title}": "${cleanContent.slice(0, 80)}..."`,
+              type: 'MENTION',
+              taskId: targetTask.id,
+              projectId: targetTask.projectId,
+            });
+          }
+        }
+      }
+    }
 
-    return comment;
+    return result;
   }
 
   // ✉️ Create a new Task Transfer/Assist Request in PostgreSQL CSDL
@@ -627,6 +655,11 @@ export class TaskService {
     // 🔒 [LC-28] 2. Chặn chuyển giao hoặc hỗ trợ cho chính bản thân mình
     if (effectiveSenderId === effectiveReceiverId) {
       throw new BadRequestException('Không thể gửi yêu cầu chuyển giao hoặc hỗ trợ cho chính bản thân mình!');
+    }
+
+    // 🔒 [LC-151] Chặn chuyển giao Task cho người đã và đang trực tiếp đảm nhiệm Task đó
+    if (!dto.subtaskId && targetTask.assigneeId === effectiveReceiverId) {
+      throw new BadRequestException('Nhân sự này đã đang trực tiếp đảm nhiệm Task này.');
     }
 
     // 🔒 3. Kiểm tra người nhận có thuộc Dự án không
@@ -1306,7 +1339,7 @@ export class TaskService {
   }
 
   // 📦 Lấy danh sách Task trong Lưu Trữ / Audit Log (CHỈ DÀNH CHO ADMIN)
-  async getArchivedTasks(user?: any) {
+  async getArchivedTasks(user?: AuthUserPayload) {
     if (user && user.role !== 'ADMIN' && user.globalRole !== 'ADMIN') {
       throw new ForbiddenException('Chỉ Quản Trị Viên (Admin) mới có quyền truy cập Audit Log & Lưu Trữ!');
     }
@@ -1335,7 +1368,7 @@ export class TaskService {
   }
 
   // 🔄 [LC-35] [LC-53] [CC-01] Khôi phục Task từ CSDL Thùng Rác (Tự động mở lại Dự án cha nếu đang bị xóa)
-  async restoreTask(id: string, user?: any) {
+  async restoreTask(id: string, user?: AuthUserPayload) {
     const task = await this.prisma.task.findUnique({
       where: { id },
       include: {
@@ -1426,7 +1459,7 @@ export class TaskService {
   }
 
   // 💥 [ADMIN ONLY] Xóa vĩnh viễn Task khỏi CSDL
-  async permanentDeleteTask(id: string, user?: any) {
+  async permanentDeleteTask(id: string, user?: AuthUserPayload) {
     if (user && user.role !== 'ADMIN' && user.globalRole !== 'ADMIN') {
       throw new ForbiddenException('Chỉ Quản Trị Viên (Admin) mới có quyền xóa vĩnh viễn Task khỏi CSDL!');
     }
@@ -1547,7 +1580,12 @@ export class TaskService {
     };
   }
 
-  async addAttachment(taskId: string, file: any, body: { name?: string; url?: string; type?: string }, user?: any) {
+  async addAttachment(
+    taskId: string,
+    file: { originalname?: string; filename?: string; mimetype?: string; size?: number; buffer?: Buffer } | any,
+    body: { name?: string; url?: string; type?: string },
+    user?: AuthUserPayload
+  ) {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: { project: { include: { members: true } } },
@@ -1584,10 +1622,13 @@ export class TaskService {
         throw new BadRequestException('Dung lượng tệp đính kèm vượt quá giới hạn tối đa cho phép (100MB)!');
       }
 
-      const fs = require('fs');
-      const path = require('path');
-      const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const uniqueName = `${Date.now()}-${sanitizedName}`;
+      // 🛡️ Sanitize filename chống path traversal và ký tự điều khiển nguy hiểm
+      const safeFilename = (file.originalname || 'file')
+        .replace(/[/\\?%*:|"<>]/g, '_')
+        .replace(/\s+/g, '_');
+      const uniqueName = `${Date.now()}-${safeFilename}`;
+      const fs = await import('fs');
+      const path = await import('path');
       const uploadsDir = path.join(process.cwd(), 'uploads');
 
       if (!fs.existsSync(uploadsDir)) {
@@ -1595,43 +1636,55 @@ export class TaskService {
       }
 
       const uploadPath = path.join(uploadsDir, uniqueName);
-      fs.writeFileSync(uploadPath, file.buffer);
+      if (file.buffer) {
+        fs.writeFileSync(uploadPath, file.buffer);
+      }
 
       attachmentData = {
-        name: file.originalname,
+        name: safeFilename,
         url: `/uploads/${uniqueName}`,
-        type: 'file',
+        type: file.mimetype || 'file',
         size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-        taskId,
       };
     } else if (body.url) {
       attachmentData = {
-        name: body.name || body.url,
+        name: body.name || 'Liên kết ngoài',
         url: body.url,
-        type: 'link',
-        size: null,
-        taskId,
+        type: body.type || 'link',
+        size: 0,
       };
     } else {
-      throw new BadRequestException('Vui lòng gửi file hoặc URL liên kết');
+      throw new BadRequestException('Vui lòng cung cấp file hoặc URL');
     }
 
     const attachment = await this.prisma.attachment.create({
-      data: attachmentData,
+      data: {
+        ...attachmentData,
+        taskId,
+      },
     });
 
+    // 📝 [LC-54] Ghi nhận Activity History khi đính kèm file/link
+    await this.activityService.createTaskHistory(
+      taskId,
+      user?.id || 'SYSTEM',
+      `Đã đính kèm tệp: "${attachmentData.name}"`,
+      'attachment',
+      null,
+      attachmentData.name
+    );
+
+    // Gửi realtime cập nhật task kèm attachments
     if (task.projectId) {
       const updatedTaskObj = await this.prisma.task.findUnique({
         where: { id: taskId },
         include: {
-          project: { select: { id: true, name: true } },
           assignee: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-              avatar: true,
-              profession: true,
+            select: { id: true, fullName: true, email: true, avatar: true },
+          },
+          subtasks: {
+            include: {
+              assignee: { select: { id: true, fullName: true, email: true } },
             },
           },
           tags: { include: { tag: true } },
@@ -1644,7 +1697,7 @@ export class TaskService {
     return attachment;
   }
 
-  async deleteAttachment(attachmentId: string, user?: any) {
+  async deleteAttachment(attachmentId: string, user?: AuthUserPayload) {
     const attachment = await this.prisma.attachment.findUnique({
       where: { id: attachmentId },
       include: {
@@ -1742,7 +1795,7 @@ export class TaskService {
       dueDate?: string;
       isUrgent?: boolean;
     },
-    user?: any
+    user?: AuthUserPayload
   ) {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -1914,7 +1967,7 @@ export class TaskService {
       dueDate?: string;
       isUrgent?: boolean;
     },
-    user?: any
+    user?: AuthUserPayload
   ) {
     const subtask = await this.prisma.subtask.findUnique({
       where: { id: subtaskId },
@@ -1937,6 +1990,11 @@ export class TaskService {
     });
     if (!subtask || subtask.task.isDeleted) {
       throw new NotFoundException('Task con không tồn tại hoặc Task cha đã bị xóa vào thùng rác');
+    }
+
+    // 🔒 [LC-159] KHÓA SỬA TASK CON KHI TASK ĐÃ LƯU TRỮ (ARCHIVED)
+    if (subtask.task.isArchived) {
+      throw new BadRequestException('Task này đã được lưu trữ (Archived). Không thể cập nhật Task con!');
     }
 
     // 🔒 [LC-79] KHÓA SỬA TASK CON KHI DỰ ÁN ĐÃ HOÀN THÀNH / NGHIỆM THU
@@ -2131,7 +2189,7 @@ export class TaskService {
   async reviewSubtask(
     subtaskId: string,
     body: { action: 'APPROVE' | 'REJECT' | 'REOPEN'; reason?: string },
-    user: any
+    user: AuthUserPayload
   ) {
     const subtask = await this.prisma.subtask.findUnique({
       where: { id: subtaskId },
@@ -2232,19 +2290,27 @@ export class TaskService {
   }
 
   // 🗑️ [LC-51] Xóa Task con (Khóa không cho nhân viên xóa việc con đã duyệt hoàn thành)
-  async deleteSubtask(subtaskId: string, user?: any) {
+  async deleteSubtask(subtaskId: string, user?: AuthUserPayload) {
     const subtask = await this.prisma.subtask.findUnique({
       where: { id: subtaskId },
       include: {
         task: {
           include: {
-            project: { select: { managerId: true, createdById: true } },
+            project: { select: { managerId: true, createdById: true, isCompleted: true } },
           },
         },
       },
     });
-    if (!subtask) {
-      throw new NotFoundException('Task con không tồn tại');
+    if (!subtask || subtask.task.isDeleted) {
+      throw new NotFoundException('Task con không tồn tại hoặc Task cha đã bị xóa vào thùng rác');
+    }
+
+    // 🔒 [LC-159] KHÓA XÓA TASK CON KHI TASK ĐÃ LƯU TRỮ HOẶC DỰ ÁN ĐÃ ĐÓNG
+    if (subtask.task.isArchived) {
+      throw new BadRequestException('Task này đã được lưu trữ (Archived). Không thể xóa Task con!');
+    }
+    if (subtask.task.project?.isCompleted) {
+      throw new BadRequestException('Dự án này đã hoàn thành/nghiệm thu và đã đóng. Không thể xóa Task con!');
     }
 
     const isAdminOrManager = Boolean(
@@ -2407,7 +2473,7 @@ export class TaskService {
 
     return mapped;
   }
-  async updateStatus(id: string, updateTaskStatusDto: UpdateTaskStatusDto, user?: RequestUserPayload) {
+  async updateStatus(id: string, updateTaskStatusDto: UpdateTaskStatusDto, user?: AuthUserPayload) {
     const updatedTask = await this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findUnique({
         where: { id },
@@ -2441,7 +2507,12 @@ export class TaskService {
           (userId && task.project?.createdById === userId) ||
           (userId && task.createdById === userId)
         );
-        const isAssignee = task.assigneeId ? task.assigneeId === userId : task.createdById === userId;
+        const isSubtaskAssignee = Boolean(
+          task.subtasks && task.subtasks.some((st) => st.assigneeId === userId)
+        );
+        const isAssignee = task.assigneeId
+          ? task.assigneeId === userId || isSubtaskAssignee
+          : task.createdById === userId || isSubtaskAssignee;
 
         if (!isAdminOrManager && !isAssignee) {
           throw new ForbiddenException(
@@ -2508,16 +2579,22 @@ export class TaskService {
       if (oldStatus !== newStatus) {
         const loggerId = activeUserId || task.assigneeId || task.createdById;
 
-        await tx.taskHistory.create({
-          data: {
-            taskId: String(id),
-            userId: String(loggerId),
-            action: 'MOVED_TASK',
-            field: 'status',
-            oldValue: String(oldStatus),
-            newValue: String(newStatus),
-          },
-        });
+        if (loggerId) {
+          try {
+            await tx.taskHistory.create({
+              data: {
+                taskId: String(id),
+                userId: String(loggerId),
+                action: 'MOVED_TASK',
+                field: 'status',
+                oldValue: String(oldStatus),
+                newValue: String(newStatus),
+              },
+            });
+          } catch {
+            // Safe fallback to prevent task update transaction failure
+          }
+        }
       }
 
       return result;
@@ -2562,6 +2639,49 @@ export class TaskService {
 
     if (updatedTask.projectId) {
       this.socketGateway.broadcastToProject(updatedTask.projectId, 'task:updated', result);
+    }
+
+    // 🔄 [LC-120] TỰ ĐỘNG SINH TASK LẶP LẠI (RECURRING TASK GENERATION) KHI TASK HOÀN THÀNH
+    const rawRecurrence = (updatedTask as any).recurrenceRule;
+    if (updatedTask.status === 'DONE' && rawRecurrence) {
+      try {
+        const rule = String(rawRecurrence).toUpperCase();
+        let daysToAdd = 1;
+        if (rule === 'WEEKLY') daysToAdd = 7;
+        else if (rule === 'MONTHLY') daysToAdd = 30;
+
+        const nextStartDate = new Date();
+        const nextDueDate = updatedTask.dueDate ? new Date(updatedTask.dueDate) : new Date();
+        nextDueDate.setDate(nextDueDate.getDate() + daysToAdd);
+
+        const nextTask = await this.prisma.task.create({
+          data: {
+            title: updatedTask.title,
+            description: updatedTask.description,
+            status: 'TODO',
+            priority: updatedTask.priority,
+            progress: 0,
+            startDate: nextStartDate,
+            dueDate: nextDueDate,
+            recurrenceRule: rawRecurrence,
+            projectId: updatedTask.projectId,
+            assigneeId: updatedTask.assigneeId,
+            createdById: (updatedTask as any).createdById || updatedTask.assigneeId || 'SYSTEM',
+          },
+          include: {
+            project: { select: { id: true, name: true } },
+            assignee: { select: { id: true, fullName: true, email: true, avatar: true, profession: true } },
+            tags: { include: { tag: true } },
+            subtasks: true,
+            attachments: true,
+          },
+        });
+
+        const mappedNext = this.mapTaskResponse(nextTask);
+        this.socketGateway.broadcastToProject(updatedTask.projectId, 'task:created', mappedNext);
+      } catch {
+        // Fallback guard
+      }
     }
 
     return result;

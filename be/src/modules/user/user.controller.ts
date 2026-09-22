@@ -52,8 +52,8 @@ export class UserController {
   @UseGuards(RolesGuard)
   @Patch(':id/role')
   @Roles('ADMIN')
-  updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto) {
-    return this.userService.updateRoleAndDepartment(id, dto);
+  updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto, @Req() req: AuthenticatedRequest) {
+    return this.userService.updateRoleAndDepartment(id, dto, req.user?.id);
   }
 
   @UseGuards(RolesGuard)

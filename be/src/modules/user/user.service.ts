@@ -194,7 +194,12 @@ export class UserService {
     };
   }
 
-  async updateRoleAndDepartment(id: string, dto: UpdateUserRoleDto) {
+  async updateRoleAndDepartment(id: string, dto: UpdateUserRoleDto, currentAdminId?: string) {
+    // 🔒 [LC-116] CHẶN QUẢN TRỊ VIÊN TỰ HẠ CẤP VAI TRÒ ADMIN CỦA CHÍNH MÌNH (SELF-DEMOTION LOCK)
+    if (currentAdminId && id === currentAdminId && dto.role && dto.role !== 'ADMIN') {
+      throw new BadRequestException('Bạn không thể tự hạ cấp vai trò Quản trị viên (Admin) của chính mình!');
+    }
+
     await this.findOne(id);
 
     if (dto.departmentId) {

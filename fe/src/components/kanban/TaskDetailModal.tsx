@@ -82,7 +82,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     });
   };
 
-  // 🔒 PRECISE OWNERSHIP CHECK: Khi đã giao việc, Task thuộc hoàn toàn về Assignee (người tạo không còn sở hữu, trừ Admin/Manager)
+  //  PRECISE OWNERSHIP CHECK: Khi đã giao việc, Task thuộc hoàn toàn về Assignee (người tạo không còn sở hữu, trừ Admin/Manager)
   const hasAssignee = Boolean(task?.assigneeId || task?.assignee?.id || task?.assignee?.email);
   const isAssignee = Boolean(
     currentUser &&
@@ -110,7 +110,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const isMyTask = Boolean(currentUser && (isAdminOrManager || (hasAssignee ? isAssignee : isCreator)));
 
-  // 🔒 Quyền thêm việc con: CHỈ người trực tiếp đảm nhiệm Task (Assignee) hoặc Admin/Manager mới được tạo
+  // Quyền thêm việc con: CHỈ người trực tiếp đảm nhiệm Task (Assignee) hoặc Admin/Manager mới được tạo
   const canManageSubtasks = Boolean(
     currentUser &&
     (currentUser.globalRole === 'ADMIN' ||
@@ -557,19 +557,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       if (diffDays < 0) {
         return {
           formattedDate,
-          statusText: `🚨 Đã quá hạn ${Math.abs(diffDays)} ngày`,
+          statusText: ` Đã quá hạn ${Math.abs(diffDays)} ngày`,
           statusColor: 'text-rose-400 font-bold',
         };
       } else if (diffDays === 0) {
         return {
           formattedDate,
-          statusText: '⚡ Hạn chót: Hôm nay',
+          statusText: ' Hạn chót: Hôm nay',
           statusColor: 'text-amber-400 font-bold',
         };
       } else if (diffDays === 1) {
         return {
           formattedDate,
-          statusText: '⏳ Còn lại 1 ngày (Ngày mai)',
+          statusText: ' Còn lại 1 ngày (Ngày mai)',
           statusColor: 'text-amber-300',
         };
       } else {
@@ -623,7 +623,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
               {task.priority === 'URGENT' && (
                 <span className="px-3 py-1 rounded-xl text-xs font-bold border bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse">
-                  🚨 KHẨN CẤP (URGENT)
+                   KHẨN CẤP (URGENT)
                 </span>
               )}
 
@@ -672,11 +672,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </span>
                 {task.status === 'IN_REVIEW' ? (
                   <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-mono font-bold animate-pulse">
-                    🔒 TRẠNG THÁI: IN_REVIEW (CHỜ DUYỆT BÀI)
+                     TRẠNG THÁI: IN_REVIEW (CHỜ DUYỆT BÀI)
                   </span>
                 ) : (
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold">
-                    ✅ BÀN GIAO THÀNH CÔNG
+                    BÀN GIAO THÀNH CÔNG
                   </span>
                 )}
               </div>
@@ -685,7 +685,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 {/* 📤 NGƯỜI CHUYỂN GIAO */}
                 <div className="p-3.5 rounded-xl bg-slate-900/90 border border-amber-500/40 space-y-2">
                   <span className="text-[11px] font-extrabold text-amber-400 uppercase tracking-wider block">
-                    📤 NGƯỜI CHUYỂN GIAO (SENDER):
+                     NGƯỜI CHUYỂN GIAO (SENDER):
                   </span>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400 bg-slate-950 flex items-center justify-center font-extrabold text-amber-400 text-sm shrink-0">
@@ -715,7 +715,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 {/* 📥 NGƯỜI TIẾP NHẬN */}
                 <div className="p-3.5 rounded-xl bg-slate-900/90 border border-blue-500/40 space-y-2">
                   <span className="text-[11px] font-extrabold text-blue-400 uppercase tracking-wider block">
-                    📥 NGƯỜI TIẾP NHẬN (RECEIVER):
+                     NGƯỜI TIẾP NHẬN (RECEIVER):
                   </span>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl overflow-hidden border border-blue-400 bg-slate-950 flex items-center justify-center font-extrabold text-blue-400 text-sm shrink-0">
@@ -761,7 +761,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
           {/* 🌟 3-CARD METADATA BENTO GRID: NGƯỜI GIAO VIỆC • NGƯỜI THỰC HIỆN • HẠN DEADLINE */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 👑 Người Giao Việc (Created / Assigned By) */}
+            {/*  Người Giao Việc (Created / Assigned By) */}
             <div
               onClick={() => handleOpenProfile(task.createdBy, 'MANAGER')}
               className="solar-glass-card p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-purple-500/50 space-y-2 cursor-pointer transition-all group/creator"
@@ -772,6 +772,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <span className="text-[10px] text-purple-400/80 opacity-0 group-hover/creator:opacity-100 transition-opacity">
                   Xem hồ sơ ↗
                 </span>
+
               </span>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl overflow-hidden border border-purple-400/80 bg-slate-900 flex items-center justify-center font-bold text-purple-300 shrink-0 group-hover/creator:scale-105 transition-transform">
@@ -819,6 +820,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <span className="text-[10px] text-amber-400/80 opacity-0 group-hover/assignee:opacity-100 transition-opacity">
                   Xem hồ sơ ↗
                 </span>
+
               </span>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400 bg-slate-900 flex items-center justify-center font-bold text-amber-400 shrink-0 group-hover/assignee:scale-105 transition-transform">
@@ -1001,11 +1003,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   >
                     {(() => {
                       const schedStr = (() => {
-                        const currentDays = Number((st as any).estimatedDays || 1);
+                        const currentDays = Number(st.estimatedDays || 1);
                         let sDate: Date;
 
-                        if ((st as any).startDate) {
-                          sDate = new Date((st as any).startDate);
+                        if (st.startDate) {
+                          sDate = new Date(st.startDate);
                           sDate.setHours(0, 0, 0, 0);
                         } else {
                           const base = task.startDate
@@ -1015,7 +1017,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                           let startOffset = 0;
                           const list = task.subtasks || [];
                           for (let i = 0; i < idx; i++) {
-                            startOffset += Number((list[i] as any)?.estimatedDays || 1);
+                            startOffset += Number(list[i]?.estimatedDays || 1);
                           }
                           sDate = new Date(base);
                           sDate.setDate(sDate.getDate() + startOffset);

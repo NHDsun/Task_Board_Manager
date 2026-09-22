@@ -96,8 +96,9 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
   if (!isOpen) return null;
 
   const roleName = (() => {
-    if (currentUser?.globalRole === 'ADMIN' || (currentUser as any)?.role === 'ADMIN') return 'Quản Trị Viên (Admin)';
-    if (currentUser?.globalRole === 'MANAGER' || (currentUser as any)?.role === 'MANAGER') return 'Quản Lý Dự Án';
+    const role = currentUser?.globalRole || currentUser?.role;
+    if (role === 'ADMIN') return 'Quản Trị Viên (Admin)';
+    if (role === 'MANAGER') return 'Quản Lý Dự Án';
     return 'Nhân Viên';
   })();
 
@@ -218,7 +219,7 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
                   : 'bg-slate-900 text-purple-300/80 border-slate-800 hover:text-purple-200'
               }`}
             >
-              🤝 Hỗ Trợ ({assistCount})
+               Hỗ Trợ ({assistCount})
             </button>
           </div>
         )}
@@ -279,15 +280,15 @@ export const TaskTransferInboxModal: React.FC<TaskTransferInboxModalProps> = ({
                         <div className="flex items-center gap-2">
                           {isApproval ? (
                             <span className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 font-mono font-black text-[10px] animate-pulse flex items-center gap-1">
-                              🔍 DUYỆT TASK CON
+                               DUYỆT TASK CON
                             </span>
                           ) : isAssist ? (
                             <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/50 font-mono font-bold text-[10px] flex items-center gap-1">
-                              🤝 NHỜ HỖ TRỢ
+                               NHỜ HỖ TRỢ
                             </span>
                           ) : (
                             <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/50 font-mono font-bold text-[10px] flex items-center gap-1">
-                              🔄 BÀN GIAO TASK
+                               BÀN GIAO TASK
                             </span>
                           )}
                           <span className="px-2 py-0.5 rounded-md bg-slate-900 text-slate-300 border border-slate-800 font-mono text-[9px]">

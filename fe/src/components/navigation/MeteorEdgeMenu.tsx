@@ -4,8 +4,6 @@ import {
   User,
   Kanban,
   Calendar,
-  MessageSquare,
-  Inbox,
   Users,
   ChevronRight,
   Sparkles,
@@ -51,20 +49,6 @@ export const MeteorEdgeMenu: React.FC<MeteorEdgeMenuProps> = ({ currentRoute, on
       icon: Calendar,
       badge: 'PLAN',
       badgeColor: 'bg-slate-800 text-slate-400 border-slate-700',
-    },
-    {
-      id: 'remote-requests',
-      label: 'Yêu Cầu Làm Remote',
-      route: '/remote-requests',
-      icon: Inbox,
-      badge: 'NEW',
-      badgeColor: 'bg-slate-800 text-slate-400 border-slate-700',
-    },
-    {
-      id: 'messages',
-      label: 'Tin Nhắn & Cuộc Gọi',
-      route: '/messages',
-      icon: MessageSquare,
     },
     ...(isAdmin
       ? [
