@@ -28,6 +28,9 @@ interface ProjectOption {
   name: string;
 }
 
+/**
+ * Main Work Schedule coordination and leave management page.
+ */
 export const SchedulePage: React.FC = () => {
   const authUser = useAuthStore((state) => state.user);
   const { leaveRequests, fetchSchedulesAndLeaves } = useScheduleStore();
@@ -40,23 +43,19 @@ export const SchedulePage: React.FC = () => {
   const [members, setMembers] = useState<MemberUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🗓️ Lịch Trình State
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<CalendarViewMode>('MONTH');
 
-  // 🔍 Bộ Lọc State
   const [selectedProjectId, setSelectedProjectId] = useState<string>('ALL');
   const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>('ALL');
   const [selectedPriority, setSelectedPriority] = useState<string>('ALL');
 
-  // 🎯 Modal State
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<TaskItem | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateLeaveModalOpen, setIsCreateLeaveModalOpen] = useState(false);
   const [isReviewLeaveModalOpen, setIsReviewLeaveModalOpen] = useState(false);
   const [isAssignScheduleModalOpen, setIsAssignScheduleModalOpen] = useState(false);
 
-  // 🔄 Tải Dữ Liệu Ban Đầu
   const fetchData = async () => {
     try {
       setIsLoading(true);
@@ -98,7 +97,6 @@ export const SchedulePage: React.FC = () => {
     fetchSchedulesAndLeaves();
   }, [fetchSchedulesAndLeaves]);
 
-  // ⚡ Lắng Nghe Sự Kiện WebSockets Realtime
   useEffect(() => {
     const handleTaskUpdated = (updatedTask: TaskItem) => {
       setTasks((prev) =>
@@ -146,7 +144,6 @@ export const SchedulePage: React.FC = () => {
     };
   }, [selectedTaskForDetail?.id, fetchSchedulesAndLeaves]);
 
-  // 🔍 Áp Dụng Bộ Lọc Đa Tiêu Chí
   const filteredTasks = tasks.filter((task) => {
     if (selectedProjectId !== 'ALL') {
       const p = projects.find((proj) => proj.id === selectedProjectId);
@@ -182,14 +179,12 @@ export const SchedulePage: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in pb-16">
-      {/* 🚀 Top Action Bar & Notification Center */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 shadow-sm">
             ⚡ SOLARIS WORK SCHEDULE
           </span>
 
-          {/* Nộp đơn xin phép / WFH */}
           <button
             onClick={() => setIsCreateLeaveModalOpen(true)}
             className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,158,11,0.25)] cursor-pointer"
@@ -198,7 +193,6 @@ export const SchedulePage: React.FC = () => {
             <span>Nộp Đơn Phép / WFH</span>
           </button>
 
-          {/* Duyệt Đơn (Chỉ Manager / Admin) */}
           {isManager && (
             <button
               onClick={() => setIsReviewLeaveModalOpen(true)}
@@ -214,7 +208,6 @@ export const SchedulePage: React.FC = () => {
             </button>
           )}
 
-          {/* Xếp lịch (Chỉ Admin / Manager) */}
           {isManager && (
             <button
               onClick={() => setIsAssignScheduleModalOpen(true)}
@@ -237,7 +230,6 @@ export const SchedulePage: React.FC = () => {
         />
       </div>
 
-      {/* 🚀 Header Lịch Làm Việc */}
       <CalendarHeader
         currentDate={currentDate}
         onDateChange={setCurrentDate}
@@ -254,7 +246,6 @@ export const SchedulePage: React.FC = () => {
         tasks={filteredTasks}
       />
 
-      {/* 📅 Nội Dung Chế Độ Xem (Month / Week / Day) */}
       {isLoading ? (
         <div className="solar-glass-card p-16 rounded-3xl bg-[#0F172A]/80 border border-slate-800 text-center space-y-4">
           <div className="w-12 h-12 border-4 border-amber-500/30 border-t-amber-400 rounded-full animate-spin mx-auto" />
@@ -298,7 +289,6 @@ export const SchedulePage: React.FC = () => {
         </div>
       )}
 
-      {/* 📋 Modal Chi Tiết Task Khi Nhấp Vào Bất Kỳ Task Nào */}
       {selectedTaskForDetail && (
         <TaskDetailModal
           isOpen={isDetailModalOpen}
@@ -322,19 +312,16 @@ export const SchedulePage: React.FC = () => {
         />
       )}
 
-      {/* 📝 Modal Tạo Đơn Nghỉ / WFH */}
       <CreateLeaveRequestModal
         isOpen={isCreateLeaveModalOpen}
         onClose={() => setIsCreateLeaveModalOpen(false)}
       />
 
-      {/* 📋 Modal Phê Duyệt Đơn (Manager / Admin) */}
       <ReviewLeaveRequestsModal
         isOpen={isReviewLeaveModalOpen}
         onClose={() => setIsReviewLeaveModalOpen(false)}
       />
 
-      {/* 👑 Modal Xếp Lịch Trực Tiếp (Admin / Manager) */}
       <AssignScheduleModal
         isOpen={isAssignScheduleModalOpen}
         onClose={() => setIsAssignScheduleModalOpen(false)}

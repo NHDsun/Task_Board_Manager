@@ -4,13 +4,17 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 
+import { SocketGateway } from '../socket/socket.gateway';
+
 @Injectable()
 export class DepartmentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private socketGateway: SocketGateway
+  ) {}
 
   async create(dtoCreateDepartment: CreateDepartmentDto) {
     const { name, code } = dtoCreateDepartment;
-    // 🔒 [LC-118] CHẶN TRÙNG TÊN & MÃ PHÒNG BAN TOÀN DIỆN (CASE-INSENSITIVE)
     const existing = await this.prisma.department.findFirst({
       where: {
         OR: [
@@ -22,13 +26,21 @@ export class DepartmentService {
     if (existing) {
       throw new ConflictException('Tên hoặc mã phòng ban đã tồn tại trong hệ thống.');
     }
-    return this.prisma.department.create({
+    const created = await this.prisma.department.create({
       data: {
         ...dtoCreateDepartment,
         name: name.trim(),
         code: code.trim().toUpperCase(),
       },
     });
+
+    try {
+      this.socketGateway.server.emit('department:created', created);
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return created;
   }
 
   async findAll() {
@@ -94,7 +106,7 @@ export class DepartmentService {
       }
     }
 
-    return this.prisma.department.update({
+    const updated = await this.prisma.department.update({
       where: {
         id,
       },
@@ -104,13 +116,21 @@ export class DepartmentService {
         ...(dtoDepartment.code && { code: dtoDepartment.code.trim().toUpperCase() }),
       },
     });
+
+    try {
+      this.socketGateway.server.emit('department:updated', updated);
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return updated;
   }
   async remove(id: string) {
     const department = await this.findOne(id);
     if (!department) {
       throw new NotFoundException(`Không tìm thấy phòng ban với ID: ${id}`);
     }
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.user.updateMany({
         where: { departmentId: id },
         data: { departmentId: null },
@@ -119,6 +139,14 @@ export class DepartmentService {
         where: { id },
       });
     });
+
+    try {
+      this.socketGateway.server.emit('department:deleted', { id });
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return result;
   }
   async getWorkload(id: string) {
     const department = await this.findOne(id);

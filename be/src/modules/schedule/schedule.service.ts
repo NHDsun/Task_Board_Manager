@@ -24,7 +24,9 @@ export class ScheduleService {
     private readonly socketGateway: SocketGateway
   ) {}
 
-  // 1. 📅 Lấy danh sách lịch làm việc
+  /**
+   * Retrieves work schedule records within an optional date range and user filter.
+   */
   async getWorkSchedules(startDate?: string, endDate?: string, userId?: string) {
     const where: any = {};
 
@@ -80,7 +82,9 @@ export class ScheduleService {
     }));
   }
 
-  // 2. 👑 Xếp lịch làm việc trực tiếp (Admin / Manager)
+  /**
+   * Assigns or updates work schedules across a batch of dates with atomic transaction.
+   */
   async assignSchedule(dto: AssignScheduleDto, adminUser: AuthUserPayload) {
     if (adminUser.role !== 'ADMIN' && adminUser.role !== 'MANAGER') {
       throw new ForbiddenException('Chỉ Quản lý hoặc Quản trị viên mới có quyền xếp lịch!');
@@ -125,7 +129,6 @@ export class ScheduleService {
       })
     );
 
-    // Phát tín hiệu Realtime
     try {
       this.socketGateway.server.emit('schedule:updated', {
         userId: dto.userId,
@@ -134,7 +137,7 @@ export class ScheduleService {
         shift,
       });
     } catch (err) {
-      this.logger.error('Lỗi emit socket schedule:updated', err);
+      this.logger.error('Socket emit error (schedule:updated)', err);
     }
 
     return {
@@ -144,7 +147,9 @@ export class ScheduleService {
     };
   }
 
-  // 3. 📝 Lấy danh sách đơn nghỉ phép / WFH
+  /**
+   * Retrieves submitted leave and remote work requests.
+   */
   async getLeaveRequests(userId?: string, status?: string) {
     const where: any = {};
 
@@ -204,7 +209,9 @@ export class ScheduleService {
     }));
   }
 
-  // 4. 📝 Nộp đơn xin nghỉ phép / WFH
+  /**
+   * Creates a new leave request after verifying date ranges and absence of scheduling overlaps.
+   */
   async createLeaveRequest(dto: CreateLeaveRequestDto, user: AuthUserPayload) {
     const startObj = new Date(`${dto.startDate}T00:00:00.000Z`);
     const endObj = new Date(`${dto.endDate}T00:00:00.000Z`);
@@ -213,7 +220,6 @@ export class ScheduleService {
       throw new BadRequestException('Ngày bắt đầu không được lớn hơn ngày kết thúc!');
     }
 
-    // 🔒 [LC-114] Kiểm tra trùng lặp khoảng thời gian
     const existingRequests = await this.prisma.leaveRequest.findMany({
       where: {
         userId: user.id,
@@ -254,7 +260,6 @@ export class ScheduleService {
       },
     });
 
-    // Thông báo realtime
     try {
       this.socketGateway.server.emit('leave:created', {
         id: newRequest.id,
@@ -263,7 +268,7 @@ export class ScheduleService {
         type: newRequest.type,
       });
     } catch (err) {
-      this.logger.error('Lỗi emit socket leave:created', err);
+      this.logger.error('Socket emit error (leave:created)', err);
     }
 
     return {
@@ -282,7 +287,9 @@ export class ScheduleService {
     };
   }
 
-  // 5. ⚖️ Phê duyệt hoặc từ chối đơn (Admin / Manager)
+  /**
+   * Reviews, approves, modifies, or rejects a pending leave request and synchronizes work schedules.
+   */
   async reviewLeaveRequest(id: string, dto: ReviewLeaveRequestDto, approver: AuthUserPayload) {
     if (approver.role !== 'ADMIN' && approver.role !== 'MANAGER') {
       throw new ForbiddenException('Chỉ Quản lý hoặc Quản trị viên mới có quyền duyệt đơn!');
@@ -297,7 +304,6 @@ export class ScheduleService {
       throw new NotFoundException('Không tìm thấy đơn xin nghỉ phép!');
     }
 
-    // 🔒 [LC-170] Khóa tự duyệt đơn của chính mình
     if (targetReq.userId === approver.id) {
       throw new ForbiddenException('Bạn không thể tự phê duyệt đơn xin nghỉ/WFH của chính mình!');
     }
@@ -313,7 +319,6 @@ export class ScheduleService {
     const approvedEndObj = new Date(`${effectiveEndStr}T00:00:00.000Z`);
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Cập nhật LeaveRequest
       const updated = await tx.leaveRequest.update({
         where: { id },
         data: {
@@ -327,7 +332,6 @@ export class ScheduleService {
         },
       });
 
-      // 2. Nếu duyệt -> Tự động sinh bản ghi WorkSchedule
       if (dto.status === LeaveStatus.APPROVED || dto.status === LeaveStatus.APPROVED_MODIFIED) {
         const workType: WorkType = targetReq.type === LeaveType.WFH ? WorkType.WFH : WorkType.LEAVE;
 
@@ -371,7 +375,6 @@ export class ScheduleService {
       return updated;
     });
 
-    // Thông báo Realtime
     try {
       this.socketGateway.server.emit('leave:reviewed', {
         id: targetReq.id,
@@ -383,7 +386,7 @@ export class ScheduleService {
         userId: targetReq.userId,
       });
     } catch (err) {
-      this.logger.error('Lỗi emit socket leave:reviewed', err);
+      this.logger.error('Socket emit error (leave:reviewed)', err);
     }
 
     return {
@@ -393,7 +396,9 @@ export class ScheduleService {
     };
   }
 
-  // 6. ❌ Hủy đơn xin nghỉ phép
+  /**
+   * Cancels an existing leave request and removes any generated schedule records.
+   */
   async cancelLeaveRequest(id: string, user: AuthUserPayload) {
     const targetReq = await this.prisma.leaveRequest.findUnique({
       where: { id },
@@ -408,7 +413,6 @@ export class ScheduleService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      // Cập nhật trạng thái đơn thành CANCELLED
       await tx.leaveRequest.update({
         where: { id },
         data: {
@@ -417,7 +421,6 @@ export class ScheduleService {
         },
       });
 
-      // Xóa các bản ghi lịch làm việc đã tự động sinh từ đơn này (nếu có)
       await tx.workSchedule.deleteMany({
         where: { leaveRequestId: id },
       });
@@ -427,7 +430,7 @@ export class ScheduleService {
       this.socketGateway.server.emit('leave:cancelled', { id, userId: targetReq.userId });
       this.socketGateway.server.emit('schedule:updated', { userId: targetReq.userId });
     } catch (err) {
-      this.logger.error('Lỗi emit socket leave:cancelled', err);
+      this.logger.error('Socket emit error (leave:cancelled)', err);
     }
 
     return {

@@ -9,12 +9,14 @@ import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { SocketGateway } from '../socket/socket.gateway';
+
 @Injectable()
 export class UserService {
-  // create(createUserDto: CreateUserDto) {
-  //   return 'This action adds a new user';
-  // }
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly socketGateway: SocketGateway
+  ) {}
   async findAll(query: QueryUserDto) {
     const { search, departmentId, role, profession, statusSignal, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
@@ -214,7 +216,7 @@ export class UserService {
       }
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: {
         ...(dto.role && { role: dto.role }),
@@ -233,13 +235,22 @@ export class UserService {
         department: true,
       },
     });
+
+    try {
+      this.socketGateway.server.emit('user:updated', updated);
+      this.socketGateway.sendToUser(id, 'user:role-changed', updated);
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return updated;
   }
   async lockOrUnlockUser(id: string, dto: LockUserDto, currentAdminId: string) {
     if (id === currentAdminId && !dto.isActive) {
       throw new BadRequestException('Bạn không thể tự khóa tài khoản của chính mình!');
     }
     await this.findOne(id);
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: {
         isActive: dto.isActive,
@@ -252,6 +263,19 @@ export class UserService {
         isActive: true,
       },
     });
+
+    try {
+      this.socketGateway.server.emit('user:updated', updated);
+      this.socketGateway.server.emit('user:status-changed', {
+        userId: id,
+        statusSignal: dto.isActive ? 'ONLINE' : 'OFFLINE',
+        isActive: dto.isActive,
+      });
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return updated;
   }
   async resetPassword(id: string) {
     const user = await this.prisma.user.findUnique({
@@ -316,7 +340,7 @@ export class UserService {
         'Không thể xóa nhân sự này do đang là Chủ sở hữu/Quản lý của dự án đang chạy. Hãy chuyển giao quyền quản lý trước!'
       );
     }
-    await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.task.updateMany({
         where: {
           assigneeId: id,
@@ -337,10 +361,18 @@ export class UserService {
         message: `Đã xóa vĩnh viễn tài khoản "${user.fullName}" (${user.email}) khỏi hệ thống.`,
       };
     });
+
+    try {
+      this.socketGateway.server.emit('user:deleted', { id });
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return result;
   }
   async updateUser(id: string, dto: UpdateUserDto) {
     await this.findOne(id);
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: {
         ...(dto.fullName !== undefined && { fullName: dto.fullName }),
@@ -369,6 +401,15 @@ export class UserService {
         updatedAt: true,
       },
     });
+
+    try {
+      this.socketGateway.server.emit('user:updated', updated);
+      this.socketGateway.server.emit('user:profile-updated', updated);
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return updated;
   }
   async createUser(dto: CreateUserDto) {
     const existingUser = await this.prisma.user.findUnique({
@@ -414,6 +455,13 @@ export class UserService {
         department: { select: { id: true, name: true } },
       },
     });
+
+    try {
+      this.socketGateway.server.emit('user:created', newUser);
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
     return {
       success: true,
       message: `Đã tạo tài khoản cho nhân sự "${newUser.fullName}" thành công!`,

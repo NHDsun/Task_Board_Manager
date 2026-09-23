@@ -1,12 +1,16 @@
 import { Injectable, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthUserPayload } from '../../common/interfaces/auth-user.interface';
+import { SocketGateway } from '../socket/socket.gateway';
 
 @Injectable()
 export class TrashService {
   private readonly logger = new Logger(TrashService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly socketGateway: SocketGateway
+  ) {}
 
   private checkAdmin(user?: AuthUserPayload | null) {
     if (user?.role !== 'ADMIN') {
@@ -158,6 +162,12 @@ export class TrashService {
     this.logger.log(
       `Admin ${user?.fullName || ''} đã dọn sạch Thùng Rác (${deletedProjects} Dự án, ${deletedTasks} Task)`
     );
+
+    try {
+      this.socketGateway.server.emit('trash:updated', { type: 'empty_all' });
+    } catch (err) {
+      // Ignore socket emit error
+    }
 
     return {
       success: true,

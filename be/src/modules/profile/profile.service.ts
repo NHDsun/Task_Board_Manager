@@ -4,9 +4,14 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateStatusSignalDto } from './dto/update-status-signal.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 
+import { SocketGateway } from '../socket/socket.gateway';
+
 @Injectable()
 export class ProfileService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private socketGateway: SocketGateway
+  ) {}
 
   async getAllUsers() {
     return this.prisma.user.findMany({
@@ -152,7 +157,7 @@ export class ProfileService {
       },
     });
 
-    return {
+    const result = {
       id: updatedUser.id,
       email: updatedUser.email,
       fullName: updatedUser.fullName,
@@ -170,6 +175,15 @@ export class ProfileService {
       department: updatedUser.department,
       departmentId: updatedUser.departmentId,
     };
+
+    try {
+      this.socketGateway.server.emit('user:profile-updated', result);
+      this.socketGateway.server.emit('user:updated', result);
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return result;
   }
 
   async updateStatusSignal(userId: string, dto: UpdateStatusSignalDto) {
@@ -180,6 +194,18 @@ export class ProfileService {
         customStatus: dto.customStatus,
       },
     });
+
+    const result = {
+      userId,
+      statusSignal: updatedUser.statusSignal,
+      customStatus: updatedUser.customStatus,
+    };
+
+    try {
+      this.socketGateway.server.emit('user:status-changed', result);
+    } catch (err) {
+      // Ignore socket emit error
+    }
 
     return {
       statusSignal: updatedUser.statusSignal,

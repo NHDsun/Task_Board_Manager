@@ -17,6 +17,9 @@ interface DayScheduleViewProps {
   onSelectTask: (task: TaskItem) => void;
 }
 
+/**
+ * Daily schedule view displaying focused hero tasks, completion metrics, and scheduled tasks for a single day.
+ */
 export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
   currentDate,
   tasks,
@@ -25,7 +28,6 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
   const selectedTime = new Date(currentDate);
   selectedTime.setHours(0, 0, 0, 0);
 
-  // 🔍 Lọc danh sách Task thuộc về ngày đã chọn
   const dayTasks = tasks.filter((task) => {
     const start = task.startDate ? new Date(task.startDate) : null;
     if (start) start.setHours(0, 0, 0, 0);
@@ -44,7 +46,6 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
     return false;
   });
 
-  // 🎯 Tìm Hero Task #1 (Ưu tiên cao nhất chưa xong)
   const heroTask =
     dayTasks.find((t) => t.status !== 'DONE' && t.priority === 'URGENT') ||
     dayTasks.find((t) => t.status !== 'DONE' && t.priority === 'IMPORTANT') ||
@@ -121,7 +122,6 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* 🚀 Header Tổng Kết Ngày */}
       <div className="p-6 rounded-3xl bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#0F172A] border border-amber-500/30 shadow-[0_0_50px_rgba(245,158,11,0.15)] flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-2xl relative overflow-hidden">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex flex-col items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20">
@@ -146,7 +146,6 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
           </div>
         </div>
 
-        {/* Thanh Chỉ Số Hoàn Thành */}
         <div className="flex items-center gap-6 bg-slate-950/80 px-6 py-3.5 rounded-2xl border border-slate-800 shadow-inner">
           <div>
             <span className="text-xs text-slate-400 font-medium block">Tiến độ ngày:</span>
@@ -164,9 +163,7 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
         </div>
       </div>
 
-      {/* 📊 Bento Grid: Hero Focus Task & Schedule List */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Cột Trái: Hero Focus Task #1 (5 cột) */}
         {heroTask ? (
           <div className="lg:col-span-5 solar-glass-card p-6 rounded-3xl bg-[#0F172A]/95 border border-amber-500/40 shadow-xl space-y-5 relative overflow-hidden flex flex-col justify-between">
             <div className="space-y-4">
@@ -189,7 +186,6 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
                 </p>
               </div>
 
-              {/* Tiến Độ Hero Task */}
               <div className="space-y-2 p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400 font-medium">Tiến độ thực hiện:</span>
@@ -203,7 +199,6 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
                 </div>
               </div>
 
-              {/* Danh sách Task con (Minitasks) Preview */}
               {heroTask.subtasks && heroTask.subtasks.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase">
@@ -248,7 +243,6 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
           </div>
         )}
 
-        {/* Cột Phải: Danh Sách Công Việc Lên Lịch Trong Ngày (7 cột) */}
         <div className="lg:col-span-7 space-y-3">
           <div className="flex items-center justify-between pb-1">
             <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">

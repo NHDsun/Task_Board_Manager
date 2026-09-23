@@ -27,6 +27,9 @@ interface WeekTimelineViewProps {
   onSelectDate: (date: Date) => void;
 }
 
+/**
+ * 7-day weekly timeline view distributing tasks and attendance status across team members.
+ */
 export const WeekTimelineView: React.FC<WeekTimelineViewProps> = ({
   currentDate,
   tasks,
@@ -36,7 +39,6 @@ export const WeekTimelineView: React.FC<WeekTimelineViewProps> = ({
 }) => {
   const { getWorkLocationForDate } = useScheduleStore();
 
-  // 🗓️ Tính toán 7 ngày trong tuần hiện tại (Bắt đầu từ Thứ 2)
   const startOfWeek = new Date(currentDate);
   const day = startOfWeek.getDay();
   const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
@@ -60,13 +62,11 @@ export const WeekTimelineView: React.FC<WeekTimelineViewProps> = ({
     });
   }
 
-  // 👥 Gom nhóm danh sách nhân sự tham gia
   const assigneesList = [
     ...members,
     { id: 'UNASSIGNED', fullName: 'Chưa Gán Phụ Trách', profession: 'CORE' },
   ];
 
-  // 🔍 Lọc danh sách Task thuộc về nhân sự và kiểm tra có nằm trong tuần không
   const getTasksForMember = (memberId: string) => {
     return tasks.filter((t) => {
       const isMember =
@@ -97,7 +97,6 @@ export const WeekTimelineView: React.FC<WeekTimelineViewProps> = ({
 
   return (
     <div className="solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-amber-500/30 shadow-[0_0_50px_rgba(245,158,11,0.15)] overflow-hidden space-y-4 p-5 backdrop-blur-2xl animate-solar-warp-in">
-      {/* 🚀 Header Thanh Dòng Thời Gian 7 Ngày */}
       <div className="grid grid-cols-12 gap-2 border-b border-slate-800 pb-4 items-center">
         <div className="col-span-3 font-extrabold text-xs text-amber-400 uppercase tracking-wider flex items-center gap-2 pl-2">
           <UserIcon className="w-4 h-4 text-amber-400" />
@@ -134,7 +133,6 @@ export const WeekTimelineView: React.FC<WeekTimelineViewProps> = ({
         </div>
       </div>
 
-      {/* 📊 Dòng Thời Gian Theo Từng Thành Viên */}
       <div className="space-y-3 divide-y divide-slate-800/60 max-h-[620px] overflow-y-auto custom-scrollbar pr-1">
         {assigneesList.map((member) => {
           const memberTasks = getTasksForMember(member.id);
@@ -142,7 +140,6 @@ export const WeekTimelineView: React.FC<WeekTimelineViewProps> = ({
 
           return (
             <div key={member.id} className="pt-3 grid grid-cols-12 gap-2 items-start group">
-              {/* Cột 1: Thông tin nhân sự (3 cột) */}
               <div className="col-span-3 flex items-center gap-3 p-2.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 group-hover:border-amber-500/30 transition-all">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-purple-600/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0 font-bold text-xs relative overflow-hidden shadow-inner">
                   {member.avatar ? (
@@ -171,7 +168,6 @@ export const WeekTimelineView: React.FC<WeekTimelineViewProps> = ({
                 </div>
               </div>
 
-              {/* Cột 2: Lưới 7 Ngày & Task Chips (9 cột) */}
               <div className="col-span-9 grid grid-cols-7 gap-2 min-h-[60px] p-2 rounded-2xl bg-slate-950/60 border border-slate-900">
                 {weekDays.map((wd, dayIdx) => {
                   const dayTime = wd.date.getTime();
@@ -200,7 +196,6 @@ export const WeekTimelineView: React.FC<WeekTimelineViewProps> = ({
                         wd.isToday ? 'bg-amber-500/5' : 'bg-transparent'
                       }`}
                     >
-                      {/* Work Location Badge */}
                       {locInfo && locInfo.workType !== 'OFFICE' && (
                         <div
                           className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold border flex items-center gap-1 mb-0.5 truncate ${
@@ -241,7 +236,6 @@ export const WeekTimelineView: React.FC<WeekTimelineViewProps> = ({
                             <span className="truncate">{task.title}</span>
                           </div>
 
-                          {/* Mini progress line */}
                           <div className="w-full bg-black/40 h-1 rounded-full mt-1 overflow-hidden">
                             <div
                               className="bg-amber-400 h-full rounded-full"

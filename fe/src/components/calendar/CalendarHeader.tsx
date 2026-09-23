@@ -44,6 +44,9 @@ interface CalendarHeaderProps {
   tasks: TaskItem[];
 }
 
+/**
+ * Header toolbar for schedule and calendar navigation, period selection, and multi-dimensional filters.
+ */
 export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   currentDate,
   onDateChange,
@@ -59,7 +62,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   onPriorityChange,
   tasks,
 }) => {
-  // 📆 Điều hướng Thời Gian
   const handlePrev = () => {
     const newDate = new Date(currentDate);
     if (viewMode === 'MONTH') {
@@ -88,7 +90,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     onDateChange(new Date());
   };
 
-  // 📝 Format Tiêu Đề Thời Gian
   const formatHeaderTitle = () => {
     const month = currentDate.toLocaleString('vi-VN', { month: 'long' });
     const year = currentDate.getFullYear();
@@ -117,7 +118,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     });
   };
 
-  // 📊 Thống Kê Nhanh Trong Kỳ
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.status === 'DONE').length;
   const inProgressTasks = tasks.filter((t) => t.status === 'IN_PROGRESS').length;
@@ -127,12 +127,9 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* 🚀 Top Control Banner */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-3xl bg-[#0F172A]/90 border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.1)] backdrop-blur-xl relative overflow-hidden">
-        {/* Glow ambient */}
         <div className="absolute top-0 right-1/4 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Cụm 1: Tiêu đề & Điều hướng Tháng/Tuần/Ngày */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-purple-600/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shadow-md">
             <CalendarIcon className="w-6 h-6 animate-pulse" />
@@ -177,7 +174,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           </div>
         </div>
 
-        {/* Cụm 2: Chế độ Xem (Tháng / Tuần / Ngày) */}
         <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-950/80 border border-slate-800 shadow-inner">
           {[
             { id: 'MONTH', label: 'Tháng', icon: CalendarDays },
@@ -204,16 +200,13 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </div>
       </div>
 
-      {/* 🔍 Filter & Quick Stats Ribbon */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        {/* Bộ Lọc Đa Chiều (8 cột) */}
         <div className="lg:col-span-8 p-3.5 rounded-2xl bg-[#0F172A]/80 border border-slate-800/80 flex items-center gap-3 flex-wrap shadow-md">
           <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 mr-1">
             <Filter className="w-3.5 h-3.5" />
             <span>Bộ Lọc:</span>
           </div>
 
-          {/* Lọc Theo Dự Án */}
           <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 text-xs">
             <FolderKanban className="w-3.5 h-3.5 text-amber-400" />
             <select
@@ -232,7 +225,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             </select>
           </div>
 
-          {/* Lọc Theo Thành Viên */}
           <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 text-xs">
             <Users className="w-3.5 h-3.5 text-amber-400" />
             <select
@@ -251,7 +243,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             </select>
           </div>
 
-          {/* Lọc Theo Độ Ưu Tiên */}
           <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 text-xs">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <select
@@ -278,7 +269,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           </div>
         </div>
 
-        {/* Bảng Chỉ Số Nhanh (4 cột) */}
         <div className="lg:col-span-4 p-3 rounded-2xl bg-[#0F172A]/80 border border-slate-800/80 flex items-center justify-between gap-2 shadow-md">
           <div className="flex-1 text-center border-r border-slate-800/80 pr-2">
             <span className="text-[10px] text-slate-400 font-medium block">Tổng Việc</span>

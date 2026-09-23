@@ -35,6 +35,7 @@ import {
   Check,
 } from 'lucide-react';
 import { CreateLeaveRequestModal } from '../components/schedule/CreateLeaveRequestModal';
+import { socketService } from '../services/socket';
 
 export type WorkLocationType = 'OFFICE' | 'WFH' | 'ON_SITE' | 'LEAVE';
 
@@ -160,7 +161,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const [showNewPassword, setShowNewPassword] = useState(false);
 
   // 6. Work Location State (Auto-displayed for Employee, Editable for Admin only)
-  const { getWorkLocationForDate, setUserDailyWorkLocation } = useScheduleStore();
+  const { getWorkLocationForDate, setUserDailyWorkLocation, fetchSchedulesAndLeaves } = useScheduleStore();
   const isAdmin = authUser?.globalRole === 'ADMIN';
   const targetUserId = user?.id || 'u-self';
 
@@ -285,7 +286,32 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+
+    const handleSync = () => {
+      loadData();
+      fetchSchedulesAndLeaves();
+      const updatedLoc = getWorkLocationForDate(targetUserId, todayDateStr);
+      setLocationResult(updatedLoc);
+    };
+
+    socketService.on('schedule:updated', handleSync);
+    socketService.on('leave:reviewed', handleSync);
+    socketService.on('leave:cancelled', handleSync);
+    socketService.on('task:updated', handleSync);
+    socketService.on('task:created', handleSync);
+    socketService.on('task:deleted', handleSync);
+    socketService.on('user:profile-updated', handleSync);
+
+    return () => {
+      socketService.off('schedule:updated', handleSync);
+      socketService.off('leave:reviewed', handleSync);
+      socketService.off('leave:cancelled', handleSync);
+      socketService.off('task:updated', handleSync);
+      socketService.off('task:created', handleSync);
+      socketService.off('task:deleted', handleSync);
+      socketService.off('user:profile-updated', handleSync);
+    };
+  }, [loadData, fetchSchedulesAndLeaves, targetUserId, todayDateStr, getWorkLocationForDate]);
 
   // 7. Handlers for Updating Profile & Syncing Everywhere
   const handleSaveProfile = async (e: React.FormEvent) => {

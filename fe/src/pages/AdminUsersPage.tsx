@@ -33,6 +33,8 @@ import { useUserStore, type DirectoryUser, type DepartmentItem } from '../store/
 import { getAvatarUrl } from '../utils/avatar';
 import { api } from '../services/api';
 
+import { socketService } from '../services/socket';
+
 export const AdminUsersPage: React.FC = () => {
   // Store States
   const users = useUserStore((state) => state.users);
@@ -117,10 +119,36 @@ export const AdminUsersPage: React.FC = () => {
   const [newProfession, setNewProfession] = useState<Profession>('DEV');
   const [newRole, setNewRole] = useState<GlobalRole>('EMPLOYEE');
 
-  // Fetch Users & Departments on Mount
+  // Fetch Users & Departments on Mount + Socket Real-time Sync
   useEffect(() => {
     fetchUsers();
     fetchDepartments();
+
+    const handleSyncUsers = () => {
+      fetchUsers();
+    };
+
+    const handleSyncDepts = () => {
+      fetchDepartments();
+    };
+
+    socketService.on('user:created', handleSyncUsers);
+    socketService.on('user:updated', handleSyncUsers);
+    socketService.on('user:deleted', handleSyncUsers);
+    socketService.on('user:status-changed', handleSyncUsers);
+    socketService.on('department:created', handleSyncDepts);
+    socketService.on('department:updated', handleSyncDepts);
+    socketService.on('department:deleted', handleSyncDepts);
+
+    return () => {
+      socketService.off('user:created', handleSyncUsers);
+      socketService.off('user:updated', handleSyncUsers);
+      socketService.off('user:deleted', handleSyncUsers);
+      socketService.off('user:status-changed', handleSyncUsers);
+      socketService.off('department:created', handleSyncDepts);
+      socketService.off('department:updated', handleSyncDepts);
+      socketService.off('department:deleted', handleSyncDepts);
+    };
   }, [fetchUsers, fetchDepartments]);
 
   const showToast = (msg: string) => {

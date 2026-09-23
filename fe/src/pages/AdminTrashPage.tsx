@@ -47,6 +47,8 @@ interface TrashTask {
   createdBy?: { id: string; fullName: string; avatar?: string };
 }
 
+import { socketService } from '../services/socket';
+
 export const AdminTrashPage: React.FC = () => {
   const [projects, setProjects] = useState<TrashProject[]>([]);
   const [tasks, setTasks] = useState<TrashTask[]>([]);
@@ -106,6 +108,22 @@ export const AdminTrashPage: React.FC = () => {
 
   useEffect(() => {
     fetchTrashData();
+
+    const handleTrashSync = () => {
+      fetchTrashData();
+    };
+
+    socketService.on('trash:updated', handleTrashSync);
+    socketService.on('project:deleted', handleTrashSync);
+    socketService.on('project:restored', handleTrashSync);
+    socketService.on('task:deleted', handleTrashSync);
+
+    return () => {
+      socketService.off('trash:updated', handleTrashSync);
+      socketService.off('project:deleted', handleTrashSync);
+      socketService.off('project:restored', handleTrashSync);
+      socketService.off('task:deleted', handleTrashSync);
+    };
   }, []);
 
   // 🔄 Khôi phục Dự Án

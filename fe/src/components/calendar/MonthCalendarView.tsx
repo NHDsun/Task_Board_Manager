@@ -19,6 +19,9 @@ interface MonthCalendarViewProps {
   onSelectDate: (date: Date) => void;
 }
 
+/**
+ * Monthly calendar grid view visualizing daily tasks and employee attendance status.
+ */
 export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
   currentDate,
   tasks,
@@ -32,15 +35,11 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  // 🗓️ Ngày đầu tiên của tháng và số ngày trong tháng
   const firstDayOfMonth = new Date(year, month, 1);
   const lastDayOfMonth = new Date(year, month + 1, 0);
   const daysInMonth = lastDayOfMonth.getDate();
 
-  // Thứ của ngày 1 (Chuyển sang chuẩn Thứ 2 = 0, ..., Chủ Nhật = 6)
   const startingDayOfWeek = (firstDayOfMonth.getDay() + 6) % 7;
-
-  // Số ngày của tháng trước để bù lưới
   const lastDayOfPrevMonth = new Date(year, month, 0).getDate();
 
   const daysArray: Array<{
@@ -53,7 +52,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // 1. Bù các ngày cuối tháng trước
   for (let i = startingDayOfWeek - 1; i >= 0; i--) {
     const prevDate = new Date(year, month - 1, lastDayOfPrevMonth - i);
     prevDate.setHours(0, 0, 0, 0);
@@ -65,7 +63,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
     });
   }
 
-  // 2. Các ngày trong tháng hiện tại
   for (let i = 1; i <= daysInMonth; i++) {
     const date = new Date(year, month, i);
     date.setHours(0, 0, 0, 0);
@@ -77,7 +74,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
     });
   }
 
-  // 3. Bù các ngày đầu tháng sau (để đủ bội số 7)
   const remainingCells = (7 - (daysArray.length % 7)) % 7;
   for (let i = 1; i <= remainingCells; i++) {
     const nextDate = new Date(year, month + 1, i);
@@ -90,7 +86,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
     });
   }
 
-  // 🏷️ Lọc danh sách Task thuộc về từng ngày
   const getTasksForDate = (cellDate: Date) => {
     const time = cellDate.getTime();
 
@@ -144,7 +139,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
 
   return (
     <div className="solar-glass-card rounded-3xl bg-[#0F172A]/90 border border-slate-800 shadow-2xl overflow-hidden animate-fade-in">
-      {/* 📅 Hàng Tiêu Đề 7 Ngày Trong Tuần */}
       <div className="grid grid-cols-7 border-b border-slate-800 bg-slate-950/90 text-center">
         {weekDayNames.map((w, idx) => (
           <div
@@ -158,7 +152,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
         ))}
       </div>
 
-      {/* 📅 Lưới Ô Ngày 7x5 hoặc 7x6 */}
       <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-slate-800/80 bg-[#0B0F19]">
         {daysArray.map((item, idx) => {
           const dayTasks = getTasksForDate(item.date);
@@ -166,7 +159,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
             (t) => t.status !== 'DONE' && t.dueDate && new Date(t.dueDate) < today
           );
 
-          // Lấy vị trí làm việc của user cho ngày này (Nguồn sự thật)
           const targetUserId = selectedAssigneeId && selectedAssigneeId !== 'ALL' ? selectedAssigneeId : (authUser?.id || 'u-self');
           const dateKey = `${item.date.getFullYear()}-${String(item.date.getMonth() + 1).padStart(2, '0')}-${String(item.date.getDate()).padStart(2, '0')}`;
           const locInfo = getWorkLocationForDate(targetUserId, dateKey);
@@ -181,7 +173,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
                   : 'bg-slate-950/60 opacity-40 hover:opacity-75'
               } ${item.isToday ? 'ring-2 ring-amber-500/80 bg-amber-500/10 shadow-[inset_0_0_25px_rgba(245,158,11,0.15)]' : ''}`}
             >
-              {/* Header của ngày */}
               <div className="flex items-center justify-between gap-1 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <span
@@ -196,7 +187,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
                     {item.dayNumber}
                   </span>
 
-                  {/* Work location chip for active user (including shift info) */}
                   {locInfo.workType !== 'OFFICE' && (
                     <span
                       className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold border flex items-center gap-1 ${
@@ -240,7 +230,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
                 )}
               </div>
 
-              {/* Danh sách Task Badges trong ngày (Tối đa 3 items, còn lại +X) */}
               <div className="space-y-1.5 my-2 flex-1 overflow-hidden">
                 {dayTasks.slice(0, 3).map((task) => (
                   <div
@@ -272,7 +261,6 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
                 )}
               </div>
 
-              {/* Footer thanh tiến độ mini của ngày */}
               {dayTasks.length > 0 && (
                 <div className="w-full bg-slate-950/80 rounded-full h-1 overflow-hidden">
                   <div

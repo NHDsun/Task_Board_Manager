@@ -67,6 +67,9 @@ const WORK_TYPES: Array<{
   },
 ];
 
+/**
+ * Modal dialog for managers and admins to directly assign employee work location and shift schedules.
+ */
 export const AssignScheduleModal: React.FC<AssignScheduleModalProps> = ({
   isOpen,
   onClose,
@@ -135,7 +138,6 @@ export const AssignScheduleModal: React.FC<AssignScheduleModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       <div className="w-full max-w-xl solar-glass-card rounded-3xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_0_60px_rgba(245,158,11,0.25)] p-6 sm:p-8 space-y-6 relative overflow-hidden animate-solar-warp-in">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40">
@@ -166,7 +168,6 @@ export const AssignScheduleModal: React.FC<AssignScheduleModalProps> = ({
         )}
 
         <form onSubmit={handleSave} className="space-y-4">
-          {/* Nhân sự */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-300 block flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-amber-400" /> Chọn Nhân Sự <span className="text-rose-400">*</span>
@@ -184,7 +185,6 @@ export const AssignScheduleModal: React.FC<AssignScheduleModalProps> = ({
             </select>
           </div>
 
-          {/* Vị trí làm việc */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-300 block uppercase tracking-wider">
               Vị Trí Làm Việc <span className="text-rose-400">*</span>
@@ -212,7 +212,6 @@ export const AssignScheduleModal: React.FC<AssignScheduleModalProps> = ({
             </div>
           </div>
 
-          {/* Khoảng ngày & Ca */}
           <div className="grid grid-cols-3 gap-2.5">
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-300 block">Từ Ngày</label>
@@ -246,7 +245,6 @@ export const AssignScheduleModal: React.FC<AssignScheduleModalProps> = ({
             </div>
           </div>
 
-          {/* Ghi chú */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-300 block">Ghi Chú Xếp Lịch</label>
             <input
@@ -258,7 +256,6 @@ export const AssignScheduleModal: React.FC<AssignScheduleModalProps> = ({
             />
           </div>
 
-          {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
             <button
               type="button"

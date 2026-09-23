@@ -1,8 +1,8 @@
 # 🌌 SOLARIS - Enterprise Task Board & Workflow Management Platform
 
 <p align="center">
-  <b>Nền tảng Quản trị Tiến độ Dự án, Điều phối Tác nghiệp Đa Chiều, Quản lý Ca & Nghỉ phép chuẩn Doanh nghiệp Hiện đại.</b><br/>
-  <i>Tích hợp Phân quyền RBAC 3 cấp, Bảng Kanban Matrix 6 Trạng thái, Lịch Làm Việc & Duyệt Phép Real-time, Trung Tâm Thông Báo Đa Kênh, Thùng Rác Hệ Thống 14 Ngày và Chuẩn hóa Type-Safe 100%.</i>
+  <b>Modern Enterprise Project Management, Multi-Dimensional Workflow Coordination, Work Schedule & Leave Management Platform.</b><br/>
+  <i>Integrated 3-Tier RBAC, 6-State Kanban Matrix, Real-Time Work Schedule & Leave Approval, Multi-Channel Notification Center, 1-on-1 Chat, 14-Day System Recycle Bin, and 100% Strict Type-Safety.</i>
 </p>
 
 <p align="center">
@@ -18,90 +18,93 @@
 
 ---
 
-## 🚀 1. Tổng Quan Hệ Thống (Project Overview)
+## 🚀 1. System Overview
 
-**Solaris Task Board Manager** là giải pháp quản trị toàn diện cho các đội ngũ phát triển phần mềm và doanh nghiệp vận hành theo chuẩn Agile/Scrum. 
+**Solaris Task Board Manager** is a comprehensive management platform designed for high-performance software engineering teams and modern enterprise organizations operating under Agile/Scrum methodologies.
 
-Giao diện được thiết kế theo phong cách **Solar Glassmorphism Dark Theme** (`#030712`), hiệu ứng ánh sáng Hổ Phách (`Amber`), chuyển động mượt mà 60 FPS, tối ưu hóa trải nghiệm người dùng từ cấp Nhân viên, Quản lý dự án (Project Manager) đến Ban Giám Đốc (Admin).
+The user interface features a **Solar Glassmorphism Dark Theme** (`#030712`) with vibrant Amber lighting accents, fluid 60 FPS transitions, and optimized role-based workflows for Employees, Project Managers, and System Administrators.
 
 ---
 
-## 🌟 2. Các Phân Hệ & Tính Năng Trọng Tâm
+## 🌟 2. Core Modules & Key Features
 
 ```
                     ┌────────────────────────────────────────────────────────┐
                     │            🌌 SOLARIS WORKSPACE PLATFORM               │
                     └────────────────────────────────────────────────────────┘
-                               │                │                │
+                                │                │                │
             ┌──────────────────┴──┐    ┌────────┴────────┐    ┌──┴──────────────────┐
             │ 📋 TASK & WORKFLOW  │    │ 📅 WORK & LEAVE │    │ 👤 USER & ORG HUB   │
             ├─────────────────────┤    ├─────────────────┤    ├─────────────────────┤
             │ • Kanban Matrix     │    │ • Leave Request │    │ • 1-Click Upload    │
             │ • Pipeline Roadmap  │    │ • Review Modal  │    │ • Real DB Sync      │
             │ • Subtask Approval  │    │ • Direct Shift  │    │ • Org & Department  │
-            │ • Task History Log  │    │ • Month/Week UI │    │ • 14-Day Recycle Bin│
+            │ • Task History Log  │    │ • Month/Week UI │    │ • 14-Day Trash Bin  │
             └─────────────────────┘    └─────────────────┘    └─────────────────────┘
 ```
 
-### 📋 A. Bảng Task Workspace & Ma Trận Kanban (Kanban Matrix)
-* **6 Cột Trạng Thái Chuẩn Tác Nghiệp**: `TODO` (Cần Làm), `IN_PROGRESS` (Đang Làm), `PAUSED` (Tạm Dừng), `BLOCKED` (Tắc Nghẽn), `IN_REVIEW` 🔒 (Chờ Duyệt), `DONE` (Hoàn Thành).
-* **Kéo thả mượt mà với Fixed Portal Container**: Không chớp nháy thanh cuộn, tích hợp **Quy Tắc Sở Hữu (Drag Ownership Rule)** ngăn chặn kéo thả trái quyền hạn.
-* **Phân rã Việc Con (Subtasks/Checklists)**: Gán người phụ trách độc lập cho từng việc con, ước lượng ngày công, cơ chế nộp duyệt hoàn thành (`PENDING` ➔ `APPROVED` / `REJECTED`).
-* **Lịch Sử Tác Nghiệp Tự Động (`TaskHistory`)**: Ghi log chi tiết từng hành động di chuyển task, cập nhật tiến độ, chỉnh sửa mô tả.
+### 📋 A. Task Workspace & Kanban Matrix
+* **6 Standard Operational Columns**: `TODO`, `IN_PROGRESS`, `PAUSED`, `BLOCKED`, `IN_REVIEW` 🔒, `DONE`.
+* **Smooth Drag-and-Drop with Fixed Portal Container**: Zero scroll flickering, equipped with **Drag Ownership Rules** preventing unauthorized task manipulation.
+* **Subtask Decomposition (Checklists)**: Assign independent assignees to subtasks, estimate workload, and submit for formal approval (`PENDING` ➔ `APPROVED` / `REJECTED`).
+* **Automated Audit Logging (`TaskHistory`)**: Detailed activity tracking for column movements, progress changes, and description edits.
 
-### 📅 B. Quản Lý Ca Làm Việc & Đơn Xin Nghỉ Phép (Work Schedule & Leave Management)
-* **📝 Tạo Đơn Xin Nghỉ Phép / Làm WFH (`CreateLeaveRequestModal`)**:
-  * Hỗ trợ đa dạng loại đơn: *Làm từ xa (WFH), Nghỉ phép năm, Nghỉ ốm, Đi công tác / On-site, Việc riêng*.
-  * Tùy chọn thời gian linh hoạt: *Buổi Sáng (0.5 ngày), Buổi Chiều (0.5 ngày), Cả Ngày* hoặc khoảng ngày dài hạn kèm kế hoạch bàn giao việc.
-* **⚖️ Trung Tâm Duyệt Đơn Thời Gian Thực (`ReviewLeaveRequestsModal`)**:
-  * Dành riêng cho Quản lý & Admin, hiển thị huy hiệu đếm số đơn chờ duyệt (`PENDING`).
-  * Cho phép phê duyệt, từ chối hoặc điều chỉnh lại ngày/ca trước khi duyệt (`APPROVED_MODIFIED`).
-* **👑 Xếp Ca / Chỉ Định Lịch Trực Tiếp (`AssignScheduleModal`)**:
-  * Phân công vị trí làm việc cho bất kỳ nhân sự nào trong tổ chức.
-* **🗓️ Lịch Trình Tác Nghiệp Đa Chế Độ (`MonthCalendarView`, `SchedulePage`)**:
-  * Hiển thị trực quan lịch công việc kết hợp trạng thái có mặt (Văn phòng, WFH, Nghỉ phép, On-site) của từng thành sự.
+### 📅 B. Work Schedule & Leave Management
+* **📝 Leave & WFH Request Filing (`CreateLeaveRequestModal`)**:
+  * Multi-category requests: *Remote Work (WFH), Annual Leave, Sick Leave, Unpaid Leave, On-Site Business Trips, Personal Leave*.
+  * Flexible time options: *Morning (0.5 day), Afternoon (0.5 day), Full Day*, or extended date ranges with handover plans.
+  * Overlap Prevention: Real-time validation preventing duplicate active leave requests.
+* **⚖️ Real-Time Leave Approval Center (`ReviewLeaveRequestsModal`)**:
+  * Dedicated to Managers & Admins with live pending counter badges.
+  * Supports direct approval, rejection, or modified date/shift approval (`APPROVED_MODIFIED`).
+  * Enforces LC-170: Prevents self-approval of personal leave requests.
+* **👑 Direct Schedule Assignment (`AssignScheduleModal`)**:
+  * Allocate and batch-assign shifts and work locations for any employee across multiple dates.
+* **🗓️ Multi-Mode Interactive Calendar (`MonthCalendarView`, `WeekTimelineView`, `DayScheduleView`)**:
+  * Displays tasks alongside employee attendance status (Office, WFH, Leave, On-Site) with assignee filtering.
 
-### 👤 C. Hồ Sơ Cá Nhân & Quản Trị Tổ Chức (Profile & Organization Hub)
-* **📸 Tải Ảnh Trực Tiếp 1-Click (No Raw URL)**: Nút chọn tệp ảnh đại diện (Avatar) và ảnh bìa (Cover) trực tiếp từ máy tính kèm xem trước tức thì.
-* **🏢 Đồng Bộ Dữ Liệu Thực Tế Từ CSDL**:
-  * Hiển thị chính xác Khối Phòng Ban trực thuộc.
-  * Tự động tổng hợp danh sách các Dự án thực tế tham gia và vai trò tương ứng (*Chủ dự án, Quản lý, Thành viên*).
-* **📍 Cập Nhật Vị Trí Làm Việc Hôm Nay**: Lựa chọn trạng thái làm việc trong ngày (*Tại Văn Phòng, WFH, Đi On-site, Nghỉ phép*).
-* **👥 Quản Trị Nhân Sự & Chuyển Giao Phòng Ban (`/admin/users`)**: Phân bổ nhân sự, chuyển phòng ban hàng loạt, thiết lập nghề nghiệp (`DEV`, `TESTER`, `DESIGNER`, `BA`, `DEVOPS`, `PRODUCT_OWNER`...).
+### 👤 C. User Profile & Organization Hub
+* **📸 1-Click Direct Image Upload**: Upload avatar and cover images directly from local storage with instant preview.
+* **🏢 Real-Time Database Synchronization**:
+  * Displays assigned department and team structure.
+  * Dynamically aggregates active project participation and assigned roles (*Owner, Manager, Member*).
+* **📍 Daily Work Location Status**: Update daily work presence (*In Office, WFH, On-Site, On Leave*).
+* **👥 User & Department Management (`/admin/users`)**: Allocate staff, batch transfer departments, lock/unlock accounts, and assign specialized professions (`DEV`, `TESTER`, `DESIGNER`, `BA`, `DEVOPS`, `PRODUCT_OWNER`...).
 
-### 🗄️ D. Thùng Rác Hệ Thống Lưu Giữ 14 Ngày (`/admin/trash`)
-* **Chính sách bảo toàn dữ liệu 14 ngày**: Dự án và Task đã xóa được bảo lưu an toàn.
-* **Đếm ngược thời gian thực (Visual Countdown)**: Xanh ngọc (> 7 ngày), Vàng (3-7 ngày), Đỏ (< 3 ngày).
-* **Khôi Phục 1-Chạm (One-Click Restore)** & **Tự động mở lại Dự án cha** khi khôi phục Task con.
-* **Xóa vĩnh viễn & Dọn sạch thùng rác** bảo vệ dung lượng CSDL.
+### 🗄️ D. 14-Day System Recycle Bin (`/admin/trash`)
+* **14-Day Data Retention Policy**: Deleted projects and tasks are safely held in soft-delete state.
+* **Visual Countdown Badges**: Cyan (> 7 days), Amber (3-7 days), Rose (< 3 days).
+* **1-Click Restore**: Instant recovery with automatic parent project reactivation when restoring orphan subtasks.
+* **Permanent Purge**: Clean up individual items or empty the entire bin permanently.
 
-### 🔔 E. Trung Tâm Thông Báo Thời Gian Thực (Notification Center)
-* **Realtime WebSockets (Socket.IO)**: Nhận thông báo tức thì khi được giao task, có yêu cầu duyệt việc con, được duyệt đơn nghỉ phép.
-* **Bộ lọc thông minh**: Tab *Tất cả*, *Chưa đọc*, *Khẩn cấp 🔥*.
-* **1-Click Navigation**: Bấm vào thông báo sẽ mở ngay Modal chi tiết công việc liên quan.
+### 🔔 E. Real-Time Notifications & 1-on-1 Chat
+* **WebSocket-Powered Events (Socket.IO)**: Real-time alerts for task assignment, subtask review requests, and leave application approvals.
+* **Smart Filter Tabs**: *All*, *Unread*, *Urgent 🔥*.
+* **1-Click Context Navigation**: Clicking a notification opens the associated task modal immediately.
+* **Direct 1-on-1 Messaging**: Real-time communication between organization members.
 
 ---
 
-## 🛡️ 3. Chuẩn Hóa Type-Safe & Kiến Trúc Mã Nguồn
+## 🛡️ 3. Type-Safe Architecture & Engineering Standards
 
-* **Backend (NestJS 11 + Prisma 7)**:
-  * Khởi tạo `AuthUserPayload` và `AuthenticatedRequest` chuẩn hóa dữ liệu xác thực JWT.
-  * Toàn bộ Controllers và Services được định kiểu nghiêm ngặt (Strict TypeScript), loại bỏ hoàn toàn `any`.
-  * Giao dịch nguyên tố Atomic Transactions (`prisma.$transaction`) bảo vệ tính toàn vẹn dữ liệu.
+* **Backend (NestJS 11 + Prisma ORM 7)**:
+  * Strict JWT authentication payload typing via `AuthUserPayload` and `AuthenticatedRequest`.
+  * Fully typed Controllers, Services, and DTOs with zero `any` usage.
+  * Atomic database transactions (`prisma.$transaction`) ensuring data integrity across complex workflows.
 * **Frontend (React 19 + TypeScript + Zustand)**:
-  * Chuẩn hóa đồng bộ các interfaces: `User`, `TaskItem`, `SubtaskItem`, `Project`, `WorkScheduleRecord`, `LeaveRequestRecord`.
-  * Build thành công 100% không cảnh báo (Zero TS Compiler Errors).
+  * Unified domain models: `User`, `TaskItem`, `SubtaskItem`, `Project`, `WorkScheduleRecord`, `LeaveRequestRecord`.
+  * Zero TypeScript compiler errors (`tsc -b` clean build).
 
 ---
 
-## 🛠️ 4. Công Nghệ Sử Dụng (Tech Stack)
+## 🛠️ 4. Tech Stack
 
-| Thành Phần | Công Nghệ & Thư Viện |
+| Layer | Technologies & Libraries |
 | :--- | :--- |
 | **Frontend Framework** | React 19, TypeScript, Vite 8 |
 | **Styling & UI** | TailwindCSS v4, Lucide React Icons |
 | **State Management** | Zustand (Global Store, Schedule Store, User Store, Auth Store) |
-| **Drag and Drop** | `@hello-pangea/dnd` với Dedicated Fixed Portal Container |
+| **Drag & Drop** | `@hello-pangea/dnd` with Dedicated Fixed Portal Container |
 | **Backend Framework** | NestJS 11 (Modular Architecture) |
 | **Database & ORM** | PostgreSQL 16, Prisma ORM 7 |
 | **Realtime Engine** | Socket.IO 4.x (Gateway Rooms, User-specific broadcasts) |
@@ -109,68 +112,68 @@ Giao diện được thiết kế theo phong cách **Solar Glassmorphism Dark Th
 
 ---
 
-## 💻 5. Hướng Dẫn Cài Đặt & Chạy Dự Án (Quick Start)
+## 💻 5. Installation & Quick Start Guide
 
-### Yêu Cầu Môi Trường:
-* **Node.js**: Phiên bản 18+ hoặc 20+ LTS
-* **PostgreSQL**: Cổng mặc định `5432`
+### Prerequisites:
+* **Node.js**: Version 18+ or 20+ LTS
+* **PostgreSQL**: Port `5432` (or Docker Desktop)
 
 ---
 
-### Bước 1: Khởi Động Backend (NestJS API)
+### Step 1: Start Backend (NestJS API)
 
 ```bash
-# Di chuyển vào thư mục backend
+# Navigate to the backend directory
 cd be
 
-# Cài đặt dependencies
+# Install dependencies
 npm install
 
-# Đồng bộ Database Schema với Prisma
+# Push Database Schema with Prisma
 npx prisma db push
 
-# Chạy Server Backend (Development Mode)
+# Start Backend Server (Development Mode)
 npm run start:dev
 ```
-> 🚀 **Backend API** sẽ hoạt động tại: `http://localhost:3000` (API Prefix: `/api`)
+> 🚀 **Backend API** will run at: `http://localhost:3000` (API Prefix: `/api`)
 
 ---
 
-### Bước 2: Khởi Động Frontend (React / Vite)
+### Step 2: Start Frontend (React / Vite)
 
 ```bash
-# Mở một Terminal mới và di chuyển vào thư mục frontend
+# Open a new terminal and navigate to the frontend directory
 cd fe
 
-# Cài đặt dependencies
+# Install dependencies
 npm install
 
-# Khởi chạy giao diện người dùng
+# Launch Development Server
 npm run dev
 ```
-> 🌐 **Frontend UI** sẽ hoạt động tại: `http://localhost:5173`
+> 🌐 **Frontend UI** will run at: `http://localhost:5173`
 
 ---
 
-### Bước 3: Kiểm Tra Build Toàn Dự Án
+### Step 3: Production Build Verification
 
 ```bash
-# Kiểm tra build Frontend
+# Verify Frontend build
 cd fe && npm run build
 
-# Kiểm tra build Backend
+# Verify Backend build
 cd be && npm run build
 ```
 
 ---
 
-## 👥 6. Tài Khoản Thử Nghiệm Mặc Định (Demo Accounts)
+## 👥 6. Default Demo Accounts
 
-| Email | Mật Khẩu | Vai Trò (Role) | Quyền Hạn Nổi Bật |
+| Email | Password | Role | Key Permissions |
 | :--- | :---: | :---: | :--- |
-| `huydatne@gmail.com` | `admin123` | **ADMIN** | Toàn quyền hệ thống, Duyệt đơn nghỉ phép, Xếp ca, Thùng rác 14 ngày, Quản lý Nhân sự |
-| `manager@solaris.io` | `manager123` | **MANAGER** | Quản lý dự án, Duyệt việc con, Duyệt đơn nghỉ phép của nhân viên, Điều phối Task |
-| `employee@solaris.io` | `employee123` | **EMPLOYEE** | Nhận Task, Gửi đơn xin nghỉ phép/WFH, Cập nhật tiến độ việc con, Tự chọn vị trí làm việc |
+| `huydatne@gmail.com` | `admin123` | **ADMIN** | Full system access, Leave approvals, Schedule assignment, 14-day Trash Bin, User management |
+| `manager@solaris.io` | `manager123` | **MANAGER** | Project management, Subtask review, Member leave approval, Task coordination |
+| `employee@solaris.io` | `employee123` | **EMPLOYEE** | Task execution, Leave/WFH requests submission, Subtask progress updates |
 
 ---
 

@@ -57,7 +57,7 @@ export class ProjectService {
       ])
     );
 
-    return this.prisma.project.create({
+    const created = await this.prisma.project.create({
       data: {
         name: createProjectDto.name.trim(),
         description: createProjectDto.description,
@@ -84,6 +84,14 @@ export class ProjectService {
         },
       },
     });
+
+    try {
+      this.socketGateway.server.emit('project:created', created);
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return created;
   }
 
   async findAll(userId: string) {
@@ -239,7 +247,7 @@ export class ProjectService {
       }
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.project.update({
         where: { id },
         data: updateProjectDto,
@@ -268,6 +276,15 @@ export class ProjectService {
 
       return updated;
     });
+
+    try {
+      this.socketGateway.broadcastToProject(id, 'project:updated', result);
+      this.socketGateway.server.emit('project:updated', result);
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return result;
   }
 
   async remove(id: string) {
@@ -404,7 +421,7 @@ export class ProjectService {
       throw new BadRequestException('Nhân sự này đã là thành viên của dự án');
     }
 
-    return this.prisma.projectMember.create({
+    const createdMember = await this.prisma.projectMember.create({
       data: { projectId, userId: userIdToAdd },
       include: {
         user: {
@@ -419,6 +436,15 @@ export class ProjectService {
         },
       },
     });
+
+    try {
+      this.socketGateway.broadcastToProject(projectId, 'project:member:added', createdMember);
+      this.socketGateway.sendToUser(userIdToAdd, 'project:created', { projectId });
+    } catch (err) {
+      // Ignore socket emit error
+    }
+
+    return createdMember;
   }
 
   // 🚪 Xóa thành viên khỏi dự án -> Tự động chuyển toàn bộ Task của thành viên đó về cho Manager của Dự án
@@ -569,9 +595,15 @@ export class ProjectService {
       });
     });
 
-    this.socketGateway.broadcastToProject(id, 'project:deleted', {
-      projectId: id,
-    });
+    try {
+      this.socketGateway.broadcastToProject(id, 'project:deleted', {
+        projectId: id,
+      });
+      this.socketGateway.server.emit('project:deleted', { projectId: id });
+      this.socketGateway.server.emit('trash:updated', { projectId: id, type: 'project' });
+    } catch (err) {
+      // Ignore socket emit error
+    }
 
     return {
       success: true,
@@ -634,9 +666,15 @@ export class ProjectService {
       });
     });
 
-    this.socketGateway.broadcastToProject(id, 'project:restored', {
-      projectId: id,
-    });
+    try {
+      this.socketGateway.broadcastToProject(id, 'project:restored', {
+        projectId: id,
+      });
+      this.socketGateway.server.emit('project:restored', { projectId: id });
+      this.socketGateway.server.emit('trash:updated', { projectId: id, type: 'project' });
+    } catch (err) {
+      // Ignore socket emit error
+    }
 
     return {
       success: true,
@@ -659,6 +697,13 @@ export class ProjectService {
     }
 
     await this.prisma.project.delete({ where: { id } });
+
+    try {
+      this.socketGateway.server.emit('project:deleted', { projectId: id });
+      this.socketGateway.server.emit('trash:updated', { projectId: id, type: 'project' });
+    } catch (err) {
+      // Ignore socket emit error
+    }
 
     return {
       success: true,

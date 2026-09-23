@@ -11,7 +11,7 @@ export interface WorkScheduleRecord {
   userId: string;
   userName?: string;
   userAvatar?: string;
-  date: string; // Format: YYYY-MM-DD
+  date: string;
   workType: WorkLocationType;
   shift: WorkShift;
   note?: string;
@@ -27,8 +27,8 @@ export interface LeaveRequestRecord {
   userAvatar?: string;
   departmentName?: string;
   type: LeaveType;
-  startDate: string; // YYYY-MM-DD
-  endDate: string; // YYYY-MM-DD
+  startDate: string;
+  endDate: string;
   shift: WorkShift;
   reason: string;
   status: LeaveStatus;
@@ -80,13 +80,8 @@ interface ScheduleStoreState {
   leaveRequests: LeaveRequestRecord[];
   isLoading: boolean;
 
-  // 🔄 Đồng bộ từ Server API CSDL
   fetchSchedulesAndLeaves: (startDate?: string, endDate?: string, userId?: string) => Promise<void>;
-
-  // 📍 Lấy vị trí làm việc của một User tại một ngày bất kỳ (Lịch là nguồn sự thật)
   getWorkLocationForDate: (userId: string, dateStr: string) => WorkLocationInfo;
-
-  // 👑 Cập nhật vị trí làm việc 1 ngày
   setUserDailyWorkLocation: (
     userId: string,
     workType: WorkLocationType,
@@ -95,8 +90,6 @@ interface ScheduleStoreState {
     shift?: WorkShift,
     customNote?: string
   ) => Promise<void>;
-
-  // 🚀 Cập nhật vị trí làm việc hàng loạt theo dải ngày (Batch Update)
   setUserBatchWorkLocations: (
     userId: string,
     workType: WorkLocationType,
@@ -105,8 +98,6 @@ interface ScheduleStoreState {
     shift?: WorkShift,
     customNote?: string
   ) => Promise<void>;
-
-  // 📝 Quản lý Đơn xin nghỉ / WFH
   addLeaveRequest: (request: Omit<LeaveRequestRecord, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   cancelLeaveRequest: (requestId: string, userId: string) => Promise<void>;
   reviewLeaveRequest: (
@@ -118,8 +109,6 @@ interface ScheduleStoreState {
     modifiedDates?: { startDate: string; endDate: string },
     modifiedShift?: WorkShift
   ) => Promise<void>;
-
-  // 📅 Lấy thống kê quân số trong ngày
   getDailyAttendanceStats: (dateStr: string) => {
     office: number;
     wfh: number;
@@ -140,6 +129,32 @@ const formatDateToKey = (date?: Date | string): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
+export const normalizeLeaveStatus = (
+  status?: string
+): 'PENDING' | 'APPROVED' | 'APPROVED_MODIFIED' | 'REJECTED' | 'CANCELLED' => {
+  if (!status) return 'PENDING';
+  const s = String(status).trim().toUpperCase();
+  if (
+    s === 'APPROVED' ||
+    s === 'APPROVED_MODIFIED' ||
+    s === 'REJECTED' ||
+    s === 'CANCELLED' ||
+    s === 'PENDING'
+  ) {
+    return s as any;
+  }
+  if (s.includes('APPROV') || (s.includes('DUYỆT') && !s.includes('CHỜ'))) {
+    return 'APPROVED';
+  }
+  if (s.includes('REJECT') || s.includes('TỪ CHỐI')) {
+    return 'REJECTED';
+  }
+  if (s.includes('CANCEL') || s.includes('HỦY')) {
+    return 'CANCELLED';
+  }
+  return 'PENDING';
+};
+
 const getInitialSchedules = (): WorkScheduleRecord[] => {
   try {
     const raw = localStorage.getItem('solaris_work_schedules');
@@ -152,7 +167,12 @@ const getInitialSchedules = (): WorkScheduleRecord[] => {
 const getInitialLeaveRequests = (): LeaveRequestRecord[] => {
   try {
     const raw = localStorage.getItem('solaris_leave_requests');
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const list: any[] = JSON.parse(raw);
+    return list.map((l) => ({
+      ...l,
+      status: normalizeLeaveStatus(l.status),
+    }));
   } catch {
     return [];
   }
@@ -163,6 +183,9 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
   leaveRequests: getInitialLeaveRequests(),
   isLoading: false,
 
+  /**
+   * Fetches work schedules and leave requests from backend API and synchronizes local state.
+   */
   fetchSchedulesAndLeaves: async (startDate, endDate, userId) => {
     try {
       set({ isLoading: true });
@@ -173,7 +196,7 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
 
       const [schedRes, leaveRes] = await Promise.all([
         api.get('/schedule/work-schedules', { params }).catch(() => ({ data: [] })),
-        api.get('/schedule/leave-requests', { params: userId ? { userId } : {} }).catch(() => ({ data: [] })),
+        api.get('/schedule/leave-requests').catch(() => ({ data: [] })),
       ]);
 
       const fetchedSchedules = Array.isArray(schedRes.data)
@@ -182,11 +205,20 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
         ? schedRes.data.data
         : [];
 
-      const fetchedLeaves = Array.isArray(leaveRes.data)
+      const rawLeaves = Array.isArray(leaveRes.data)
         ? leaveRes.data
         : Array.isArray(leaveRes.data?.data)
         ? leaveRes.data.data
         : [];
+
+      const fetchedLeaves: LeaveRequestRecord[] = rawLeaves.map((l: any) => ({
+        ...l,
+        status: normalizeLeaveStatus(l.status),
+        startDate: l.startDate ? l.startDate.split('T')[0] : '',
+        endDate: l.endDate ? l.endDate.split('T')[0] : '',
+        approvedStartDate: l.approvedStartDate ? l.approvedStartDate.split('T')[0] : undefined,
+        approvedEndDate: l.approvedEndDate ? l.approvedEndDate.split('T')[0] : undefined,
+      }));
 
       try {
         localStorage.setItem('solaris_work_schedules', JSON.stringify(fetchedSchedules));
@@ -206,11 +238,13 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
     }
   },
 
+  /**
+   * Resolves the effective work location for a user on a given date based on approved leaves, assigned schedules, or default office presence.
+   */
   getWorkLocationForDate: (userId: string, dateStr: string): WorkLocationInfo => {
     const state = get();
     const targetDateKey = dateStr.split('T')[0];
 
-    // 1. 🌟 NGUỒN ƯU TIÊN 1: Đơn xin WFH / Nghỉ phép đã được Duyệt
     const matchingApprovedLeave = state.leaveRequests.find((req) => {
       if (req.userId !== userId) return false;
       if (req.status !== 'APPROVED' && req.status !== 'APPROVED_MODIFIED') return false;
@@ -237,7 +271,6 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
       };
     }
 
-    // 2. 🌟 NGUỒN ƯU TIÊN 2: Bản ghi Lịch Làm Việc chính thức (Admin Xếp Lịch)
     const matchingSchedule = state.workSchedules.find(
       (s) => s.userId === userId && s.date === targetDateKey
     );
@@ -260,7 +293,6 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
       };
     }
 
-    // 3. 🌟 NGUỒN MẶC ĐỊNH: Làm việc tại Văn Phòng
     return {
       workType: 'OFFICE',
       shift: 'FULL_DAY',
@@ -270,17 +302,22 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
     };
   },
 
+  /**
+   * Updates work location for a user for a single day.
+   */
   setUserDailyWorkLocation: async (userId, workType, dateStr, adminInfo, shift, customNote) => {
     const targetDateKey = dateStr ? dateStr.split('T')[0] : formatDateToKey();
     await get().setUserBatchWorkLocations(userId, workType, [targetDateKey], adminInfo, shift, customNote);
   },
 
+  /**
+   * Batch updates work location records across specified dates with optimistic updates and API persistence.
+   */
   setUserBatchWorkLocations: async (userId, workType, dates, adminInfo, shift, customNote) => {
     if (!dates || dates.length === 0) return;
     const effectiveShift = shift || 'FULL_DAY';
     const effectiveNote = customNote || (adminInfo ? `Được chỉ định bởi Admin ${adminInfo.adminName}` : 'Cập nhật trực tiếp');
 
-    // Optimistic Update
     set((state) => {
       const scheduleMap = new Map<string, WorkScheduleRecord>();
       state.workSchedules.forEach((s) => {
@@ -324,7 +361,6 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
       return { workSchedules: updatedSchedules };
     });
 
-    // Gọi API Backend
     try {
       await api.post('/schedule/assign', {
         userId,
@@ -333,16 +369,17 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
         shift: effectiveShift,
         note: effectiveNote,
       });
-      // Tải lại để đồng bộ chính xác ID CSDL
       await get().fetchSchedulesAndLeaves();
     } catch (err) {
       console.error('Lỗi gọi API assign schedule:', err);
     }
   },
 
+  /**
+   * Submits a new leave request to the backend with local optimistic updating.
+   */
   addLeaveRequest: async (reqData) => {
     const state = get();
-    // 🔒 [LC-114] CHẶN TRÙNG LẶP ĐƠN
     const hasOverlap = state.leaveRequests.some((existing) => {
       if (existing.userId !== reqData.userId) return false;
       if (existing.status === 'REJECTED' || existing.status === 'CANCELLED') return false;
@@ -357,7 +394,6 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
       throw new Error('Bạn đã có đơn xin nghỉ / WFH (đang chờ duyệt hoặc đã duyệt) trong khoảng thời gian này!');
     }
 
-    // Gọi API Backend
     try {
       const res = await api.post('/schedule/leave-requests', {
         type: reqData.type,
@@ -384,12 +420,17 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
         }
         return { leaveRequests: updated };
       });
+
+      await get().fetchSchedulesAndLeaves();
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || 'Lỗi gửi đơn nghỉ phép';
       throw new Error(errorMsg);
     }
   },
 
+  /**
+   * Cancels a pending or approved leave request and cleans up associated schedules.
+   */
   cancelLeaveRequest: async (requestId: string, _userId: string) => {
     try {
       await api.patch(`/schedule/leave-requests/${requestId}/cancel`);
@@ -432,6 +473,9 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
     }
   },
 
+  /**
+   * Submits manager decision for a leave request and refreshes schedules from database.
+   */
   reviewLeaveRequest: async (
     requestId,
     status,
@@ -450,7 +494,6 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
         modifiedShift,
       });
 
-      // Tải lại dữ liệu mới nhất từ CSDL
       await get().fetchSchedulesAndLeaves();
     } catch (err: any) {
       console.error('Lỗi duyệt đơn:', err);
@@ -459,6 +502,9 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
     }
   },
 
+  /**
+   * Computes attendance breakdown stats for a specified date.
+   */
   getDailyAttendanceStats: (dateStr) => {
     const state = get();
     const targetDateKey = dateStr.split('T')[0];

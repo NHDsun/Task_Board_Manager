@@ -11,6 +11,7 @@ import {
   Inbox,
   Trash2,
   X,
+  Calendar,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { socketService } from '../../services/socket';
@@ -33,7 +34,11 @@ export interface NotificationItem {
     | 'TASK_TRANSFER_REJECTED'
     | 'TASK_COMMENT'
     | 'MENTION'
-    | 'SYSTEM';
+    | 'SYSTEM'
+    | 'LEAVE_REQUEST_SUBMITTED'
+    | 'LEAVE_REQUEST_APPROVED'
+    | 'LEAVE_REQUEST_REJECTED'
+    | 'WORK_SCHEDULE_ASSIGNED';
   taskId?: string;
   subtaskId?: string;
   projectId?: string;
@@ -274,6 +279,34 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           color: 'text-blue-400',
           bg: 'bg-blue-500/20 border-blue-500/40',
           badge: 'BÌNH LUẬN',
+        };
+      case 'LEAVE_REQUEST_SUBMITTED':
+        return {
+          icon: Calendar,
+          color: 'text-amber-400',
+          bg: 'bg-amber-500/20 border-amber-500/40',
+          badge: 'ĐƠN PHÉP MỚI',
+        };
+      case 'LEAVE_REQUEST_APPROVED':
+        return {
+          icon: CheckCircle2,
+          color: 'text-emerald-400',
+          bg: 'bg-emerald-500/20 border-emerald-500/40',
+          badge: 'ĐÃ DUYỆT PHÉP',
+        };
+      case 'LEAVE_REQUEST_REJECTED':
+        return {
+          icon: XCircle,
+          color: 'text-rose-400',
+          bg: 'bg-rose-500/20 border-rose-500/40',
+          badge: 'TỪ CHỐI PHÉP',
+        };
+      case 'WORK_SCHEDULE_ASSIGNED':
+        return {
+          icon: Calendar,
+          color: 'text-cyan-400',
+          bg: 'bg-cyan-500/20 border-cyan-500/40',
+          badge: 'XẾP LỊCH MỚI',
         };
       default:
         return {

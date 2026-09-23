@@ -1,73 +1,40 @@
-# React + TypeScript + Vite
+# 🌐 SOLARIS Frontend - Modern React 19 Client Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern Single Page Application (SPA) client for the **Solaris Task Board & Workflow Platform**, built with **React 19**, **TypeScript**, **Vite 8**, **TailwindCSS v4**, and **Zustand**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Key Frontend Features
 
-## React Compiler
+* **Solar Glassmorphism Dark Theme**: Sleek `#030712` dark UI with amber illumination accents and smooth animations.
+* **Kanban Matrix Board**: 6 workflow status columns with drag-and-drop powered by `@hello-pangea/dnd` and dedicated fixed portal rendering.
+* **Interactive Work Calendar**: Multi-view calendar (`Month`, `Week`, `Day`) integrating employee work locations, shift assignments, and task milestones.
+* **Leave Request & Review Workflows**: In-app request submission and approval modal for managers.
+* **Realtime Synchronization**: Instant client updates via Socket.IO for notifications, task changes, and schedule modifications.
+* **Zustand State Stores**: Modular state management (`useAuthStore`, `useScheduleStore`, `useUserStore`, `useProjectStore`).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 💻 Installation & Setup
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+### 1. Install Dependencies:
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+### 2. Configure Environment Variables (`.env`):
+```env
+VITE_API_URL=http://localhost:3000/api
 ```
+
+### 3. Launch Development Server:
+```bash
+npm run dev
+```
+
+### 4. Build for Production:
+```bash
+npm run build
+```
+
+The web client runs locally at: `http://localhost:5173`.

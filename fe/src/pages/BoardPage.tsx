@@ -277,17 +277,34 @@ export const BoardPage: React.FC = () => {
       }
     };
 
+    const handleProjectEvent = () => {
+      fetchProjectsFromBackend();
+      fetchTasksFromBackend();
+    };
+
+    const handleTaskRequestEvent = () => {
+      fetchTasksFromBackend();
+      fetchNotificationCount();
+    };
+
     socketService.on('task:created', handleSocketUpdate);
     socketService.on('task:updated', handleSocketUpdate);
     socketService.on('task:deleted', handleSocketUpdate);
     socketService.on('comment:created', handleSocketUpdate);
     socketService.on('task:approval-requested', handleApprovalRequested);
     socketService.on('task:subtask-reviewed', handleSubtaskReviewed);
+    socketService.on('task:request-created', handleTaskRequestEvent);
+    socketService.on('task:assigned-by-manager', handleTaskRequestEvent);
+    socketService.on('project:created', handleProjectEvent);
+    socketService.on('project:updated', handleProjectEvent);
+    socketService.on('project:deleted', handleProjectEvent);
+    socketService.on('project:restored', handleProjectEvent);
+    socketService.on('project:member:added', handleProjectEvent);
+    socketService.on('project:member:removed', handleProjectEvent);
 
-    // Auto-fetch latest task dataset on connection restored
     const unsubscribeReconnect = socketService.onReconnect(() => {
-      console.log('🔄 Syncing full task state after connection restored');
       fetchTasksFromBackend();
+      fetchProjectsFromBackend();
       fetchNotificationCount();
     });
 
@@ -298,6 +315,14 @@ export const BoardPage: React.FC = () => {
       socketService.off('comment:created', handleSocketUpdate);
       socketService.off('task:approval-requested', handleApprovalRequested);
       socketService.off('task:subtask-reviewed', handleSubtaskReviewed);
+      socketService.off('task:request-created', handleTaskRequestEvent);
+      socketService.off('task:assigned-by-manager', handleTaskRequestEvent);
+      socketService.off('project:created', handleProjectEvent);
+      socketService.off('project:updated', handleProjectEvent);
+      socketService.off('project:deleted', handleProjectEvent);
+      socketService.off('project:restored', handleProjectEvent);
+      socketService.off('project:member:added', handleProjectEvent);
+      socketService.off('project:member:removed', handleProjectEvent);
       unsubscribeReconnect();
     };
   }, [token]);

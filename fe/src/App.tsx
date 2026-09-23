@@ -75,14 +75,80 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
+import { socketService } from './services/socket';
+import { useUserStore } from './store/useUserStore';
+
 export default function App() {
   useAutoStatusSignal();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const currentUser = useAuthStore((state) => state.user);
+  const updateUser = useAuthStore((state) => state.updateUser);
 
   const isAdmin = currentUser?.globalRole === 'ADMIN';
 
-  // 🔄 Khôi phục trang hiện tại khi F5 / Reload từ URL pathname hoặc localStorage
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser?.id) return;
+
+    socketService.connect();
+    socketService.joinUser(currentUser.id);
+
+    const handleUserStatusChanged = (data: { userId: string; statusSignal: any; customStatus?: string }) => {
+      if (data?.userId) {
+        useUserStore.getState().updateDirectoryUser(data.userId, {
+          statusSignal: data.statusSignal,
+          customStatus: data.customStatus,
+        });
+      }
+    };
+
+    const handleUserProfileUpdated = (data: any) => {
+      if (data?.id) {
+        useUserStore.getState().updateDirectoryUser(data.id, data);
+        if (data.id === currentUser.id) {
+          updateUser(data);
+        }
+      }
+    };
+
+    const handleUserRoleChanged = (data: any) => {
+      if (data?.id === currentUser.id && data.role) {
+        updateUser({
+          ...currentUser,
+          globalRole: data.role,
+          role: data.role,
+        });
+      }
+    };
+
+    const handleUserListSync = () => {
+      useUserStore.getState().fetchUsers();
+    };
+
+    const handleDeptSync = () => {
+      useUserStore.getState().fetchDepartments();
+    };
+
+    socketService.on('user:status-changed', handleUserStatusChanged);
+    socketService.on('user:profile-updated', handleUserProfileUpdated);
+    socketService.on('user:role-changed', handleUserRoleChanged);
+    socketService.on('user:created', handleUserListSync);
+    socketService.on('user:deleted', handleUserListSync);
+    socketService.on('department:created', handleDeptSync);
+    socketService.on('department:updated', handleDeptSync);
+    socketService.on('department:deleted', handleDeptSync);
+
+    return () => {
+      socketService.off('user:status-changed', handleUserStatusChanged);
+      socketService.off('user:profile-updated', handleUserProfileUpdated);
+      socketService.off('user:role-changed', handleUserRoleChanged);
+      socketService.off('user:created', handleUserListSync);
+      socketService.off('user:deleted', handleUserListSync);
+      socketService.off('department:created', handleDeptSync);
+      socketService.off('department:updated', handleDeptSync);
+      socketService.off('department:deleted', handleDeptSync);
+    };
+  }, [isAuthenticated, currentUser?.id, updateUser]);
+
   const getInitialRoute = () => {
     const path = window.location.pathname;
     if (path && path !== '/' && path !== '/login') {
@@ -94,9 +160,7 @@ export default function App() {
 
   const [currentRoute, setCurrentRoute] = useState<string>(getInitialRoute);
 
-  // 🚀 Cập nhật route, đồng bộ localStorage và URL History khi chuyển trang
   const handleNavigate = (route: string) => {
-    // 🛡️ Guard Quản trị: Chỉ dành cho Admin
     if ((route === '/admin/users' || route === '/admin/departments' || route === '/admin/trash') && !isAdmin) {
       route = '/tasks';
     }
@@ -111,7 +175,6 @@ export default function App() {
     }
   };
 
-  // 🔙 Lắng nghe nút Back / Forward trên trình duyệt
   useEffect(() => {
     const onPopState = () => {
       const path = window.location.pathname;
