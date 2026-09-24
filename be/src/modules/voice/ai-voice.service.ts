@@ -201,22 +201,35 @@ export class AiVoiceService {
   ): AiTaskResult {
     const textLower = rawText.toLowerCase();
 
-    // 1. Phân tích Mức độ ưu tiên
+    // 1. Phân tích Mức độ ưu tiên (Hỗ trợ cả Tiếng Việt và Tiếng Anh)
     let priority = 'NORMAL';
     if (
       textLower.includes('khẩn cấp') ||
       textLower.includes('gấp') ||
       textLower.includes('ngay lập tức') ||
-      textLower.includes('urgent')
+      textLower.includes('urgent') ||
+      textLower.includes('emergency') ||
+      textLower.includes('asap')
     ) {
       priority = 'URGENT';
-    } else if (textLower.includes('quan trọng') || textLower.includes('ưu tiên') || textLower.includes('important')) {
+    } else if (
+      textLower.includes('quan trọng') ||
+      textLower.includes('ưu tiên') ||
+      textLower.includes('important') ||
+      textLower.includes('high priority') ||
+      textLower.includes('high')
+    ) {
       priority = 'IMPORTANT';
-    } else if (textLower.includes('thấp') || textLower.includes('rảnh làm') || textLower.includes('low')) {
+    } else if (
+      textLower.includes('thấp') ||
+      textLower.includes('rảnh làm') ||
+      textLower.includes('low priority') ||
+      textLower.includes('low')
+    ) {
       priority = 'LOW';
     }
 
-    // 2. Phân tích Thành viên được giao
+    // 2. Phân tích Thành viên được giao (Hỗ trợ 'cho Nam', 'giao cho Nam', 'for Nam', 'to Nam', 'assign to Nam')
     let matchedUser: UserSummary | null = null;
     for (const u of users) {
       const nameLower = u.fullName.toLowerCase();
@@ -226,6 +239,9 @@ export class AiVoiceService {
       if (
         (firstName.length > 1 && textLower.includes(`cho ${firstName}`)) ||
         (firstName.length > 1 && textLower.includes(`giao cho ${firstName}`)) ||
+        (firstName.length > 1 && textLower.includes(`for ${firstName}`)) ||
+        (firstName.length > 1 && textLower.includes(`to ${firstName}`)) ||
+        (firstName.length > 1 && textLower.includes(`assign to ${firstName}`)) ||
         textLower.includes(nameLower) ||
         textLower.includes(emailLower)
       ) {
@@ -244,25 +260,39 @@ export class AiVoiceService {
       }
     }
 
-    // 4. Phân tích Deadline tương đối
+    // 4. Phân tích Deadline tương đối (Song ngữ Anh - Việt)
     let dueDateStr: string | null = null;
     const targetDate = new Date(today);
 
-    if (textLower.includes('hôm nay')) {
+    if (textLower.includes('hôm nay') || textLower.includes('today')) {
       dueDateStr = targetDate.toISOString().split('T')[0];
-    } else if (textLower.includes('ngày mai')) {
+    } else if (textLower.includes('ngày mai') || textLower.includes('tomorrow')) {
       targetDate.setDate(targetDate.getDate() + 1);
       dueDateStr = targetDate.toISOString().split('T')[0];
-    } else if (textLower.includes('ngày kia') || textLower.includes('hôm kia')) {
+    } else if (
+      textLower.includes('ngày kia') ||
+      textLower.includes('hôm kia') ||
+      textLower.includes('the day after tomorrow')
+    ) {
       targetDate.setDate(targetDate.getDate() + 2);
       dueDateStr = targetDate.toISOString().split('T')[0];
-    } else if (textLower.includes('tuần sau') || textLower.includes('cuối tuần')) {
+    } else if (
+      textLower.includes('tuần sau') ||
+      textLower.includes('cuối tuần') ||
+      textLower.includes('next week') ||
+      textLower.includes('weekend')
+    ) {
       targetDate.setDate(targetDate.getDate() + 7);
       dueDateStr = targetDate.toISOString().split('T')[0];
     }
 
-    // 5. Chuẩn hóa tiêu đề
-    let cleanTitle = rawText.replace(/^(tạo task|tạo nhiệm vụ|tạo công việc|thêm việc|thêm task|tạo)\s+/i, '').trim();
+    // 5. Chuẩn hóa tiêu đề (Loại bỏ các tiền tố tạo task phổ biến song ngữ)
+    let cleanTitle = rawText
+      .replace(
+        /^(tạo task|tạo nhiệm vụ|tạo công việc|thêm việc|thêm task|tạo|create task|create new task|add task|make task|new task)\s+/i,
+        ''
+      )
+      .trim();
     if (!cleanTitle) {
       cleanTitle = rawText;
     }
@@ -278,7 +308,6 @@ export class AiVoiceService {
       assigneeName: matchedUser?.fullName || null,
       dueDate: dueDateStr,
     };
-
   }
 
   async processVoiceTaskCreation(userId: string, rawAudioText: string): Promise<VoiceTaskCreationResponse> {
@@ -312,7 +341,7 @@ export class AiVoiceService {
       ];
 
       const prompt = `
-Bạn là trợ lý ảo thông minh Solaris AI, chịu trách nhiệm phân tích khẩu lệnh tiếng Việt của người dùng để trích xuất thông tin tạo Task (Công việc).
+Bạn là trợ lý ảo AI thông minh đa ngôn ngữ Solaris AI, có khả năng hiểu sâu sắc khẩu lệnh Song ngữ (Tiếng Việt, Tiếng Anh và Vietglish/thuật ngữ kỹ thuật IT) của người dùng để trích xuất thông tin tạo Task (Công việc).
 
 Thời điểm hiện tại: ${todayStr} (${currentDayOfWeek}).
 
@@ -322,24 +351,24 @@ ${JSON.stringify(projects.map((p) => ({ id: p.id, name: p.name })))}
 Danh sách Thành viên đang có trong hệ thống:
 ${JSON.stringify(users.map((u) => ({ id: u.id, email: u.email, fullName: u.fullName })))}
 
-Câu lệnh giọng nói của người dùng:
+Câu lệnh giọng nói của người dùng (có thể là Tiếng Việt, Tiếng Anh hoặc Song ngữ/Vietglish):
 "${rawAudioText}"
 
 Hãy phân tích kỹ câu lệnh và trả về JSON thuần túy (không kèm bất kỳ văn bản giải thích hoặc code block nào) với cấu trúc sau:
 {
-  "title": "Tiêu đề công việc ngắn gọn, rõ nghĩa (Bắt buộc)",
+  "title": "Tiêu đề công việc ngắn gọn, rõ nghĩa, giữ đúng tên kỹ thuật/tiếng Anh (Bắt buộc)",
   "description": "Mô tả chi tiết nội dung công việc nếu người dùng có nói, hoặc null",
   "priority": "LOW" | "NORMAL" | "IMPORTANT" | "URGENT",
   "projectName": "Tên dự án trong danh sách khớp nhất với câu lệnh, hoặc null",
-  "assigneeEmail": "Email của thành viên trong danh sách được nhắc đến (ví dụ: 'giao cho Nam', 'cho An'), hoặc null",
+  "assigneeEmail": "Email của thành viên trong danh sách được nhắc đến (ví dụ: 'giao cho Nam', 'for Sarah', 'cho An'), hoặc null",
   "assigneeName": "Tên thành viên nếu có, hoặc null",
-  "dueDate": "YYYY-MM-DD nếu có thời hạn (ví dụ: 'ngày mai' -> tính toán ngày tiếp theo từ hôm nay ${todayStr}, 'thứ hai tuần sau', 'cuối tuần'), hoặc null"
+  "dueDate": "YYYY-MM-DD nếu có thời hạn (ví dụ: 'ngày mai'/'tomorrow' -> tính toán ngày tiếp theo từ hôm nay ${todayStr}, 'thứ hai tuần sau'/'next week', 'cuối tuần'/'weekend'), hoặc null"
 }
 
 Quy tắc phân loại priority:
-- "khẩn cấp", "gấp", "ngay", "urgent" -> "URGENT"
-- "quan trọng", "ưu tiên", "important" -> "IMPORTANT"
-- "thấp", "khi nào rảnh làm", "low" -> "LOW"
+- "khẩn cấp", "gấp", "ngay", "urgent", "emergency", "asap" -> "URGENT"
+- "quan trọng", "ưu tiên", "important", "high priority", "high" -> "IMPORTANT"
+- "thấp", "khi nào rảnh làm", "low priority", "low" -> "LOW"
 - Các trường hợp khác -> "NORMAL"
       `.trim();
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Mic,
   MicOff,
@@ -14,9 +14,12 @@ import {
   RotateCcw,
   Flag,
   PenLine,
+  Languages,
+  Keyboard,
 } from 'lucide-react';
-import { useVoiceRecognition } from '../../hooks/useVoiceRecognition';
+import { useVoiceRecognition, type VoiceLanguageMode } from '../../hooks/useVoiceRecognition';
 import { AudioWaveVisualizer } from './AudioWaveVisualizer';
+import { audioChimes } from '../../utils/audioChimes';
 import { api } from '../../services/api';
 import axios, { AxiosError } from 'axios';
 
@@ -71,16 +74,19 @@ export const SolarisVoiceAssistantWidget: React.FC<SolarisVoiceAssistantWidgetPr
     interimTranscript,
     audioVolume,
     isSupported,
+    languageMode,
     error: micError,
     startListening,
     stopListening,
     resetTranscript,
     setManualTranscript,
+    setLanguageMode,
   } = useVoiceRecognition();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdResult, setCreatedResult] = useState<CreatedVoiceTaskResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -95,6 +101,38 @@ export const SolarisVoiceAssistantWidget: React.FC<SolarisVoiceAssistantWidgetPr
       setApiError(null);
     }
   }, [isOpen]);
+
+  // Keyboard Shortcuts (Space to toggle, Enter to submit, Esc to close)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      // Enter hoặc Ctrl+Enter khi đang không submit
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || document.activeElement !== textareaRef.current)) {
+        e.preventDefault();
+        handleSendAction();
+        return;
+      }
+
+      // Space để toggle Mic khi không gõ trong ô textarea
+      if (e.code === 'Space' && document.activeElement !== textareaRef.current && !isSubmitting && !createdResult) {
+        e.preventDefault();
+        if (isListening) {
+          stopListening();
+        } else {
+          startListening();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isListening, isSubmitting, createdResult, transcript, interimTranscript]);
 
   const handleSendAction = async (customText?: string) => {
     const fullText = (customText || transcript + (interimTranscript ? ' ' + interimTranscript : '')).trim();
@@ -112,11 +150,13 @@ export const SolarisVoiceAssistantWidget: React.FC<SolarisVoiceAssistantWidgetPr
 
       const data = response.data;
       setCreatedResult(data);
+      audioChimes.playSuccessChime();
 
       if (onExecuteCommand) {
         onExecuteCommand(fullText);
       }
     } catch (error: unknown) {
+      audioChimes.playErrorChime();
       console.error('Lỗi khi gửi khẩu lệnh giọng nói lên backend:', error);
       let serverMessage =
         'Đã xảy ra lỗi khi kết nối AI Groq Voice. Vui lòng kiểm tra lại cấu hình GROQ_API_KEY ở Backend.';
@@ -184,7 +224,7 @@ export const SolarisVoiceAssistantWidget: React.FC<SolarisVoiceAssistantWidgetPr
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
-                Trợ Lý Giọng Nói Solaris Groq AI
+                Trợ Lý Giọng Nói Solaris Song Ngữ AI
               </h2>
               <p className="text-[11px] text-slate-400">
                 {isSubmitting ? (
@@ -213,6 +253,49 @@ export const SolarisVoiceAssistantWidget: React.FC<SolarisVoiceAssistantWidgetPr
 
         {/* 📜 Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 relative z-10 custom-scrollbar">
+          {/* 🌐 Language Switcher Toolbar */}
+          <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-900/90 border border-slate-800">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-300 pl-1">
+              <Languages className="w-3.5 h-3.5 text-amber-400" />
+              <span>Chế độ Ngôn ngữ:</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setLanguageMode('bilingual')}
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                  languageMode === 'bilingual'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                🌐 Song Ngữ (Vi-En)
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguageMode('vi-VN')}
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                  languageMode === 'vi-VN'
+                    ? 'bg-amber-500 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                🇻🇳 Tiếng Việt
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguageMode('en-US')}
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                  languageMode === 'en-US'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                🇺🇸 English
+              </button>
+            </div>
+          </div>
+
           {/* Warning if browser not supported */}
           {!isSupported && (
             <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-3 text-xs text-rose-300">
@@ -349,12 +432,24 @@ export const SolarisVoiceAssistantWidget: React.FC<SolarisVoiceAssistantWidgetPr
                 </div>
 
                 <textarea
+                  ref={textareaRef}
                   rows={3}
                   value={transcript + (interimTranscript ? (transcript ? ' ' : '') + interimTranscript : '')}
                   onChange={(e) => setManualTranscript(e.target.value)}
-                  placeholder="Hãy nói hoặc gõ: 'Tạo task thiết kế Banner Marketing cho Nam mức độ khẩn cấp deadline ngày mai'..."
+                  placeholder={
+                    languageMode === 'en-US'
+                      ? "Say or type: 'Create QA testing task for Alex urgent deadline tomorrow'..."
+                      : "Hãy nói hoặc gõ: 'Tạo task Fix bug login cho Nam mức độ khẩn cấp deadline ngày mai'..."
+                  }
                   className="w-full bg-transparent text-xs sm:text-sm text-white placeholder-slate-600 focus:outline-none resize-none leading-relaxed font-medium"
                 />
+
+                <div className="flex items-center justify-between pt-1 text-[10px] text-slate-500 font-mono border-t border-slate-900">
+                  <span className="flex items-center gap-1">
+                    <Keyboard className="w-3 h-3 text-slate-400" /> Phím tắt: [Space] Bật/Tắt Mic | [Enter] Gửi lệnh | [Esc] Thoát
+                  </span>
+                  <span>{currentRawText.length} ký tự</span>
+                </div>
               </div>
 
               {/* Quick Sample Voice Command Pills */}
@@ -364,8 +459,9 @@ export const SolarisVoiceAssistantWidget: React.FC<SolarisVoiceAssistantWidgetPr
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
                   {[
-                    '🎙️ Tạo task Kiểm thử QA mức độ khẩn cấp deadline ngày mai',
+                    '🎙️ Tạo task Fix bug API Authentication cho Nam mức độ khẩn cấp deadline ngày mai',
                     '🎙️ Tạo task Thiết kế Banner Marketing cho Nam',
+                    '🎙️ Create QA testing and deploy task for Alex urgent tomorrow',
                     '🎙️ Tạo task Tối ưu hiệu năng Database mức độ quan trọng',
                   ].map((sample, idx) => (
                     <button
