@@ -16,7 +16,7 @@ export class AiVoiceService {
 
   constructor(private prisma: PrismaService) {
     this.groq = new OpenAI({
-      apiKey: process.env.GROQ_API_KEY,
+      apiKey: process.env.GROQ_API_KEY || 'dummy_groq_key',
       baseURL: 'https://api.groq.com/openai/v1',
     });
   }
