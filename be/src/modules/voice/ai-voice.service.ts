@@ -106,7 +106,6 @@ export interface VoiceTaskCreationResponse {
 export class AiVoiceService {
   private groq: OpenAI | null = null;
   private cachedModel: string | null = null;
-
   constructor(
     private prisma: PrismaService,
     private socketGateway: SocketGateway,
@@ -279,6 +278,7 @@ export class AiVoiceService {
       assigneeName: matchedUser?.fullName || null,
       dueDate: dueDateStr,
     };
+
   }
 
   async processVoiceTaskCreation(userId: string, rawAudioText: string): Promise<VoiceTaskCreationResponse> {
