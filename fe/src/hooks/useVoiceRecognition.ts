@@ -6,14 +6,46 @@ interface SpeechRecognitionErrorEvent extends Event {
   message?: string;
 }
 
-interface SpeechRecognitionEvent extends Event {
+interface SpeechRecognitionResultItem {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionResultLike {
+  isFinal: boolean;
+  [index: number]: SpeechRecognitionResultItem;
+}
+
+interface SpeechRecognitionResultListLike {
+  length: number;
+  [index: number]: SpeechRecognitionResultLike;
+}
+
+interface SpeechRecognitionEventLike extends Event {
   resultIndex: number;
-  results: SpeechRecognitionResultList;
+  results: SpeechRecognitionResultListLike;
+}
+
+interface ISpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+}
+
+interface ISpeechRecognitionConstructor {
+  new (): ISpeechRecognitionInstance;
 }
 
 interface IWindow extends Window {
-  SpeechRecognition?: any;
-  webkitSpeechRecognition?: any;
+  SpeechRecognition?: ISpeechRecognitionConstructor;
+  webkitSpeechRecognition?: ISpeechRecognitionConstructor;
 }
 
 export interface UseVoiceRecognitionReturn {
@@ -26,6 +58,7 @@ export interface UseVoiceRecognitionReturn {
   startListening: () => void;
   stopListening: () => void;
   resetTranscript: () => void;
+  setManualTranscript: (text: string) => void;
 }
 
 export const useVoiceRecognition = (onFinalResult?: (result: string) => void): UseVoiceRecognitionReturn => {
@@ -36,12 +69,13 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(true);
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<ISpeechRecognitionInstance | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const microphoneRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const retryCountRef = useRef<number>(0);
 
   // Check browser support
   useEffect(() => {
@@ -65,20 +99,21 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
     const recognition = new SpeechRecognitionAPI();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'vi-VN'; // Cấu hình nhận diện giọng nói Tiếng Việt
+    recognition.lang = 'vi-VN'; // Nhận diện tiếng Việt
 
     recognition.onstart = () => {
       setIsListening(true);
       setError(null);
+      retryCountRef.current = 0;
     };
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
       let currentInterim = '';
       let currentFinal = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const item = event.results[i];
-        const text = item[0].transcript;
+        const text = item[0]?.transcript || '';
         if (item.isFinal) {
           currentFinal += text + ' ';
         } else {
@@ -98,14 +133,23 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === 'no-speech') {
-        // Tự động bỏ qua lỗi không có tiếng nói
+        // Bỏ qua lỗi không phát hiện âm thanh trong khoảng lặng
         return;
       }
+
       if (event.error === 'not-allowed') {
         setError('Quyền truy cập Microphone bị từ chối. Vui lòng cho phép trình duyệt sử dụng Micro.');
+      } else if (event.error === 'network') {
+        // Lỗi kết nối tới máy chủ Google Speech API
+        setError(
+          'Máy chủ giọng nói Google STT không phản hồi hoặc bị gián đoạn mạng/VPN. Bạn vẫn có thể nhập trực tiếp khẩu lệnh bằng bàn phím vào ô bên dưới.'
+        );
+      } else if (event.error === 'audio-capture') {
+        setError('Không tìm thấy thiết bị thu âm (Microphone). Vui lòng cắm hoặc kích hoạt Micro.');
       } else {
-        setError(`Lỗi nhận diện âm thanh: ${event.error}`);
+        setError(`Lỗi nhận diện âm thanh (${event.error}). Bạn có thể gõ nội dung trực tiếp vào ô bên dưới.`);
       }
+
       setIsListening(false);
     };
 
@@ -122,7 +166,8 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       mediaStreamRef.current = stream;
 
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const audioCtx = new AudioCtx();
       audioContextRef.current = audioCtx;
 
@@ -155,7 +200,7 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
 
       updateVolume();
     } catch {
-      // Ignore audio context error if user denies mic
+      // Ignore audio context error if user denies mic or device busy
     }
   };
 
@@ -170,7 +215,7 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
       microphoneRef.current = null;
     }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close();
+      audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
     }
     if (mediaStreamRef.current) {
@@ -189,8 +234,8 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
       }
       recognitionRef.current?.start();
       startAudioAnalyzer();
-    } catch (e: any) {
-      console.warn('Recognition already started or error:', e);
+    } catch (e: unknown) {
+      console.warn('Recognition start exception:', e);
     }
   };
 
@@ -209,12 +254,17 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
     setInterimTranscript('');
   };
 
+  const setManualTranscript = (text: string) => {
+    setTranscript(text);
+    setInterimTranscript('');
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopAudioAnalyzer();
       try {
-        recognitionRef.current?.stop();
+        recognitionRef.current?.abort();
       } catch {
         // Ignore
       }
@@ -231,5 +281,6 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
     startListening,
     stopListening,
     resetTranscript,
+    setManualTranscript,
   };
 };

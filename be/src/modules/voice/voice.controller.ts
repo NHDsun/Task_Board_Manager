@@ -1,35 +1,43 @@
-import { Controller, Post, Body, Req } from '@nestjs/common';
-import { AiVoiceService, AiTaskResult } from './ai-voice.service';
-import { Request } from 'express'; // Import Request từ express
+import { Controller, Post, Body, Req, UseGuards, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { AiVoiceService, VoiceTaskCreationResponse } from './ai-voice.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Request } from 'express';
 
-interface CreateVoiceTaskBody {
+export interface CreateVoiceTaskDto {
   rawAudioText: string;
   userId?: string;
 }
 
-interface RequestWithUser extends Request {
-  user?: {
-    id: string;
-    [key: string]: any;
-  };
+export interface AuthenticatedUserPayload {
+  id: string;
+  email?: string;
+  role?: string;
+}
+
+export interface RequestWithUser extends Request {
+  user?: AuthenticatedUserPayload;
 }
 
 @Controller('tasks/voice')
+@UseGuards(JwtAuthGuard)
 export class AiVoiceController {
   constructor(private readonly aiVoiceService: AiVoiceService) {}
 
   @Post('create')
   async createFromVoice(
     @Req() req: RequestWithUser,
-    @Body() body: CreateVoiceTaskBody
-  ): Promise<{
-    success: boolean;
-    message: string;
-    task: any;
-    parsedData: AiTaskResult;
-  }> {
-    const userId = req.user?.id || body.userId || 'DEFAULT_USER_ID';
+    @Body() body: CreateVoiceTaskDto
+  ): Promise<VoiceTaskCreationResponse> {
+    const rawAudioText = body?.rawAudioText?.trim();
+    if (!rawAudioText) {
+      throw new BadRequestException('Vui lòng cung cấp khẩu lệnh giọng nói (rawAudioText).');
+    }
 
-    return await this.aiVoiceService.processVoiceTaskCreation(userId, body.rawAudioText);
+    const userId = req.user?.id || body.userId;
+    if (!userId) {
+      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ hoặc đã hết hạn.');
+    }
+
+    return await this.aiVoiceService.processVoiceTaskCreation(userId, rawAudioText);
   }
 }
