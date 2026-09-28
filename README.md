@@ -1,8 +1,8 @@
 # 🌌 SOLARIS - Enterprise Task Board & Workflow Management Platform
 
 <p align="center">
-  <b>Hệ thống Quản trị Tiến độ Công việc, Lập Kế hoạch Master Plan & Điều phối Tác nghiệp Đa Dự án chuẩn Doanh nghiệp Hiện đại.</b><br/>
-  <i>Tích hợp Phân quyền RBAC 3 cấp, Bảng Kanban 6 Trạng thái, Lịch Làm Việc 3 Chế độ Xem, Trung Tâm Thông Báo Real-time, Thùng Rác Hệ Thống 14 Ngày và Triệt Tiêu 98 Logic Conflicts & Corner Cases.</i>
+  <b>Nền tảng Quản trị Tiến độ Dự án, Điều phối Tác nghiệp Đa Chiều, Quản lý Ca & Nghỉ phép chuẩn Doanh nghiệp Hiện đại.</b><br/>
+  <i>Tích hợp Phân quyền RBAC 3 cấp, Bảng Kanban Matrix 6 Trạng thái, Lịch Làm Việc & Duyệt Phép Real-time, Trung Tâm Thông Báo Đa Kênh, Thùng Rác Hệ Thống 14 Ngày và Chuẩn hóa Type-Safe 100%.</i>
 </p>
 
 <p align="center">
@@ -12,178 +12,169 @@
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
   <img src="https://img.shields.io/badge/Vite-8.x-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
   <img src="https://img.shields.io/badge/TailwindCSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="TailwindCSS" />
+  <img src="https://img.shields.io/badge/TypeScript-Strict_TypeSafe-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Socket.IO-4.x-010101?style=for-the-badge&logo=socket.io&logoColor=white" alt="Socket.IO" />
-  <img src="https://img.shields.io/badge/Logic_Conflicts-98_Resolved-10B981?style=for-the-badge" alt="Logic Conflicts" />
 </p>
 
 ---
 
 ## 🚀 1. Tổng Quan Hệ Thống (Project Overview)
 
-**Solaris Task Board Manager** là nền tảng quản trị dự án và điều phối công việc thế hệ mới, được thiết kế theo phong cách **Solar Glassmorphism Pro Max UI** với nền tối sâu (`#030712`), quầng sáng hổ phách (`Amber`) và hiệu ứng chuyển động mượt mà 60 FPS.
+**Solaris Task Board Manager** là giải pháp quản trị toàn diện cho các đội ngũ phát triển phần mềm và doanh nghiệp vận hành theo chuẩn Agile/Scrum. 
 
-Hệ thống cung cấp giải pháp toàn diện từ khâu khảo sát, lập kế hoạch lộ trình (Roadmap), phân rã công việc thành các Task con (Subtasks/Minitasks) với người phụ trách độc lập, theo dõi hạn chót trên Lịch làm việc trực quan, quản lý thành viên dự án, đến nghiệm thu và lưu trữ dữ liệu an toàn.
-
----
-
-## 🌟 2. Các Tính Năng Trọng Tâm (Core Feature Highlights)
-
-### 📊 A. Ma Trận Kanban 6 Cột Chuẩn Tác Nghiệp (Kanban Matrix)
-* **6 Cột Trạng Thái Nghiệp Vụ:**
-  1. `TODO` — Cần Làm (Xám Khói)
-  2. `IN_PROGRESS` — Đang Làm (Vàng Hổ Phách)
-  3. `PAUSED` — Tạm Dừng (Xanh Dương)
-  4. `BLOCKED` — Tắc Nghẽn (Đỏ Hồng)
-  5. `IN_REVIEW` — Chờ Duyệt Bài 🔒 (Tím Thạch Anh)
-  6. `DONE` — Hoàn Thành (Xanh Ngọc)
-* **Kéo thả mượt mà với `@hello-pangea/dnd` & Fixed Portal** chống chớp giật thanh cuộn.
-* **Cơ chế giữ nguyên Task DONE vĩnh viễn** ở cột DONE để dễ dàng theo dõi, đối soát và tổng kết dự án.
-
-### 🌌 B. Kế Hoạch Tổng Thể & Lộ Trình Dự Án (Master Plan & Roadmap)
-* Trực quan hóa vòng đời dự án theo các **Giai đoạn Pipeline** (Khảo sát ➔ Thiết kế UI/UX ➔ Lập trình ➔ Kiểm thử QA/QC ➔ Staging ➔ Nghiệm thu).
-* **Bộ biên tập giai đoạn tại chỗ (In-Place Stage Editor)** cho phép Quản lý thêm/xóa/đổi tên giai đoạn trực tiếp.
-* **Quyền Xóa Dự Án Dành Cho Admin**: Nút xóa dự án trên Master Plan kèm Modal cảnh báo nguy hiểm, đưa toàn bộ dự án và task con vào Thùng Rác lưu giữ 14 ngày.
-
-### 📅 C. Bảng Lịch Làm Việc & Tiến Độ (Schedule & Timeline Dashboard - Pro Max UI)
-* **3 Chế Độ Xem Linh Hoạt:**
-  - 🗓️ **Lịch Tháng (Month Calendar Grid)**: Lưới 35 ô với chỉ báo màu theo trạng thái và thanh hạn chót.
-  - ⚡ **Lịch Tuần (Week Sprint Timeline)**: Trục thời gian 7 ngày với thẻ công việc chi tiết.
-  - 🎯 **Lịch Ngày (Day Focus Cockpit)**: Chế độ tập trung cao độ theo từng khung giờ trong ngày.
-* Tích hợp bộ lọc đa chiều (Dự án, Nhân sự, Độ ưu tiên) và đồng bộ Socket.IO realtime.
-
-### 🔔 D. Trung Tâm Thông Báo Cá Nhân (Personal Notification Center - Pro Max UI)
-* **Chuông thông báo phát sáng** trên thanh Topbar với huy hiệu đếm số lượng chưa đọc real-time.
-* **Flyout Drawer đa năng**: Phân loại tab *Tất Cả*, *Chưa Đọc*, *Khẩn Cấp (Urgent)*.
-* **Toast Thông Báo Bay Góc Màn Hình** xuất hiện tức thì khi có thông báo mới.
-* **1-Click Điều Hướng**: Nhấp vào thông báo sẽ mở trực tiếp Modal chi tiết công việc liên quan.
-
-### 🗄️ E. Thùng Rác Hệ Thống 14 Ngày (14-Day Retention Recycle Bin & Recovery Center)
-* **Chính sách lưu giữ an toàn 14 ngày (14-Day Retention Policy)** cho toàn bộ Dự án và Task đã xóa.
-* **Trang quản trị dành riêng cho Admin (`/admin/trash`)**:
-  - Thanh tiến độ đếm ngược thời gian thực (Xanh ngọc > 7 ngày, Vàng 3-7 ngày, Đỏ < 3 ngày).
-  - **Khôi Phục (Restore)** một chạm đưa Dự án và Task trở lại Bảng công việc.
-  - **Tự động mở lại Dự án cha** khi khôi phục một Task con mồ côi (`CC-01`).
-  - **Cơ chế tự động dọn dẹp (Auto-Purge)** các bản ghi quá hạn 14 ngày (`CC-02`).
-  - **Xóa Vĩnh Viễn & Dọn Sạch Thùng Rác** giải phóng triệt để CSDL.
-
-### 👥 F. Phân Rã Việc Con & Điều Phối Độc Lập (Subtasks & Independent Delegation)
-* Mỗi Task con (Minitask) có thể gán cho **một người thực hiện riêng biệt**, tính thời gian ước lượng và tính trọng số tiến độ (%) tự động.
-* **Cơ chế Khẩn Cấp Động (Dynamic URGENT)**: Bật cờ khẩn cấp trên việc con sẽ tự động nâng Task cha lên `URGENT` và gửi thông báo tức thì đến người nhận; khi việc con hoàn thành hoặc bị xóa, Task cha tự động hạ cờ về bình thường.
-* **Admin & Manager có quyền trực tiếp duyệt hoặc bấm hoàn thành việc con** của bất kỳ nhân sự nào.
+Giao diện được thiết kế theo phong cách **Solar Glassmorphism Dark Theme** (`#030712`), hiệu ứng ánh sáng Hổ Phách (`Amber`), chuyển động mượt mà 60 FPS, tối ưu hóa trải nghiệm người dùng từ cấp Nhân viên, Quản lý dự án (Project Manager) đến Ban Giám Đốc (Admin).
 
 ---
 
-## 🛡️ 3. Triệt Tiêu 98 Logic Conflicts & Corner Cases (`LC-01` ➔ `LC-98`)
-
-Hệ thống được thiết kế với độ tin cậy tuyệt đối, giải quyết trọn vẹn **98 xung đột logic nghiệp vụ và tình huống biên**, bao gồm:
-- 🔒 **Giao dịch nguyên tố Atomic Transactions (`prisma.$transaction`)** bảo vệ dữ liệu khi xóa/khôi phục/chuyển giao.
-- 🛡️ **Bảo vệ phòng thủ mảng đa tầng** chống lỗi giao diện (`Array.isArray` fallback).
-- ⚡ **Chống xung đột Race Condition & Idempotency** khi click thao tác liên tục.
-- 🏢 **Cách ly dữ liệu dự án (Project Isolation)**: Không rò rỉ thông báo hoặc dữ liệu cho thành viên đã rời dự án.
-- 🧹 **Tự động dọn dẹp thông báo cũ quá 30 ngày** và giới hạn phân trang tối ưu hiệu năng.
-
-> Chi tiết toàn bộ 98 quy tắc nghiệp vụ xem tại: [`docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md`](./docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md).
-
----
-
-## 🛠️ 4. Kiến Trúc Kỹ Thuật (Tech Stack & Architecture)
+## 🌟 2. Các Phân Hệ & Tính Năng Trọng Tâm
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    REACT 19 FRONTEND (VITE 8)               │
-│  TailwindCSS v4 │ Zustand Store │ Lucide Icons │ Recharts   │
-│  @hello-pangea/dnd Fixed Portal │ Socket.IO Client 4.x      │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ REST API + WebSockets
-┌──────────────────────────────▼──────────────────────────────┐
-│                    NESTJS 11 BACKEND API                    │
-│  JWT Auth Guard │ Idempotency Interceptor │ SocketGateway    │
-│  Modules: Task, Project, Notification, Trash, Profile, User  │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ Prisma ORM 7 + Driver Adapter
-┌──────────────────────────────▼──────────────────────────────┐
-│                   POSTGRESQL 16 DATABASE                    │
-│  Tables: users, projects, project_members, tasks, subtasks, │
-│          task_requests, task_comments, notifications        │
-└─────────────────────────────────────────────────────────────┘
+                    ┌────────────────────────────────────────────────────────┐
+                    │            🌌 SOLARIS WORKSPACE PLATFORM               │
+                    └────────────────────────────────────────────────────────┘
+                               │                │                │
+            ┌──────────────────┴──┐    ┌────────┴────────┐    ┌──┴──────────────────┐
+            │ 📋 TASK & WORKFLOW  │    │ 📅 WORK & LEAVE │    │ 👤 USER & ORG HUB   │
+            ├─────────────────────┤    ├─────────────────┤    ├─────────────────────┤
+            │ • Kanban Matrix     │    │ • Leave Request │    │ • 1-Click Upload    │
+            │ • Pipeline Roadmap  │    │ • Review Modal  │    │ • Real DB Sync      │
+            │ • Subtask Approval  │    │ • Direct Shift  │    │ • Org & Department  │
+            │ • Task History Log  │    │ • Month/Week UI │    │ • 14-Day Recycle Bin│
+            └─────────────────────┘    └─────────────────┘    └─────────────────────┘
 ```
 
+### 📋 A. Bảng Task Workspace & Ma Trận Kanban (Kanban Matrix)
+* **6 Cột Trạng Thái Chuẩn Tác Nghiệp**: `TODO` (Cần Làm), `IN_PROGRESS` (Đang Làm), `PAUSED` (Tạm Dừng), `BLOCKED` (Tắc Nghẽn), `IN_REVIEW` 🔒 (Chờ Duyệt), `DONE` (Hoàn Thành).
+* **Kéo thả mượt mà với Fixed Portal Container**: Không chớp nháy thanh cuộn, tích hợp **Quy Tắc Sở Hữu (Drag Ownership Rule)** ngăn chặn kéo thả trái quyền hạn.
+* **Phân rã Việc Con (Subtasks/Checklists)**: Gán người phụ trách độc lập cho từng việc con, ước lượng ngày công, cơ chế nộp duyệt hoàn thành (`PENDING` ➔ `APPROVED` / `REJECTED`).
+* **Lịch Sử Tác Nghiệp Tự Động (`TaskHistory`)**: Ghi log chi tiết từng hành động di chuyển task, cập nhật tiến độ, chỉnh sửa mô tả.
+
+### 📅 B. Quản Lý Ca Làm Việc & Đơn Xin Nghỉ Phép (Work Schedule & Leave Management)
+* **📝 Tạo Đơn Xin Nghỉ Phép / Làm WFH (`CreateLeaveRequestModal`)**:
+  * Hỗ trợ đa dạng loại đơn: *Làm từ xa (WFH), Nghỉ phép năm, Nghỉ ốm, Đi công tác / On-site, Việc riêng*.
+  * Tùy chọn thời gian linh hoạt: *Buổi Sáng (0.5 ngày), Buổi Chiều (0.5 ngày), Cả Ngày* hoặc khoảng ngày dài hạn kèm kế hoạch bàn giao việc.
+* **⚖️ Trung Tâm Duyệt Đơn Thời Gian Thực (`ReviewLeaveRequestsModal`)**:
+  * Dành riêng cho Quản lý & Admin, hiển thị huy hiệu đếm số đơn chờ duyệt (`PENDING`).
+  * Cho phép phê duyệt, từ chối hoặc điều chỉnh lại ngày/ca trước khi duyệt (`APPROVED_MODIFIED`).
+* **👑 Xếp Ca / Chỉ Định Lịch Trực Tiếp (`AssignScheduleModal`)**:
+  * Phân công vị trí làm việc cho bất kỳ nhân sự nào trong tổ chức.
+* **🗓️ Lịch Trình Tác Nghiệp Đa Chế Độ (`MonthCalendarView`, `SchedulePage`)**:
+  * Hiển thị trực quan lịch công việc kết hợp trạng thái có mặt (Văn phòng, WFH, Nghỉ phép, On-site) của từng thành sự.
+
+### 👤 C. Hồ Sơ Cá Nhân & Quản Trị Tổ Chức (Profile & Organization Hub)
+* **📸 Tải Ảnh Trực Tiếp 1-Click (No Raw URL)**: Nút chọn tệp ảnh đại diện (Avatar) và ảnh bìa (Cover) trực tiếp từ máy tính kèm xem trước tức thì.
+* **🏢 Đồng Bộ Dữ Liệu Thực Tế Từ CSDL**:
+  * Hiển thị chính xác Khối Phòng Ban trực thuộc.
+  * Tự động tổng hợp danh sách các Dự án thực tế tham gia và vai trò tương ứng (*Chủ dự án, Quản lý, Thành viên*).
+* **📍 Cập Nhật Vị Trí Làm Việc Hôm Nay**: Lựa chọn trạng thái làm việc trong ngày (*Tại Văn Phòng, WFH, Đi On-site, Nghỉ phép*).
+* **👥 Quản Trị Nhân Sự & Chuyển Giao Phòng Ban (`/admin/users`)**: Phân bổ nhân sự, chuyển phòng ban hàng loạt, thiết lập nghề nghiệp (`DEV`, `TESTER`, `DESIGNER`, `BA`, `DEVOPS`, `PRODUCT_OWNER`...).
+
+### 🗄️ D. Thùng Rác Hệ Thống Lưu Giữ 14 Ngày (`/admin/trash`)
+* **Chính sách bảo toàn dữ liệu 14 ngày**: Dự án và Task đã xóa được bảo lưu an toàn.
+* **Đếm ngược thời gian thực (Visual Countdown)**: Xanh ngọc (> 7 ngày), Vàng (3-7 ngày), Đỏ (< 3 ngày).
+* **Khôi Phục 1-Chạm (One-Click Restore)** & **Tự động mở lại Dự án cha** khi khôi phục Task con.
+* **Xóa vĩnh viễn & Dọn sạch thùng rác** bảo vệ dung lượng CSDL.
+
+### 🔔 E. Trung Tâm Thông Báo Thời Gian Thực (Notification Center)
+* **Realtime WebSockets (Socket.IO)**: Nhận thông báo tức thì khi được giao task, có yêu cầu duyệt việc con, được duyệt đơn nghỉ phép.
+* **Bộ lọc thông minh**: Tab *Tất cả*, *Chưa đọc*, *Khẩn cấp 🔥*.
+* **1-Click Navigation**: Bấm vào thông báo sẽ mở ngay Modal chi tiết công việc liên quan.
+
 ---
 
-## 💻 5. Hướng Dẫn Cài Đặt & Chạy Cục Bộ (Quick Start)
+## 🛡️ 3. Chuẩn Hóa Type-Safe & Kiến Trúc Mã Nguồn
 
-### Yêu Cầu Tiên Quyết (Prerequisites):
-- [Node.js](https://nodejs.org/) (phiên bản 18+ hoặc 20+ LTS)
-- [Docker & Docker Desktop](https://www.docker.com/) (để chạy PostgreSQL)
+* **Backend (NestJS 11 + Prisma 7)**:
+  * Khởi tạo `AuthUserPayload` và `AuthenticatedRequest` chuẩn hóa dữ liệu xác thực JWT.
+  * Toàn bộ Controllers và Services được định kiểu nghiêm ngặt (Strict TypeScript), loại bỏ hoàn toàn `any`.
+  * Giao dịch nguyên tố Atomic Transactions (`prisma.$transaction`) bảo vệ tính toàn vẹn dữ liệu.
+* **Frontend (React 19 + TypeScript + Zustand)**:
+  * Chuẩn hóa đồng bộ các interfaces: `User`, `TaskItem`, `SubtaskItem`, `Project`, `WorkScheduleRecord`, `LeaveRequestRecord`.
+  * Build thành công 100% không cảnh báo (Zero TS Compiler Errors).
 
 ---
 
-### Bước 1: Khởi Động Cơ Sở Dữ Liệu PostgreSQL
-Tại thư mục gốc của dự án, mở Terminal và chạy:
+## 🛠️ 4. Công Nghệ Sử Dụng (Tech Stack)
+
+| Thành Phần | Công Nghệ & Thư Viện |
+| :--- | :--- |
+| **Frontend Framework** | React 19, TypeScript, Vite 8 |
+| **Styling & UI** | TailwindCSS v4, Lucide React Icons |
+| **State Management** | Zustand (Global Store, Schedule Store, User Store, Auth Store) |
+| **Drag and Drop** | `@hello-pangea/dnd` với Dedicated Fixed Portal Container |
+| **Backend Framework** | NestJS 11 (Modular Architecture) |
+| **Database & ORM** | PostgreSQL 16, Prisma ORM 7 |
+| **Realtime Engine** | Socket.IO 4.x (Gateway Rooms, User-specific broadcasts) |
+| **Authentication** | JWT (JSON Web Tokens), Passport, BCrypt |
+
+---
+
+## 💻 5. Hướng Dẫn Cài Đặt & Chạy Dự Án (Quick Start)
+
+### Yêu Cầu Môi Trường:
+* **Node.js**: Phiên bản 18+ hoặc 20+ LTS
+* **PostgreSQL**: Cổng mặc định `5432`
+
+---
+
+### Bước 1: Khởi Động Backend (NestJS API)
+
 ```bash
-docker-compose up -d postgres_db
-```
-
----
-
-### Bước 2: Cài Đặt & Khởi Động Backend (NestJS)
-Mở một Terminal mới, di chuyển vào thư mục `be`:
-```bash
+# Di chuyển vào thư mục backend
 cd be
+
+# Cài đặt dependencies
 npm install
+
+# Đồng bộ Database Schema với Prisma
 npx prisma db push
+
+# Chạy Server Backend (Development Mode)
 npm run start:dev
 ```
-> Backend API sẽ hoạt động tại: `http://localhost:3000`
+> 🚀 **Backend API** sẽ hoạt động tại: `http://localhost:3000` (API Prefix: `/api`)
 
 ---
 
-### Bước 3: Cài Đặt & Khởi Động Frontend (React/Vite)
-Mở một Terminal mới, di chuyển vào thư mục `fe`:
+### Bước 2: Khởi Động Frontend (React / Vite)
+
 ```bash
+# Mở một Terminal mới và di chuyển vào thư mục frontend
 cd fe
+
+# Cài đặt dependencies
 npm install
+
+# Khởi chạy giao diện người dùng
 npm run dev
 ```
-> Frontend ứng dụng sẽ hoạt động tại: `http://localhost:5173`
+> 🌐 **Frontend UI** sẽ hoạt động tại: `http://localhost:5173`
 
 ---
 
-### 💡 Khởi Chạy Toàn Bộ Stack Qua Docker (Tuỳ Chọn)
+### Bước 3: Kiểm Tra Build Toàn Dự Án
+
 ```bash
-docker-compose up -d --build
+# Kiểm tra build Frontend
+cd fe && npm run build
+
+# Kiểm tra build Backend
+cd be && npm run build
 ```
 
 ---
 
-## 📚 6. Bộ Tài Liệu Kỹ Thuật Hệ Thống (Documentation Suite)
+## 👥 6. Tài Khoản Thử Nghiệm Mặc Định (Demo Accounts)
 
-Toàn bộ tài liệu thiết kế kiến trúc, an toàn bảo mật, ma trận trạng thái và nhật ký xung đột logic được lưu trữ đầy đủ ở 2 định dạng Markdown (`.md`) và Microsoft Word (`.docx`):
-
-| STT | Tên Tài Liệu | Bản Markdown | Bản Word (.docx) | Nội Dung Trọng Tâm |
-|:---:|:---|:---:|:---:|:---|
-| **01** | **Project Architecture & Master Plan** | [`01.md`](./docs/01_PROJECT_ARCHITECTURE_AND_MASTER_PLAN.md) | [`01.docx`](./docs/01_PROJECT_ARCHITECTURE_AND_MASTER_PLAN.docx) | Kiến trúc tổng thể, mô hình micro-modules, luồng nghiệp vụ. |
-| **02** | **Infrastructure & Security Audit** | [`02.md`](./docs/02_INFRASTRUCTURE_AND_SECURITY_AUDIT.md) | [`02.docx`](./docs/02_INFRASTRUCTURE_AND_SECURITY_AUDIT.docx) | Kiểm toán bảo mật RBAC, JWT, CORS, Atomic Transactions. |
-| **03** | **Development Changelog Details** | [`03.md`](./docs/03_DEVELOPMENT_CHANGELOG_DETAILS.md) | [`03.docx`](./docs/03_DEVELOPMENT_CHANGELOG_DETAILS.docx) | Nhật ký chi tiết toàn bộ các lần phát triển & nâng cấp hệ thống. |
-| **04** | **CSS Design System & Guide** | [`04.md`](./docs/04_CSS_DESIGN_SYSTEM_AND_LINE_BY_LINE_GUIDE.md) | [`04.docx`](./docs/04_CSS_DESIGN_SYSTEM_AND_LINE_BY_LINE_GUIDE.docx) | Quy chuẩn Solar Glassmorphism Dark Theme, token màu & hiệu ứng. |
-| **05** | **Logic Conflicts & Business Rules** | [`05.md`](./docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.md) | [`05.docx`](./docs/05_LOGIC_CONFLICTS_AND_BUSINESS_RULES_LOG.docx) | **Chi tiết 98 Logic Conflicts & Corner Cases (`LC-01` ➔ `LC-98`)**. |
-| **06** | **ERD & System State Charts** | [`06.md`](./docs/06_ERD_AND_SYSTEM_STATE_CHARTS.md) | [`06.docx`](./docs/06_ERD_AND_SYSTEM_STATE_CHARTS.docx) | Sơ đồ thực thể CSDL (ERD) và biểu đồ chuyển dịch trạng thái Task. |
-| **07** | **Project Plan & Roadmap** | [`Roadmap.md`](./docs/PROJECT_PLAN_AND_ROADMAP.md) | [`Roadmap.docx`](./docs/PROJECT_PLAN_AND_ROADMAP.docx) | Lộ trình 15 giai đoạn phát triển toàn diện hệ thống. |
-| **08** | **High-to-Low Architecture & Guide** | [`08.md`](./docs/08_HIGH_TO_LOW_ARCHITECTURE_AND_IMPLEMENTATION.md) | [`08.docx`](./docs/08_HIGH_TO_LOW_ARCHITECTURE_AND_IMPLEMENTATION.docx) | **Kiến trúc & Phương pháp triển khai từ Bậc cao đến Bậc thấp**. |
-
----
-
-## 👥 7. Tài Khoản Mặc Định Thử Nghiệm (Demo Accounts)
-
-| Email | Mật Khẩu | Vai Trò (Role) | Chức Năng |
-|:---|:---:|:---:|:---|
-| `huydatne@gmail.com` | `admin123` | **ADMIN** | Toàn quyền hệ thống, Thùng rác 14 ngày, Xóa dự án, Phân quyền nhân sự |
-| `manager@solaris.io` | `manager123` | **MANAGER** | Quản lý dự án, Phê duyệt việc con, Chuyển giao Task, Điều chỉnh Master Plan |
-| `employee@solaris.io` | `employee123` | **EMPLOYEE** | Nhận Task, cập nhật tiến độ việc con, bật cờ Khẩn cấp, gửi yêu cầu |
+| Email | Mật Khẩu | Vai Trò (Role) | Quyền Hạn Nổi Bật |
+| :--- | :---: | :---: | :--- |
+| `huydatne@gmail.com` | `admin123` | **ADMIN** | Toàn quyền hệ thống, Duyệt đơn nghỉ phép, Xếp ca, Thùng rác 14 ngày, Quản lý Nhân sự |
+| `manager@solaris.io` | `manager123` | **MANAGER** | Quản lý dự án, Duyệt việc con, Duyệt đơn nghỉ phép của nhân viên, Điều phối Task |
+| `employee@solaris.io` | `employee123` | **EMPLOYEE** | Nhận Task, Gửi đơn xin nghỉ phép/WFH, Cập nhật tiến độ việc con, Tự chọn vị trí làm việc |
 
 ---
 
 <p align="center">
-  <b>Developed with ❤️ for High-Performance Enterprise Teams</b><br/>
-  <i>Solaris Task Board Manager © 2026. All Rights Reserved.</i>
+  <b>Developed with ❤️ for High-Performance Agile Teams</b><br/>
+  <i>Solaris Task Board & Workflow Platform © 2026. All Rights Reserved.</i>
 </p>
