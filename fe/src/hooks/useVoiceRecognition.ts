@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { normalizeVietglishVoiceTranscript } from '../utils/vietglishNormalizer';
 import { audioChimes } from '../utils/audioChimes';
+import { api } from '../services/api';
 
-// SpeechRecognition type declarations for browser support
+// SpeechRecognition type declarations for fallback browser support
 interface SpeechRecognitionErrorEvent extends Event {
   error: string;
   message?: string;
@@ -51,31 +52,39 @@ interface IWindow extends Window {
 }
 
 export type VoiceLanguageMode = 'bilingual' | 'vi-VN' | 'en-US';
+export type VoiceEngineMode = 'whisper' | 'webspeech';
 
 export interface UseVoiceRecognitionReturn {
   isListening: boolean;
+  isTranscribing: boolean;
   transcript: string;
   interimTranscript: string;
   audioVolume: number;
   isSupported: boolean;
+  engine: VoiceEngineMode;
   languageMode: VoiceLanguageMode;
   error: string | null;
-  startListening: () => void;
+  startListening: () => Promise<void>;
   stopListening: () => void;
   resetTranscript: () => void;
   setManualTranscript: (text: string) => void;
   setLanguageMode: (mode: VoiceLanguageMode) => void;
+  setEngine: (engine: VoiceEngineMode) => void;
 }
 
 export const useVoiceRecognition = (onFinalResult?: (result: string) => void): UseVoiceRecognitionReturn => {
   const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [audioVolume, setAudioVolume] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(true);
   const [languageMode, setLanguageModeState] = useState<VoiceLanguageMode>('bilingual');
+  const [engine, setEngineState] = useState<VoiceEngineMode>('whisper'); // Mặc định là Groq Whisper Large V3
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<ISpeechRecognitionInstance | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -83,26 +92,32 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
   const animationFrameRef = useRef<number | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const shouldListenRef = useRef<boolean>(false);
+  const engineRef = useRef<VoiceEngineMode>('whisper');
   const languageModeRef = useRef<VoiceLanguageMode>('bilingual');
 
+  engineRef.current = engine;
   languageModeRef.current = languageMode;
 
-  // Check browser support
+  // Kiểm tra hỗ trợ trình duyệt
   useEffect(() => {
-    const win = window as unknown as IWindow;
-    const SpeechRecognitionAPI = win.SpeechRecognition || win.webkitSpeechRecognition;
-    if (!SpeechRecognitionAPI) {
-      setIsSupported(false);
+    if (typeof window !== 'undefined') {
+      const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      const win = window as unknown as IWindow;
+      const hasWebSpeech = !!(win.SpeechRecognition || win.webkitSpeechRecognition);
+
+      if (!hasMediaDevices && !hasWebSpeech) {
+        setIsSupported(false);
+      }
     }
   }, []);
 
-  // Initialize SpeechRecognition instance
-  const initRecognition = useCallback(() => {
+  // Khởi tạo Web Speech API (Dùng làm Fallback khi Groq Whisper không khả dụng)
+  const initWebSpeechRecognition = useCallback(() => {
     const win = window as unknown as IWindow;
     const SpeechRecognitionAPI = win.SpeechRecognition || win.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
-      setError('Trình duyệt của bạn chưa hỗ trợ Web Speech API. Khuyên dùng Chrome hoặc Microsoft Edge.');
+      setError('Trình duyệt chưa hỗ trợ Web Speech API.');
       return null;
     }
 
@@ -110,12 +125,10 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    // Thiết lập mã ngôn ngữ nhận diện
     const currentMode = languageModeRef.current;
     if (currentMode === 'en-US') {
       recognition.lang = 'en-US';
     } else {
-      // Cho cả 'vi-VN' và 'bilingual' (mặc định dùng vi-VN kèm Vietglish Lexicon normalizer)
       recognition.lang = 'vi-VN';
     }
 
@@ -128,7 +141,7 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
       let currentInterim = '';
       let currentFinal = '';
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const item = event.results[i];
         const text = item[0]?.transcript || '';
         if (item.isFinal) {
@@ -139,63 +152,40 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
       }
 
       if (currentFinal) {
-        setTranscript((prev) => {
-          let updatedRaw = (prev + ' ' + currentFinal).trim();
-          // Chuẩn hóa Vietglish song ngữ nếu ở chế độ song ngữ hoặc tiếng Việt
-          if (languageModeRef.current !== 'en-US') {
-            updatedRaw = normalizeVietglishVoiceTranscript(updatedRaw);
-          }
-          if (onFinalResult) onFinalResult(updatedRaw);
-          return updatedRaw;
-        });
+        let updated = currentFinal.trim();
+        if (languageModeRef.current !== 'en-US') {
+          updated = normalizeVietglishVoiceTranscript(updated);
+        }
+        setTranscript(updated);
+        if (onFinalResult) onFinalResult(updated);
       }
 
-      // Chuẩn hóa hiển thị tạm thời
       if (currentInterim) {
-        if (languageModeRef.current !== 'en-US') {
-          setInterimTranscript(normalizeVietglishVoiceTranscript(currentInterim));
-        } else {
-          setInterimTranscript(currentInterim);
-        }
+        setInterimTranscript(
+          languageModeRef.current !== 'en-US'
+            ? normalizeVietglishVoiceTranscript(currentInterim)
+            : currentInterim
+        );
       } else {
         setInterimTranscript('');
       }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error === 'no-speech') {
-        // Tự động bỏ qua lỗi im lặng, duy trì trạng thái
-        return;
-      }
-
+      if (event.error === 'no-speech') return;
       if (event.error === 'not-allowed') {
-        setError('Quyền truy cập Microphone bị từ chối. Vui lòng cho phép trình duyệt sử dụng Micro.');
-        shouldListenRef.current = false;
-        setIsListening(false);
-      } else if (event.error === 'network') {
-        setError(
-          'Máy chủ giọng nói Google STT không phản hồi hoặc bị gián đoạn mạng/VPN. Bạn vẫn có thể nhập trực tiếp khẩu lệnh bằng bàn phím vào ô bên dưới.'
-        );
-        shouldListenRef.current = false;
-        setIsListening(false);
-      } else if (event.error === 'audio-capture') {
-        setError('Không tìm thấy thiết bị thu âm (Microphone). Vui lòng cắm hoặc kích hoạt Micro.');
-        shouldListenRef.current = false;
-        setIsListening(false);
+        setError('Quyền Microphone bị từ chối.');
       } else {
-        setError(`Lỗi nhận diện âm thanh (${event.error}). Bạn có thể gõ nội dung trực tiếp vào ô bên dưới.`);
-        shouldListenRef.current = false;
-        setIsListening(false);
+        setError(`Lỗi nhận diện âm thanh (${event.error}).`);
       }
+      setIsListening(false);
     };
 
     recognition.onend = () => {
-      // Cơ chế tự động kết nối lại nếu người dùng chưa bấm dừng (chống ngắt ngầm của Chrome)
-      if (shouldListenRef.current) {
+      if (shouldListenRef.current && engineRef.current === 'webspeech') {
         try {
           recognition.start();
         } catch {
-          // Nếu start thất bại ngay, ngắt lắng nghe an toàn
           setIsListening(false);
         }
       } else {
@@ -206,12 +196,9 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
     return recognition;
   }, [onFinalResult]);
 
-  // Start Audio Analyzer for Visualizer Bars
-  const startAudioAnalyzer = async () => {
+  // Khởi động Audio Analyzer để vẽ sóng âm Visualizer
+  const startAudioAnalyzer = (stream: MediaStream) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      mediaStreamRef.current = stream;
-
       const AudioCtx =
         window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const audioCtx = new AudioCtx();
@@ -246,11 +233,11 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
 
       updateVolume();
     } catch {
-      // Ignore audio context error if user denies mic or device busy
+      // Bỏ qua lỗi context nếu mic bị từ chối
     }
   };
 
-  // Stop Audio Analyzer
+  // Dừng Audio Analyzer
   const stopAudioAnalyzer = () => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -271,12 +258,61 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
     setAudioVolume(0);
   };
 
-  // Public Methods
-  const startListening = () => {
+  // Bắt đầu lắng nghe (Mặc định: Groq Whisper HD Record)
+  const startListening = async () => {
     setError(null);
     shouldListenRef.current = true;
     audioChimes.playStartListen();
 
+    // 1. Nếu đang ở chế độ Groq Whisper (Mặc định & Khuyên dùng)
+    if (engineRef.current === 'whisper') {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,    // Khử tiếng vang
+            noiseSuppression: true,    // Lọc tạp âm môi trường
+            autoGainControl: true,     // Cân bằng âm lượng tự động
+            sampleRate: 44100,
+          },
+          video: false,
+        });
+
+        mediaStreamRef.current = stream;
+        startAudioAnalyzer(stream);
+
+        audioChunksRef.current = [];
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : 'audio/mp4';
+
+        const recorder = new MediaRecorder(stream, { mimeType });
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+
+        recorder.start(100);
+        setIsListening(true);
+      } catch (err: unknown) {
+        console.warn('Không thể mở Microphone HD cho Groq Whisper, chuyển sang Web Speech API fallback:', err);
+        // Tự động chuyển sang Web Speech API làm fallback
+        setEngineState('webspeech');
+        engineRef.current = 'webspeech';
+        startWebSpeechFallback();
+      }
+      return;
+    }
+
+    // 2. Chế độ Web Speech API Fallback
+    startWebSpeechFallback();
+  };
+
+  const startWebSpeechFallback = () => {
     try {
       if (recognitionRef.current) {
         try {
@@ -285,18 +321,80 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
           // Ignore
         }
       }
-      recognitionRef.current = initRecognition();
+      recognitionRef.current = initWebSpeechRecognition();
       recognitionRef.current?.start();
-      startAudioAnalyzer();
+
+      navigator.mediaDevices
+        .getUserMedia({ audio: true, video: false })
+        .then((stream) => {
+          mediaStreamRef.current = stream;
+          startAudioAnalyzer(stream);
+        })
+        .catch(() => {});
     } catch (e: unknown) {
-      console.warn('Recognition start exception:', e);
+      console.warn('Web Speech API exception:', e);
     }
   };
 
+  // Dừng lắng nghe & Gửi âm thanh lên Groq Whisper
   const stopListening = () => {
     shouldListenRef.current = false;
     audioChimes.playStopListen();
 
+    // 1. Xử lý dừng Groq Whisper
+    if (engineRef.current === 'whisper' && mediaRecorderRef.current) {
+      const recorder = mediaRecorderRef.current;
+      if (recorder.state !== 'inactive') {
+        recorder.onstop = async () => {
+          stopAudioAnalyzer();
+          setIsListening(false);
+
+          const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+          if (audioBlob.size < 1000) {
+            // Âm thanh quá ngắn (< 0.1s)
+            return;
+          }
+
+          setIsTranscribing(true);
+          try {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'voice-command.webm');
+
+            const langParam = languageModeRef.current === 'en-US' ? 'en' : 'vi';
+            const response = await api.post<{ text: string }>(`/tasks/voice/transcribe?language=${langParam}`, formData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+
+            const transcribedText = response.data?.text?.trim() || '';
+            if (transcribedText) {
+              const normalized =
+                languageModeRef.current !== 'en-US'
+                  ? normalizeVietglishVoiceTranscript(transcribedText)
+                  : transcribedText;
+
+              setTranscript(normalized);
+              setInterimTranscript('');
+              if (onFinalResult) onFinalResult(normalized);
+            }
+          } catch (err: unknown) {
+            console.error('Lỗi khi gửi âm thanh lên Groq Whisper:', err);
+            setError('Không thể kết nối Groq Whisper. Đã tự động chuyển sang bộ nhận diện Web Speech API.');
+            setEngineState('webspeech');
+            engineRef.current = 'webspeech';
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+
+        recorder.stop();
+      } else {
+        stopAudioAnalyzer();
+        setIsListening(false);
+      }
+      return;
+    }
+
+    // 2. Xử lý dừng Web Speech API
     try {
       recognitionRef.current?.stop();
     } catch {
@@ -309,6 +407,7 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
   const resetTranscript = () => {
     setTranscript('');
     setInterimTranscript('');
+    audioChunksRef.current = [];
   };
 
   const setManualTranscript = (text: string) => {
@@ -319,25 +418,11 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
   const setLanguageMode = (mode: VoiceLanguageMode) => {
     setLanguageModeState(mode);
     languageModeRef.current = mode;
+  };
 
-    // Nếu đang lắng nghe, khởi động lại để áp dụng ngôn ngữ mới ngay lập tức
-    if (shouldListenRef.current) {
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        // Ignore
-      }
-      setTimeout(() => {
-        if (shouldListenRef.current) {
-          recognitionRef.current = initRecognition();
-          try {
-            recognitionRef.current?.start();
-          } catch {
-            // Ignore
-          }
-        }
-      }, 100);
-    }
+  const setEngine = (newEngine: VoiceEngineMode) => {
+    setEngineState(newEngine);
+    engineRef.current = newEngine;
   };
 
   // Cleanup on unmount
@@ -346,6 +431,9 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
       shouldListenRef.current = false;
       stopAudioAnalyzer();
       try {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
         recognitionRef.current?.abort();
       } catch {
         // Ignore
@@ -355,10 +443,12 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
 
   return {
     isListening,
+    isTranscribing,
     transcript,
     interimTranscript,
     audioVolume,
     isSupported,
+    engine,
     languageMode,
     error,
     startListening,
@@ -366,5 +456,6 @@ export const useVoiceRecognition = (onFinalResult?: (result: string) => void): U
     resetTranscript,
     setManualTranscript,
     setLanguageMode,
+    setEngine,
   };
 };

@@ -164,9 +164,13 @@ export class AiVoiceService {
   /**
    * Boc bang giong noi sang van ban bang Groq Whisper.
    */
+  /**
+   * Boc bang giong noi sang van ban bang Groq Whisper (whisper-large-v3 / whisper-large-v3-turbo).
+   */
   async transcribeAudioFile(
     fileBuffer: Buffer,
-    filename: string = 'voice-command.webm'
+    filename: string = 'voice-command.webm',
+    language?: string
   ): Promise<string> {
     const groqClient = this.getGroqClient();
     if (!groqClient) {
@@ -174,27 +178,44 @@ export class AiVoiceService {
         'Chưa cấu hình GROQ_API_KEY trong hệ thống Backend. Vui lòng cấu hình biến môi trường GROQ_API_KEY.'
       );
     }
-    try {
-      const audioFile = await toFile(fileBuffer, filename);
-      const transcription = await groqClient.audio.transcriptions.create({
-        file: audioFile,
-        model: 'whisper-large-v3-turbo',
-        prompt:
-          'Solaris Task Assistant. Bilingual Vietnamese and English commands. Tạo task, Create task, Assign to, Deadline, Fix bug, Frontend, Backend, UI/UX, Urgent, Important, Normal, Low, Ngày mai, Hôm nay, Tomorrow, Today, Next Monday...',
-        temperature: 0.0,
-      });
 
-      const text = transcription?.text?.trim() || '';
-      if (!text) {
-        throw new BadRequestException('Không nhận diện được giọng nói trong đoạn âm thanh.');
+    const candidateModels = ['whisper-large-v3', 'whisper-large-v3-turbo'];
+    let lastError: string | null = null;
+
+    const bilingualPrompt =
+      'Solaris AI Task Assistant. Trợ lý tạo công việc thông minh. Nhận diện chuẩn xác Tiếng Việt và Tiếng Anh công nghệ IT: Task, Subtask, Kanban, Deadline, Assignee, Project, Urgent, Important, Normal, Low, Fix bug, Deploy, Review PR, Auth, Database, UI/UX, Hôm nay, Ngày mai, Tuần sau...';
+
+    for (const modelName of candidateModels) {
+      try {
+        const audioFile = await toFile(fileBuffer, filename);
+        const requestParams: OpenAI.Audio.Transcriptions.TranscriptionCreateParams = {
+          file: audioFile,
+          model: modelName,
+          prompt: bilingualPrompt,
+          temperature: 0.0,
+        };
+
+        if (language && (language === 'vi' || language === 'en')) {
+          requestParams.language = language;
+        }
+
+        const transcription = await groqClient.audio.transcriptions.create(requestParams);
+        const text = transcription?.text?.trim() || '';
+        if (text) {
+          return text;
+        }
+      } catch (modelErr: unknown) {
+        lastError = modelErr instanceof Error ? modelErr.message : String(modelErr);
+        console.warn(`Groq Whisper model ${modelName} encountered error: ${lastError}. Đang thử model tiếp theo...`);
       }
-      return text;
-    } catch (err: unknown) {
-      if (err instanceof BadRequestException) throw err;
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('Groq Whisper STT Error:', msg);
-      throw new InternalServerErrorException(`Lỗi nhận diện âm thanh qua Groq Whisper: ${msg}`);
     }
+
+    if (lastError) {
+      console.error('Tất cả model Groq Whisper đều gặp lỗi:', lastError);
+      throw new InternalServerErrorException(`Lỗi nhận diện âm thanh qua Groq Whisper: ${lastError}`);
+    }
+
+    throw new BadRequestException('Không nhận diện được giọng nói trong đoạn âm thanh tải lên.');
   }
 
   /**
