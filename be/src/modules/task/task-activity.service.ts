@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuthUserPayload } from '../../common/interfaces/auth-user.interface';
 
 export interface ActivityItem {
   id: string;
@@ -20,8 +21,48 @@ export interface ActivityItem {
 @Injectable()
 export class TaskActivityService {
   constructor(private readonly prisma: PrismaService) {}
-  async getTaskActivities(this: TaskActivityService, taskId: string, filter: 'all' | 'comments' | 'history' = 'all') {
+
+  async getTaskActivities(
+    taskId: string,
+    filter: 'all' | 'comments' | 'history' = 'all',
+    user?: AuthUserPayload
+  ) {
     const safeTaskId: string = String(taskId);
+
+    const task = await this.prisma.task.findUnique({
+      where: { id: safeTaskId },
+      include: {
+        project: {
+          include: { members: true },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task không tồn tại');
+    }
+
+    if (user) {
+      const isAdminOrManager = Boolean(
+        user.role === 'ADMIN' ||
+        user.role === 'MANAGER' ||
+        user.globalRole === 'ADMIN' ||
+        user.globalRole === 'MANAGER' ||
+        task.project?.managerId === user.id ||
+        task.project?.createdById === user.id
+      );
+
+      const isMember = Boolean(
+        task.project?.members.some((m) => m.userId === user.id) ||
+        task.assigneeId === user.id ||
+        task.createdById === user.id
+      );
+
+      if (!isAdminOrManager && !isMember) {
+        throw new ForbiddenException('Bạn không thuộc dự án này để xem lịch sử hoạt động của Task!');
+      }
+    }
+
     let histories: ActivityItem[] = [];
     let comments: ActivityItem[] = [];
 
@@ -75,8 +116,8 @@ export class TaskActivityService {
       data: filter === 'history' ? histories : comments,
     };
   }
+
   async logTaskHistory(
-    this: TaskActivityService,
     taskId: string,
     userId: string,
     action: string,
@@ -84,22 +125,48 @@ export class TaskActivityService {
     oldValue?: string,
     newValue?: string
   ) {
-    return await this.prisma.taskHistory.create({
-      data: {
-        taskId: String(taskId),
-        userId: String(userId),
-        action: String(action),
-        field: field ? String(field) : null,
-        oldValue: oldValue !== undefined && oldValue !== null ? String(oldValue) : null,
-        newValue: newValue !== undefined && newValue !== null ? String(newValue) : null,
-      },
-    });
+    if (!taskId || !userId) return null;
+
+    try {
+      return await this.prisma.taskHistory.create({
+        data: {
+          taskId: String(taskId),
+          userId: String(userId),
+          action: String(action),
+          field: field ? String(field) : null,
+          oldValue: oldValue !== undefined && oldValue !== null ? String(oldValue) : null,
+          newValue: newValue !== undefined && newValue !== null ? String(newValue) : null,
+        },
+      });
+    } catch {
+      return null;
+    }
   }
+
+  async createTaskHistory(
+    taskId: string,
+    userId: string,
+    action: string,
+    field?: string | null,
+    oldValue?: string | null,
+    newValue?: string | null
+  ) {
+    return this.logTaskHistory(
+      taskId,
+      userId,
+      action,
+      field || undefined,
+      oldValue ?? undefined,
+      newValue ?? undefined
+    );
+  }
+
   async logTaskMove(taskId: string, userId: string, oldStatus: string, newStatus: string) {
-    if (oldStatus === newStatus) return null;
+    if (oldStatus === newStatus || !taskId || !userId) return null;
 
     return await this.logTaskHistory(taskId, userId, 'MOVED_TASK', 'status', oldStatus, newStatus);
   }
+
   private formatStatusLabel(status: string | null | undefined): string {
     if (!status) return '';
     const labels: Record<string, string> = {
@@ -114,10 +181,15 @@ export class TaskActivityService {
   }
 
   async getUserMoveHistories(userId: string, limit: number = 30) {
+    const safeLimit = Math.min(Math.max(Number(limit) || 30, 1), 100);
+
     const moveLogs = await this.prisma.taskHistory.findMany({
       where: {
         userId: String(userId),
         field: 'status',
+        task: {
+          isDeleted: false,
+        },
       },
       include: {
         task: {
@@ -135,7 +207,7 @@ export class TaskActivityService {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: safeLimit,
     });
 
     const data = moveLogs.map((item) => {

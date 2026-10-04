@@ -13,13 +13,14 @@ import {
 import { NotificationService } from './notification.service';
 import { QueryNotificationDto } from './dto/query-notification.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../../common/interfaces/auth-user.interface';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
-  private extractUserId(req: any): string {
+  private extractUserId(req: AuthenticatedRequest): string {
     const userId = req.user?.id || req.user?.sub || req.user?.userId;
     if (!userId) {
       throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
@@ -28,27 +29,27 @@ export class NotificationController {
   }
 
   @Get()
-  findAll(@Request() req: any, @Query() query: QueryNotificationDto) {
+  findAll(@Request() req: AuthenticatedRequest, @Query() query: QueryNotificationDto) {
     return this.notificationService.findAll(this.extractUserId(req), query);
   }
 
   @Get('unread-count')
-  getUnreadCount(@Request() req: any) {
+  getUnreadCount(@Request() req: AuthenticatedRequest) {
     return this.notificationService.getUnreadCount(this.extractUserId(req));
   }
 
   @Patch(':id/read')
-  markAsRead(@Request() req: any, @Param('id') id: string) {
+  markAsRead(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.notificationService.markAsRead(id, this.extractUserId(req));
   }
 
   @Patch('read-all')
-  markAllAsRead(@Request() req: any) {
+  markAllAsRead(@Request() req: AuthenticatedRequest) {
     return this.notificationService.markAllAsRead(this.extractUserId(req));
   }
 
   @Delete(':id')
-  deleteNotification(@Request() req: any, @Param('id') id: string) {
+  deleteNotification(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.notificationService.deleteNotification(id, this.extractUserId(req));
   }
 }

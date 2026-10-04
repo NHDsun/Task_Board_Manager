@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuthUserPayload } from '../../common/interfaces/auth-user.interface';
 
 @Injectable()
 export class TrashService {
@@ -7,8 +8,8 @@ export class TrashService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private checkAdmin(user: any) {
-    if (user?.role !== 'ADMIN' && user?.globalRole !== 'ADMIN') {
+  private checkAdmin(user?: AuthUserPayload | null) {
+    if (user?.role !== 'ADMIN') {
       throw new ForbiddenException('Chỉ Quản trị viên (Admin) mới có quyền truy cập Thùng Rác Hệ Thống!');
     }
   }
@@ -38,7 +39,7 @@ export class TrashService {
   }
 
   // 📋 Lấy toàn bộ danh sách dữ liệu trong Thùng Rác (14-Day Retention Policy)
-  async getTrashSummary(user: any) {
+  async getTrashSummary(user?: AuthUserPayload | null) {
     this.checkAdmin(user);
 
     // 🧹 Tự động dọn dẹp các mục quá hạn 14 ngày trước khi tổng hợp danh sách
@@ -141,7 +142,7 @@ export class TrashService {
   }
 
   // 🧹 Dọn sạch toàn bộ thùng rác (Xóa vĩnh viễn tất cả)
-  async emptyTrash(user: any) {
+  async emptyTrash(user?: AuthUserPayload | null) {
     this.checkAdmin(user);
 
     const [deletedTasks, deletedProjects] = await this.prisma.$transaction(async (tx) => {

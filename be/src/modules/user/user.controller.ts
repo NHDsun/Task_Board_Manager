@@ -21,6 +21,7 @@ import { LockUserDto } from './dto/lock-user.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 interface AuthenticatedRequest extends Request {
   user: {
     id: string;
@@ -51,8 +52,8 @@ export class UserController {
   @UseGuards(RolesGuard)
   @Patch(':id/role')
   @Roles('ADMIN')
-  updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto) {
-    return this.userService.updateRoleAndDepartment(id, dto);
+  updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto, @Req() req: AuthenticatedRequest) {
+    return this.userService.updateRoleAndDepartment(id, dto, req.user?.id);
   }
 
   @UseGuards(RolesGuard)
@@ -77,6 +78,19 @@ export class UserController {
     const adminId = req.user.id;
     return this.userService.remove(id, adminId);
   }
+
+  @UseGuards(RolesGuard)
+  @Post()
+  @Roles('ADMIN')
+  createUser(@Body() dto: CreateUserDto) {
+    return this.userService.createUser(dto);
+  }
+
+  @Patch('change-password')
+  changePassword(@Req() req: AuthenticatedRequest, @Body() dto: ChangePasswordDto) {
+    const userId = req.user.id;
+    return this.userService.changePassword(userId, dto);
+  }
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: AuthenticatedRequest) {
@@ -86,12 +100,5 @@ export class UserController {
       throw new ForbiddenException('Bạn chỉ có quyền cập nhật thông tin tài khoản của chính mình!');
     }
     return this.userService.updateUser(id, dto);
-  }
-
-  @UseGuards(RolesGuard)
-  @Post()
-  @Roles('ADMIN')
-  createUser(@Body() dto: CreateUserDto) {
-    return this.userService.createUser(dto);
   }
 }

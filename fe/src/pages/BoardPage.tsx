@@ -56,6 +56,7 @@ import {
   ExternalLink,
   Trash2,
   Bell,
+  RotateCcw,
 } from 'lucide-react';
 
 import { TaskTransferInboxModal } from '../components/kanban/TaskTransferInboxModal';
@@ -197,8 +198,40 @@ export const BoardPage: React.FC = () => {
     }
   };
 
+  const fetchProjectsFromBackend = async () => {
+    try {
+      const res = await api.get('/projects');
+      const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setDbProjects(list);
+    } catch {
+      // Fallback
+    }
+  };
+
+  const handleToggleProjectCompletion = async (projectId: string, isCompleted: boolean) => {
+    try {
+      await api.patch(`/projects/${projectId}`, { isCompleted });
+      showNotification(
+        isCompleted
+          ? '🎉 Đã xác nhận nghiệm thu và hoàn thành dự án thành công!'
+          : '🔄 Đã mở lại dự án thành công!',
+        'success',
+        isCompleted ? 'Nghiệm Thu Thành Công' : 'Đã Mở Lại Dự Án'
+      );
+      fetchProjectsFromBackend();
+      fetchTasksFromBackend();
+    } catch (err: any) {
+      showNotification(
+        err?.response?.data?.message || 'Không thể cập nhật trạng thái dự án.',
+        'warning',
+        'Lỗi Cập Nhật'
+      );
+    }
+  };
+
   useEffect(() => {
     fetchTasksFromBackend();
+    fetchProjectsFromBackend();
     fetchNotificationCount();
   }, [token]);
 
@@ -395,11 +428,16 @@ export const BoardPage: React.FC = () => {
       (user as any)?.role === 'MANAGER'
     );
     const hasAssignee = Boolean(taskToMove.assigneeId || taskToMove.assignee?.id || taskToMove.assignee?.email);
+    const isSubtaskAssignee = Boolean(
+      taskToMove.subtasks &&
+      taskToMove.subtasks.some((st) => st.assigneeId === user?.id || st.assignee?.id === user?.id)
+    );
     const isTaskOwner = hasAssignee
       ? (taskToMove.assigneeId === user?.id ||
          taskToMove.assignee?.id === user?.id ||
-         taskToMove.assignee?.email === user?.email)
-      : (taskToMove as any).createdById === user?.id;
+         taskToMove.assignee?.email === user?.email ||
+         isSubtaskAssignee)
+      : (taskToMove as any).createdById === user?.id || isSubtaskAssignee;
 
     if (!isManagerOrAdmin && !isTaskOwner) {
       showNotification(
@@ -446,12 +484,12 @@ export const BoardPage: React.FC = () => {
       setRecentlyMovedTaskId(null);
     }, 800);
 
+    const safeProgress = Math.round(targetStatus === 'TODO' ? 0 : (taskToMove.progress || 0));
+
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === draggableId) {
-          let newProgress = t.progress;
-          if (targetStatus === 'TODO') newProgress = 0;
-          return { ...t, status: targetStatus, progress: newProgress };
+          return { ...t, status: targetStatus, progress: safeProgress };
         }
         return t;
       })
@@ -460,9 +498,13 @@ export const BoardPage: React.FC = () => {
     // 🚀 Cập nhật CSDL ngầm
     api.patch(`/tasks/${draggableId}/status`, {
       status: targetStatus,
-      progress: targetStatus === 'TODO' ? 0 : taskToMove.progress,
-    }).catch(() => {
-      // Khôi phục giao diện theo dữ liệu chuẩn từ CSDL nếu có lỗi
+      progress: safeProgress,
+    }).catch((err: any) => {
+      const respMsg = err.response?.data?.message;
+      const errMsg = Array.isArray(respMsg)
+        ? respMsg.join(', ')
+        : (respMsg || err.message || 'Không thể cập nhật trạng thái Task');
+      showNotification(errMsg, 'warning', 'Lỗi Cập Nhật Trạng Thái');
       fetchTasksFromBackend();
     });
   };
@@ -486,11 +528,16 @@ export const BoardPage: React.FC = () => {
       (user as any)?.role === 'MANAGER'
     );
     const hasAssignee = Boolean(taskToMove.assigneeId || taskToMove.assignee?.id || taskToMove.assignee?.email);
+    const isSubtaskAssignee = Boolean(
+      taskToMove.subtasks &&
+      taskToMove.subtasks.some((st) => st.assigneeId === user?.id || st.assignee?.id === user?.id)
+    );
     const isTaskOwner = hasAssignee
       ? (taskToMove.assigneeId === user?.id ||
          taskToMove.assignee?.id === user?.id ||
-         taskToMove.assignee?.email === user?.email)
-      : (taskToMove as any).createdById === user?.id;
+         taskToMove.assignee?.email === user?.email ||
+         isSubtaskAssignee)
+      : (taskToMove as any).createdById === user?.id || isSubtaskAssignee;
 
     if (!isManagerOrAdmin && !isTaskOwner) {
       showNotification(
@@ -923,11 +970,16 @@ export const BoardPage: React.FC = () => {
                             (user as any)?.role === 'MANAGER'
                           );
                           const hasAssignee = Boolean(t.assigneeId || t.assignee?.id || t.assignee?.email);
+                          const isSubtaskAssignee = Boolean(
+                            t.subtasks &&
+                            t.subtasks.some((st) => st.assigneeId === user?.id || st.assignee?.id === user?.id)
+                          );
                           const isMyOwnTask = hasAssignee
                             ? (t.assigneeId === user?.id ||
                                t.assignee?.id === user?.id ||
-                               t.assignee?.email === user?.email)
-                            : (t as any).createdById === user?.id;
+                               t.assignee?.email === user?.email ||
+                               isSubtaskAssignee)
+                            : (t as any).createdById === user?.id || isSubtaskAssignee;
                           const isDragDisabled = t.status === 'IN_REVIEW' || (!isManagerOrAdmin && !isMyOwnTask);
 
                           return (
@@ -1075,10 +1127,42 @@ export const BoardPage: React.FC = () => {
                       <Folder className="w-5 h-5 text-purple-400" />
                       Dự Án: {selectedPipelineProject}
                     </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                        🔒 Dự Án Đang Hoạt Động (Active Roadmap)
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {Boolean(currentProj?.isCompleted) ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          🟢 Đã Nghiệm Thu Hoàn Thành
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                          🔒 Dự Án Đang Hoạt Động (Active Roadmap)
+                        </span>
+                      )}
+
+                      {/* 🏆 NÚT XÁC NHẬN HOÀN THÀNH DỰ ÁN (CHỈ DÀNH CHO ADMIN KHI ROADMAP ĐẠT 100%) */}
+                      {user?.globalRole === 'ADMIN' && currentProj && !currentProj.isCompleted && projectCompletionPercent === 100 && totalProjectTasks > 0 && (
+                        <button
+                          onClick={() => handleToggleProjectCompletion(currentProj.id, true)}
+                          className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400/50 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-emerald-950/50 animate-pulse hover:animate-none"
+                          title="Xác nhận nghiệm thu & đóng dự án khi đạt 100% tiến độ"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-white" />
+                          <span>🏆 Xác Nhận Hoàn Thành Dự Án (100% Roadmap)</span>
+                        </button>
+                      )}
+
+                      {/* 🔄 NÚT MỞ LẠI DỰ ÁN DÀNH CHO ADMIN */}
+                      {user?.globalRole === 'ADMIN' && currentProj && Boolean(currentProj.isCompleted) && (
+                        <button
+                          onClick={() => handleToggleProjectCompletion(currentProj.id, false)}
+                          className="px-3 py-1 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                          title="Mở lại dự án để tiếp tục tác nghiệp"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Mở Lại Dự Án</span>
+                        </button>
+                      )}
+
                       {user?.globalRole === 'ADMIN' && currentProj && (
                         <button
                           onClick={() =>
@@ -1629,7 +1713,7 @@ export const BoardPage: React.FC = () => {
                             ) : (
                               <button
                                 onClick={() => handleCompleteTodaySubtask(heroTask, activeSubtask, firstPendingIdx)}
-                                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" /> ✓ Xong Việc Con Này
                               </button>
@@ -1798,14 +1882,28 @@ export const BoardPage: React.FC = () => {
                               })
                             );
                             if (heroTask) {
-                              api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' });
+                              api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' }).catch((err) => {
+                                console.error('Lỗi khi hạ status hero task cũ:', err);
+                                fetchTasksFromBackend();
+                              });
                             }
-                            api.patch(`/tasks/${t.id}/status`, { status: 'IN_PROGRESS' });
-                            showNotification(
-                              `🟢 Đã đưa Task "${t.title}" lên HERO FOCUS!`,
-                              'success',
-                              'Today Focus'
-                            );
+                            api.patch(`/tasks/${t.id}/status`, { status: 'IN_PROGRESS' })
+                              .then(() => {
+                                showNotification(
+                                  `🟢 Đã đưa Task "${t.title}" lên HERO FOCUS!`,
+                                  'success',
+                                  'Today Focus'
+                                );
+                              })
+                              .catch((err) => {
+                                console.error('Lỗi khi kích hoạt Hero Task:', err);
+                                showNotification(
+                                  `❌ Không thể cập nhật trạng thái Task: ${err.response?.data?.message || err.message}`,
+                                  'warning',
+                                  'Today Focus'
+                                );
+                                fetchTasksFromBackend();
+                              });
                           }}
                           className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all shadow-sm shrink-0"
                         >
@@ -1835,6 +1933,7 @@ export const BoardPage: React.FC = () => {
           setTaskToDelete(t);
           setIsDeleteModalOpen(true);
         }}
+        
       />
 
       {/* 🗑️ DELETE TASK CONFIRMATION MODAL */}
@@ -1880,7 +1979,7 @@ export const BoardPage: React.FC = () => {
               <button
                 disabled={isDeleting}
                 onClick={handleConfirmDeleteProject}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-xs font-black shadow-lg shadow-rose-500/30 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{isDeleting ? 'Đang Xử Lý...' : 'Xác Nhận Xóa'}</span>
@@ -1920,7 +2019,7 @@ export const BoardPage: React.FC = () => {
         onClose={() => setIsCreateProjectModalOpen(false)}
         existingProjects={dbProjects.map((p) => p.name)}
         onSuccess={(newProj) => {
-          showNotification('🟢 Khởi tạo Dự Án Mới vào CSDL PostgreSQL thành công!', 'success', 'Tạo Dự Án');
+          showNotification('🟢 Khởi tạo Dự Án Mới thành công!', 'success', 'Tạo Dự Án');
           if (newProj && newProj.id) {
             setDbProjects((prev) => [newProj, ...prev]);
           }
@@ -1934,7 +2033,7 @@ export const BoardPage: React.FC = () => {
         isOpen={isCreateTaskModalOpen}
         onClose={() => setIsCreateTaskModalOpen(false)}
         onSuccess={(newTask) => {
-          showNotification('🟢 Khởi tạo Task Mới vào CSDL PostgreSQL thành công!', 'success', 'Tạo Task');
+          showNotification('🟢 Khởi tạo Task Mới thành công!', 'success', 'Tạo Task');
           if (newTask && newTask.id) {
             setTasks((prev) => [newTask, ...prev]);
           }
@@ -1961,7 +2060,7 @@ export const BoardPage: React.FC = () => {
             <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
 
             <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-purple-600 flex items-center justify-center text-2xl shadow-lg">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-2xl shadow-md">
                 🎉
               </div>
               <div>
@@ -2026,7 +2125,7 @@ export const BoardPage: React.FC = () => {
                     'Tiến Hành Task Con Ngày Mai'
                   );
                 }}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-slate-950 font-black text-xs cursor-pointer shadow-lg transition-all flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer shadow-md transition-all flex items-center gap-1.5"
               >
                 <Sparkles className="w-4 h-4" /> ✨ Tiến Hành Luôn Task Con Ngày Mai
               </button>
@@ -2062,6 +2161,8 @@ export const BoardPage: React.FC = () => {
         message={modalState.message}
         type={modalState.type}
       />
+      
     </div>
+    
   );
 };

@@ -51,15 +51,54 @@ html, body {
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
 }
 
-.solar-corona-btn {
-  background: #f59e0b;
-  transition: all 0.2s ease;
+/* 🔘 Unified Minimalist Button Styles */
+.solar-corona-btn,
+.btn-primary {
+  background-color: #f59e0b;
+  color: #020617;
+  font-weight: 700;
+  border: 1px solid transparent;
+  transition: all 0.18s ease;
 }
 
-.solar-corona-btn:hover {
-  background: #d97706;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+.solar-corona-btn:hover,
+.btn-primary:hover {
+  background-color: #fbbf24;
+  color: #020617;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
   transform: translateY(-1px);
+}
+
+.solar-corona-btn:active,
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  font-weight: 600;
+  transition: all 0.18s ease;
+}
+
+.btn-secondary:hover {
+  background-color: #1e293b;
+  color: #ffffff;
+  border-color: #475569;
+}
+
+.btn-danger {
+  background-color: #e11d48;
+  color: #ffffff;
+  font-weight: 700;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  transition: all 0.18s ease;
+}
+
+.btn-danger:hover {
+  background-color: #f43f5e;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.25);
 }
 
 @keyframes solarDropSnap {

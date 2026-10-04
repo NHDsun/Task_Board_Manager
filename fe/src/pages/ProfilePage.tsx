@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useUserStore } from '../store/useUserStore';
+import { useScheduleStore } from '../store/useScheduleStore';
 import { profileService, type PersonalStatsResponse } from '../services/profile';
 import type { UserStatusSignal, Profession } from '../types/auth';
 import { DEFAULT_COVER, getAvatarUrl } from '../utils/avatar';
@@ -25,7 +26,64 @@ import {
   Users,
   MessageSquare,
   AlertTriangle,
+  Upload,
+  Home,
+  Plane,
+  Palmtree,
+  Image as ImageIcon,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
+import { CreateLeaveRequestModal } from '../components/schedule/CreateLeaveRequestModal';
+
+export type WorkLocationType = 'OFFICE' | 'WFH' | 'ON_SITE' | 'LEAVE';
+
+const WORK_LOCATIONS: Array<{
+  id: WorkLocationType;
+  label: string;
+  subLabel: string;
+  icon: React.ElementType;
+  badgeBg: string;
+  textColor: string;
+  dotColor: string;
+}> = [
+  {
+    id: 'OFFICE',
+    label: 'Tại Văn Phòng',
+    subLabel: 'Office HQ',
+    icon: Building2,
+    badgeBg: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
+    textColor: 'text-emerald-300',
+    dotColor: 'bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.8)]',
+  },
+  {
+    id: 'WFH',
+    label: 'Làm Từ Xa (WFH)',
+    subLabel: 'Remote Working',
+    icon: Home,
+    badgeBg: 'bg-amber-500/15 border-amber-500/30 text-amber-300',
+    textColor: 'text-amber-300',
+    dotColor: 'bg-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.8)]',
+  },
+  {
+    id: 'ON_SITE',
+    label: 'Đi Công Tác',
+    subLabel: 'On-Site / Business Trip',
+    icon: Plane,
+    badgeBg: 'bg-blue-500/15 border-blue-500/30 text-blue-300',
+    textColor: 'text-blue-300',
+    dotColor: 'bg-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.8)]',
+  },
+  {
+    id: 'LEAVE',
+    label: 'Nghỉ Phép',
+    subLabel: 'On Leave',
+    icon: Palmtree,
+    badgeBg: 'bg-rose-500/15 border-rose-500/30 text-rose-300',
+    textColor: 'text-rose-300',
+    dotColor: 'bg-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.8)]',
+  },
+];
 
 interface ProfilePageProps {
   onNavigate?: (route: string) => void;
@@ -100,6 +158,94 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   });
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+
+  // 6. Work Location State (Auto-displayed for Employee, Editable for Admin only)
+  const { getWorkLocationForDate, setUserDailyWorkLocation } = useScheduleStore();
+  const isAdmin = authUser?.globalRole === 'ADMIN';
+  const targetUserId = user?.id || 'u-self';
+
+  // Lấy vị trí làm việc hôm nay từ schedule store (Lịch làm việc là Nguồn Sự Thật)
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const [locationResult, setLocationResult] = useState(() => getWorkLocationForDate(targetUserId, todayDateStr));
+  const currentWorkLocation = locationResult.workType;
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Đồng bộ tự động khi user hoặc store thay đổi (Lịch duyệt/xếp bởi Admin -> Tự động hiển thị ra Profile)
+  useEffect(() => {
+    const res = getWorkLocationForDate(targetUserId, todayDateStr);
+    setLocationResult(res);
+  }, [targetUserId, todayDateStr, getWorkLocationForDate]);
+
+  // 7. File Upload Refs & Handlers for Avatar and Cover Image (Direct Upload, No Raw URL needed)
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Tệp ảnh đại diện vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFormData((prev) => ({ ...prev, avatarUrl: reader.result as string }));
+        showToast('📸 Đã tải ảnh đại diện lên thành công!', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Tệp ảnh bìa vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFormData((prev) => ({ ...prev, coverImage: reader.result as string }));
+        showToast('🖼️ Đã tải ảnh bìa lên thành công!', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Chỉ Admin được chỉ định vị trí trực tiếp
+  const handleSelectWorkLocation = (loc: WorkLocationType) => {
+    if (!isAdmin) return;
+    setIsLocationDropdownOpen(false);
+    const locInfo = WORK_LOCATIONS.find((l) => l.id === loc);
+
+    setUserDailyWorkLocation(targetUserId, loc, undefined, {
+      adminId: authUser?.id || 'admin',
+      adminName: authUser?.fullName || 'Admin',
+    });
+    showToast(`👑 [Admin] Đã chỉ định vị trí làm việc cho ${user?.fullName || 'nhân sự'}: ${locInfo?.label || loc}`, 'success');
+
+    const updated = getWorkLocationForDate(targetUserId, todayDateStr);
+    setLocationResult(updated);
+  };
+
+  // Close location dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target as Node)) {
+        setIsLocationDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Synchronize Form Data whenever `user` changes
   useEffect(() => {
@@ -274,13 +420,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-2 self-end sm:self-center">
             <button
               onClick={() => showToast(`💬 Đang mở hộp thoại trò chuyện với ${user?.fullName}...`, 'info')}
-              className="px-4 py-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+              className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
             >
               <MessageSquare className="w-3.5 h-3.5" /> Gửi Tin Nhắn
             </button>
             <button
               onClick={() => setViewingUserId(null)}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-lg transition-all"
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Quay Lại Hồ Sơ Của Tôi
             </button>
@@ -289,9 +435,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       )}
 
       {/* 🌌 Hero Cover & Identity Card */}
-      <div className="solar-glass-card rounded-3xl bg-[#0F172A]/90 border border-amber-500/30 shadow-2xl overflow-hidden relative">
+      <div className="solar-glass-card rounded-3xl bg-[#0F172A]/90 border border-amber-500/30 shadow-2xl relative z-20">
         {/* Cover Photo */}
-        <div className="h-48 sm:h-64 w-full relative overflow-hidden bg-slate-900">
+        <div className="h-48 sm:h-64 w-full relative overflow-hidden bg-slate-900 rounded-t-3xl">
           <img
             src={user?.coverImage || DEFAULT_COVER}
             alt="Cover"
@@ -371,23 +517,95 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
           {/* Profile Actions */}
           <div className="flex items-center gap-3 self-stretch md:self-end justify-end flex-wrap">
+            {/* 📍 Work Location Status Badge (Interactive for Admin only, Auto-displayed for Employees) */}
+            <div className="relative" ref={locationDropdownRef}>
+              <div
+                className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2.5 shadow-inner transition-all ${
+                  WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.badgeBg || 'bg-slate-900 border-slate-700 text-slate-200'
+                } ${isAdmin ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}`}
+                onClick={() => isAdmin && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
+                title={
+                  isAdmin
+                    ? `Admin: Nhấp để chỉ định vị trí làm việc cho ${user?.fullName || 'nhân sự'}`
+                    : `Vị trí hôm nay của ${user?.fullName || 'bạn'} (Tự động cập nhật theo lịch làm việc đã duyệt)`
+                }
+              >
+                <span className={`w-2.5 h-2.5 rounded-full ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.dotColor || 'bg-slate-400'}`} />
+                {(() => {
+                  const activeLoc = WORK_LOCATIONS.find((l) => l.id === currentWorkLocation);
+                  const LocIcon = activeLoc?.icon || Building2;
+                  return (
+                    <span className="flex items-center gap-1.5 font-bold tracking-tight">
+                      <LocIcon className="w-3.5 h-3.5 shrink-0" />
+                      {activeLoc?.label || 'Tại Văn Phòng'}
+                    </span>
+                  );
+                })()}
+
+                {/* Source Badge Title (Ví dụ: [Đã Duyệt WFH], [Lịch Phân Công]) */}
+                {locationResult.sourceTitle && locationResult.source !== 'DEFAULT' && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono font-bold border border-amber-500/30">
+                    ✓ {locationResult.sourceTitle}
+                  </span>
+                )}
+
+                {isAdmin && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 font-mono font-extrabold border border-amber-500/50 flex items-center gap-0.5">
+                    ADMIN SỬA 👑 <ChevronDown className="w-3 h-3 text-amber-400" />
+                  </span>
+                )}
+              </div>
+
+              {/* Location Selection Dropdown (Only for Admin) */}
+              {isAdmin && isLocationDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 p-2 rounded-2xl bg-[#0F172A] border border-amber-500/50 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-2xl z-50 animate-solar-drop-snap space-y-1">
+                  <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>{`Chỉ định vị trí cho ${user?.fullName || 'nhân sự'}`}</span>
+                    <span className="text-amber-400 font-mono text-[10px]">Admin Role</span>
+                  </div>
+                  {WORK_LOCATIONS.map((loc) => {
+                    const Icon = loc.icon;
+                    const isSelected = currentWorkLocation === loc.id;
+                    return (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        onClick={() => handleSelectWorkLocation(loc.id)}
+                        className={`w-full p-2.5 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
+                          isSelected ? 'bg-amber-500/20 border border-amber-500/40 text-white' : 'hover:bg-slate-800/80 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`p-1.5 rounded-lg ${loc.badgeBg}`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold block text-white">{loc.label}</span>
+                            <span className="text-[10px] text-slate-400 block font-mono">{loc.subLabel}</span>
+                          </div>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-amber-400" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Nộp đơn xin nghỉ phép / WFH (Dành cho Employee tự gửi đơn cho Manager) */}
+            {isSelf && !isAdmin && (
+              <button
+                onClick={() => setIsLeaveModalOpen(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                title="Gửi đơn xin nghỉ hoặc WFH đến Quản lý"
+              >
+                <Palmtree className="w-3.5 h-3.5 text-amber-400" />
+                <span>Nộp Đơn Phép / WFH</span>
+              </button>
+            )}
+
             {isSelf ? (
               <>
-                {/* 🤖 Automated Real-Time Status Signal Badge */}
-                <div className="px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-xs font-mono font-bold flex items-center gap-2 shadow-inner">
-                  <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${getStatusColor(user?.statusSignal as UserStatusSignal)}`} />
-                  <span className="text-slate-200">
-                    {user?.statusSignal === 'ONLINE' && 'Trực Tuyến'}
-                    {user?.statusSignal === 'AWAY' && 'Vắng Mặt (Tạm Rời)'}
-                    {user?.statusSignal === 'BUSY' && 'Đang Bận'}
-                    {user?.statusSignal === 'IN_MEETING' && 'Đang Họp'}
-                    {(!user?.statusSignal || user?.statusSignal === 'OFFLINE') && 'Ngoại Tuyến'}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-sans font-extrabold border border-emerald-500/30">
-                    AUTO ⚡
-                  </span>
-                </div>
-
                 <button
                   onClick={() => setIsEditModalOpen(true)}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] cursor-pointer"
@@ -471,12 +689,27 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
           <div className="pt-2 border-t border-slate-800/80 space-y-2 text-xs font-mono">
             <div className="flex items-center justify-between text-slate-400">
-              <span>Chế độ làm việc:</span>
-              <span className="text-emerald-400 font-bold">Văn phòng (Office HQ)</span>
+              <span>Vị trí hôm nay:</span>
+              <span className={`font-bold flex items-center gap-1.5 ${WORK_LOCATIONS.find((l) => l.id === currentWorkLocation)?.textColor || 'text-emerald-400'}`}>
+                {(() => {
+                  const loc = WORK_LOCATIONS.find((l) => l.id === currentWorkLocation);
+                  const Icon = loc?.icon || Building2;
+                  return (
+                    <>
+                      <Icon className="w-3.5 h-3.5" />
+                      {loc?.label || 'Văn phòng (Office HQ)'}
+                    </>
+                  );
+                })()}
+              </span>
             </div>
             <div className="flex items-center justify-between text-slate-400">
               <span>Khối phòng ban:</span>
-              <span className="text-white font-bold">Engineering Department</span>
+              <span className="text-white font-bold">
+                {typeof user?.department === 'string'
+                  ? user.department
+                  : (user?.department && typeof user.department === 'object' ? user.department.name : '') || viewingDirectoryUser?.department || 'Chưa phân bổ'}
+              </span>
             </div>
           </div>
         </div>
@@ -485,36 +718,70 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         <div className="lg:col-span-2 solar-glass-card p-6 rounded-3xl bg-[#0F172A]/90 border border-slate-800 space-y-5">
           <h3 className="text-sm font-extrabold text-white flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <FolderKanban className="w-4 h-4 text-amber-400" /> Các Dự Án &amp; Nhiệm Vụ Phụ Trách
+              <FolderKanban className="w-4 h-4 text-amber-400" /> Các Dự Án Phụ Trách &amp; Tham Gia
             </span>
-            <span className="text-xs text-amber-400 font-mono">Active Sprint 2026</span>
+            <span className="text-xs text-amber-400 font-mono">
+              {((user as any)?.assignedProjects || viewingDirectoryUser?.assignedProjects || []).length} Dự án
+            </span>
           </h3>
 
-          <div className="space-y-3">
-            {(viewingDirectoryUser?.assignedProjects || [
-              'Solaris Core Task Board Engine',
-              'Enterprise RBAC & Authentication Module',
-              'Voice Assistant & WebRTC Integration',
-            ]).map((proj, idx) => (
-              <div
-                key={idx}
-                className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-amber-500/40 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
-                    #{idx + 1}
+          {(() => {
+            const rawProjects = (user as any)?.assignedProjects || viewingDirectoryUser?.assignedProjects || [];
+            if (!rawProjects || rawProjects.length === 0) {
+              return (
+                <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-800/60 border border-slate-700 flex items-center justify-center text-slate-400 mx-auto">
+                    <FolderKanban className="w-6 h-6" />
                   </div>
-                  <div>
-                    <h4 className="font-extrabold text-white text-xs">{proj}</h4>
-                    <span className="text-[10px] text-slate-400 font-mono">Vai trò: Thành viên cốt lõi</span>
-                  </div>
+                  <p className="text-xs text-slate-400">Chưa tham gia dự án nào trong hệ thống.</p>
+                  {isSelf && (
+                    <button
+                      onClick={() => onNavigate?.('/tasks')}
+                      className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <FolderKanban className="w-3.5 h-3.5" /> Khám Phá Bảng Nhiệm Vụ
+                    </button>
+                  )}
                 </div>
-                <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
-                  Đang hoạt động
-                </span>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {rawProjects.map((proj: any, idx: number) => {
+                  const isObj = typeof proj === 'object' && proj !== null;
+                  const projName = isObj ? proj.name : proj;
+                  const projRole = isObj ? proj.roleInProject || 'Thành viên cốt lõi' : 'Thành viên cốt lõi';
+                  const projDesc = isObj ? proj.description : '';
+
+                  return (
+                    <div
+                      key={isObj ? proj.id || idx : idx}
+                      className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-amber-500/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
+                          #{idx + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-white text-xs truncate">{projName}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-amber-400/90 font-mono">Vai trò: {projRole}</span>
+                            {projDesc && (
+                              <span className="text-[10px] text-slate-400 truncate hidden sm:inline">• {projDesc}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold shrink-0">
+                        Đang hoạt động
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -576,26 +843,60 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-slate-300 font-bold">Link Ảnh Đại Diện (Avatar URL)</label>
-                <input
-                  type="url"
-                  value={formData.avatarUrl}
-                  onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
-                />
-              </div>
+              {/* 📸 DIRECT FILE UPLOADS: AVATAR & COVER IMAGE (NO URL REQUIRED) */}
+              <input
+                type="file"
+                ref={avatarFileInputRef}
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleAvatarFileChange}
+              />
+              <input
+                type="file"
+                ref={coverFileInputRef}
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleCoverFileChange}
+              />
 
-              <div className="space-y-1">
-                <label className="text-slate-300 font-bold">Link Ảnh Bìa (Cover Image URL)</label>
-                <input
-                  type="url"
-                  value={formData.coverImage}
-                  onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Avatar Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold block">Ảnh Đại Diện</label>
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800">
+                    <img
+                      src={formData.avatarUrl || DEFAULT_COVER}
+                      alt="Avatar Preview"
+                      className="w-12 h-12 rounded-xl object-cover border border-amber-500/40 shrink-0 bg-slate-950"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="flex-1 py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer truncate"
+                    >
+                      <Upload className="w-3.5 h-3.5 shrink-0" /> Tải Ảnh Lên
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cover Image Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold block">Ảnh Bìa Hồ Sơ</label>
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800">
+                    <img
+                      src={formData.coverImage || DEFAULT_COVER}
+                      alt="Cover Preview"
+                      className="w-12 h-12 rounded-xl object-cover border border-slate-700 shrink-0 bg-slate-950"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => coverFileInputRef.current?.click()}
+                      className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer truncate"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5 shrink-0" /> Tải Ảnh Bìa
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -620,7 +921,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg cursor-pointer hover:from-amber-400 hover:to-amber-500 transition-all flex items-center gap-1.5"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md cursor-pointer transition-all flex items-center gap-1.5"
                 >
                   {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                   Lưu &amp; Đồng Bộ
@@ -716,7 +1017,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 <button
                   type="submit"
                   disabled={isChangingPassword}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg cursor-pointer hover:from-amber-400 hover:to-amber-500"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md cursor-pointer transition-all"
                 >
                   {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xác Nhận Đổi'}
                 </button>
@@ -725,6 +1026,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           </div>
         </div>
       )}
+
+      {/* 📝 Modal Nộp Đơn Nghỉ / WFH (Dành cho Employee) */}
+      <CreateLeaveRequestModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        onSuccess={() => {
+          const res = getWorkLocationForDate(targetUserId, todayDateStr);
+          setLocationResult(res);
+          showToast('✅ Đã gửi đơn thành công! Đang chờ Quản lý duyệt.', 'success');
+        }}
+      />
     </div>
   );
 };

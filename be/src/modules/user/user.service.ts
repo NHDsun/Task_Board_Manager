@@ -8,6 +8,7 @@ import { LockUserDto } from './dto/lock-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 @Injectable()
 export class UserService {
   // create(createUserDto: CreateUserDto) {
@@ -51,6 +52,7 @@ export class UserService {
           profession: true,
           jobTitle: true,
           phone: true,
+          isActive: true,
           statusSignal: true,
           customStatus: true,
           department: {
@@ -90,6 +92,7 @@ export class UserService {
         jobTitle: true,
         phone: true,
         bio: true,
+        isActive: true,
         statusSignal: true,
         customStatus: true,
         department: true,
@@ -191,7 +194,12 @@ export class UserService {
     };
   }
 
-  async updateRoleAndDepartment(id: string, dto: UpdateUserRoleDto) {
+  async updateRoleAndDepartment(id: string, dto: UpdateUserRoleDto, currentAdminId?: string) {
+    // 🔒 [LC-116] CHẶN QUẢN TRỊ VIÊN TỰ HẠ CẤP VAI TRÒ ADMIN CỦA CHÍNH MÌNH (SELF-DEMOTION LOCK)
+    if (currentAdminId && id === currentAdminId && dto.role && dto.role !== 'ADMIN') {
+      throw new BadRequestException('Bạn không thể tự hạ cấp vai trò Quản trị viên (Admin) của chính mình!');
+    }
+
     await this.findOne(id);
 
     if (dto.departmentId) {
@@ -353,6 +361,7 @@ export class UserService {
         jobTitle: true,
         profession: true,
         avatar: true,
+        isActive: true,
         coverImage: true,
         department: {
           select: { id: true, name: true },
@@ -410,6 +419,39 @@ export class UserService {
       message: `Đã tạo tài khoản cho nhân sự "${newUser.fullName}" thành công!`,
       data: newUser,
       defaultPassword: plainPassword,
+    };
+  }
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    if (!user.isFirstLogin) {
+      if (!dto.currentPassword) {
+        throw new BadRequestException('Vui lòng nhập mật khẩu hiện tại');
+      }
+      const isPasswordVaild = await bcrypt.compare(dto.currentPassword, user.password || '');
+      if (!isPasswordVaild) {
+        throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+      }
+    }
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        password: hashedPassword,
+        isFirstLogin: false,
+        refreshToken: null,
+      },
+    });
+    return {
+      success: true,
+      message: 'Đổi mật khẩu thành công!',
     };
   }
 }

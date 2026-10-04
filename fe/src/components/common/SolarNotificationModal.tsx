@@ -101,7 +101,7 @@ export const SolarNotificationModal: React.FC<SolarNotification> = ({
               <button
                 type="button"
                 onClick={onConfirm}
-                className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer"
+                className="solar-corona-btn px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs tracking-wider shadow-md transition-all cursor-pointer"
               >
                 {confirmText || 'Xác Nhận'}
               </button>
@@ -109,7 +109,7 @@ export const SolarNotificationModal: React.FC<SolarNotification> = ({
           ) : (
             <button
               onClick={onClose}
-              className="solar-corona-btn px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs tracking-wider shadow-lg transition-all cursor-pointer"
+              className="solar-corona-btn px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs tracking-wider shadow-md transition-all cursor-pointer"
             >
               Đã Hiểu (Close)
             </button>

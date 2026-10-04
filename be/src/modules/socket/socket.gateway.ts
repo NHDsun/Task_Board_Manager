@@ -11,6 +11,11 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuthUserPayload } from '../../common/interfaces/auth-user.interface';
+
+export interface AuthenticatedSocket extends Socket {
+  user?: AuthUserPayload;
+}
 
 @WebSocketGateway({
   cors: {
@@ -28,7 +33,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly prisma: PrismaService
   ) {}
 
-  private extractUserFromSocket(client: Socket): { id: string; email: string; role?: string } | null {
+  private extractUserFromSocket(client: Socket): AuthUserPayload | null {
     try {
       const rawToken =
         client.handshake.auth?.token ||
@@ -44,16 +49,17 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
         id: payload.sub || payload.id,
         email: payload.email,
         role: payload.role,
+        fullName: payload.fullName || '',
       };
     } catch {
       return null;
     }
   }
 
-  handleConnection(client: Socket) {
+  handleConnection(client: AuthenticatedSocket) {
     const user = this.extractUserFromSocket(client);
     if (user) {
-      (client as any).user = user;
+      client.user = user;
       this.logger.log(`Client authenticated: ${client.id} (User: ${user.id} - ${user.email})`);
     } else {
       this.logger.log(`Client connected: ${client.id}`);
@@ -66,16 +72,16 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('joinProject')
   async handleJoinProject(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() data: { projectId: string; token?: string }
   ) {
     if (!data?.projectId) {
       return { status: 'error', message: 'Invalid projectId' };
     }
 
-    const user = (client as any).user || (data.token ? this.jwtService.decode(data.token) : null);
+    const user = client.user || (data.token ? (this.jwtService.decode(data.token) as AuthUserPayload) : null);
     if (user) {
-      const userId = user.id || user.sub;
+      const userId = user.id || (user as any).sub;
       const project = await this.prisma.project.findUnique({
         where: { id: data.projectId },
         include: { members: true },
@@ -113,14 +119,14 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('joinUser')
-  handleJoinUser(@ConnectedSocket() client: Socket, @MessageBody() data: { userId: string; token?: string }) {
+  handleJoinUser(@ConnectedSocket() client: AuthenticatedSocket, @MessageBody() data: { userId: string; token?: string }) {
     if (!data?.userId) {
       return { status: 'error', message: 'Invalid userId' };
     }
 
-    const authUser = (client as any).user || (data.token ? this.jwtService.decode(data.token) : null);
+    const authUser = client.user || (data.token ? (this.jwtService.decode(data.token) as AuthUserPayload) : null);
     if (authUser) {
-      const currentUserId = authUser.id || authUser.sub;
+      const currentUserId = authUser.id || (authUser as any).sub;
       if (authUser.role !== 'ADMIN' && currentUserId !== data.userId) {
         this.logger.warn(`User ${currentUserId} bị chặn truy cập phòng cá nhân của User ${data.userId}`);
         return { status: 'error', message: 'Unauthorized user room access' };

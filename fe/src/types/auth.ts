@@ -4,6 +4,19 @@ export type Profession = 'DEV' | 'TESTER' | 'DESIGNER' | 'BA' | 'MARKETING' | 'D
 
 export type UserStatusSignal = 'ONLINE' | 'BUSY' | 'IN_MEETING' | 'AWAY' | 'OFFLINE';
 
+export interface UserProjectItem {
+  id: string;
+  name: string;
+  description?: string;
+  roleInProject?: string;
+}
+
+export interface UserDepartment {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -11,6 +24,7 @@ export interface User {
   avatar?: string;
   avatarUrl?: string;
   coverImage?: string;
+  role?: GlobalRole;
   globalRole: GlobalRole;
   profession?: Profession;
   jobTitle?: string;
@@ -20,6 +34,9 @@ export interface User {
   customStatus?: string;
   workMode?: 'OFFICE' | 'REMOTE';
   isFirstLogin?: boolean;
+  department?: UserDepartment | string | null;
+  departmentId?: string;
+  assignedProjects?: UserProjectItem[] | string[];
 }
 
 export interface LoginPayload {

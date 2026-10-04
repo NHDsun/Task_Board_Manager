@@ -182,7 +182,7 @@ export const AdminTrashPage: React.FC = () => {
         setNotification({
           isOpen: true,
           title: 'Đã Xóa Vĩnh Viễn',
-          message: `Dự án "${targetName}" đã được xóa triệt để khỏi CSDL.`,
+          message: `Dự án "${targetName}" đã được xóa triệt để khỏi hệ thống.`,
           type: 'success',
         });
       } else if (targetType === 'task' && targetId) {
@@ -190,7 +190,7 @@ export const AdminTrashPage: React.FC = () => {
         setNotification({
           isOpen: true,
           title: 'Đã Xóa Vĩnh Viễn',
-          message: `Công việc "${targetName}" đã được xóa triệt để khỏi CSDL.`,
+          message: `Công việc "${targetName}" đã được xóa triệt để khỏi hệ thống.`,
           type: 'success',
         });
       } else if (targetType === 'empty_all') {
@@ -438,14 +438,14 @@ export const AdminTrashPage: React.FC = () => {
                             setConfirmModal({
                               isOpen: true,
                               title: `Xóa Vĩnh Viễn Dự Án "${proj.name}"`,
-                              message: `Toàn bộ ${proj.tasksCount} task trong dự án này sẽ bị xóa sạch khỏi CSDL vĩnh viễn. Bạn có chắc chắn không?`,
+                              message: `Toàn bộ ${proj.tasksCount} task trong dự án này sẽ bị xóa sạch vĩnh viễn khỏi hệ thống. Bạn có chắc chắn không?`,
                               type: 'project',
                               targetId: proj.id,
                               targetName: proj.name,
                             })
                           }
                           className="p-1.5 rounded-xl bg-slate-900 hover:bg-rose-600/30 text-slate-400 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 transition-all cursor-pointer"
-                          title="Xóa Vĩnh Viễn Khỏi CSDL"
+                          title="Xóa Vĩnh Viễn"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -533,7 +533,7 @@ export const AdminTrashPage: React.FC = () => {
                         setConfirmModal({
                           isOpen: true,
                           title: `Xóa Vĩnh Viễn Task "${t.title}"`,
-                          message: 'Công việc này sẽ bị xóa sạch khỏi CSDL vĩnh viễn. Bạn có chắc chắn không?',
+                          message: 'Công việc này sẽ bị xóa sạch vĩnh viễn khỏi hệ thống. Bạn có chắc chắn không?',
                           type: 'task',
                           targetId: t.id,
                           targetName: t.title,
@@ -581,7 +581,7 @@ export const AdminTrashPage: React.FC = () => {
               </button>
               <button
                 onClick={executePermanentAction}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-xs font-black shadow-lg shadow-rose-500/30 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Xác Nhận Xóa Vĩnh Viễn</span>

@@ -39,6 +39,29 @@ export class ProfileService {
         statusSignal: true,
         customStatus: true,
         createdAt: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        ownedProjects: {
+          where: { isDeleted: false },
+          select: { id: true, name: true, description: true },
+        },
+        managedProjects: {
+          where: { isDeleted: false },
+          select: { id: true, name: true, description: true },
+        },
+        memberships: {
+          where: { project: { isDeleted: false } },
+          select: {
+            project: {
+              select: { id: true, name: true, description: true },
+            },
+          },
+        },
       },
     });
 
@@ -46,11 +69,62 @@ export class ProfileService {
       throw new NotFoundException('Người dùng không tồn tại');
     }
 
+    const userProjectsMap = new Map<
+      string,
+      { id: string; name: string; description?: string; roleInProject: string }
+    >();
+
+    user.ownedProjects?.forEach((p) => {
+      userProjectsMap.set(p.id, {
+        id: p.id,
+        name: p.name,
+        description: p.description || '',
+        roleInProject: 'Chủ dự án (Owner)',
+      });
+    });
+
+    user.managedProjects?.forEach((p) => {
+      if (!userProjectsMap.has(p.id)) {
+        userProjectsMap.set(p.id, {
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          roleInProject: 'Quản lý dự án (Manager)',
+        });
+      }
+    });
+
+    user.memberships?.forEach((m) => {
+      if (m.project && !userProjectsMap.has(m.project.id)) {
+        userProjectsMap.set(m.project.id, {
+          id: m.project.id,
+          name: m.project.name,
+          description: m.project.description || '',
+          roleInProject: 'Thành viên (Member)',
+        });
+      }
+    });
+
+    const assignedProjects = Array.from(userProjectsMap.values());
+
     return {
-      ...user,
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
       avatar: user.avatar || '',
-      globalRole: user.role,
       avatarUrl: user.avatar || '',
+      coverImage: user.coverImage,
+      globalRole: user.role,
+      role: user.role,
+      profession: user.profession,
+      jobTitle: user.jobTitle,
+      phone: user.phone,
+      bio: user.bio,
+      statusSignal: user.statusSignal,
+      customStatus: user.customStatus,
+      createdAt: user.createdAt,
+      department: user.department,
+      assignedProjects,
     };
   }
 
@@ -67,6 +141,15 @@ export class ProfileService {
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: dataToUpdate,
+      include: {
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
     });
 
     return {
@@ -77,12 +160,15 @@ export class ProfileService {
       avatarUrl: updatedUser.avatar || '',
       coverImage: updatedUser.coverImage,
       globalRole: updatedUser.role,
+      role: updatedUser.role,
       profession: updatedUser.profession,
       jobTitle: updatedUser.jobTitle,
       phone: updatedUser.phone,
       bio: updatedUser.bio,
       statusSignal: updatedUser.statusSignal,
       customStatus: updatedUser.customStatus,
+      department: updatedUser.department,
+      departmentId: updatedUser.departmentId,
     };
   }
 

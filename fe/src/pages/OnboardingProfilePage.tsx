@@ -313,7 +313,7 @@ export const OnboardingProfilePage: React.FC<OnboardingProfilePageProps> = ({ on
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(245,158,11,0.4)] hover:shadow-[0_0_40px_rgba(245,158,11,0.6)] cursor-pointer transition-all transform hover:-translate-y-0.5"
+              className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all"
             >
               {isSubmitting ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

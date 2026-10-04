@@ -12,6 +12,7 @@ import { GoogleAuthDto } from './dto/google-auth.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
+import { AuthenticatedRequest } from '../../common/interfaces/auth-user.interface';
 
 @Controller('auth')
 export class AuthController {
@@ -38,13 +39,13 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  async logout(@Request() req: any) {
+  async logout(@Request() req: AuthenticatedRequest) {
     return this.authService.logout(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async getProfile(@Request() req: any) {
+  async getProfile(@Request() req: AuthenticatedRequest) {
     return this.authService.getProfile(req.user.id);
   }
 }
