@@ -233,11 +233,7 @@ export class AiVoiceService {
   /**
    * Phan tich van ban khau lenh thanh du lieu cong viec co cau truc de hien thi buoc xac nhan.
    */
-  async parseVoiceText(
-    userId: string,
-    rawAudioText: string,
-    currentProjectId?: string
-  ): Promise<VoiceParseResponse> {
+  async parseVoiceText(userId: string, rawAudioText: string, currentProjectId?: string): Promise<VoiceParseResponse> {
     const projects = await this.prisma.project.findMany({
       where: { isDeleted: false },
       select: { id: true, name: true },
@@ -746,11 +742,23 @@ Hãy phân tích kỹ câu lệnh và trả về JSON thuần túy (không kèm 
         /^(tạo task|tạo nhiệm vụ|tạo công việc|thêm việc|thêm task|tạo việc|tạo|create task|create new task|add task|make task|new task)\s+/i,
         ''
       )
-      .replace(/(?:mức độ|độ ưu tiên|priority|level)\s+(?:khẩn cấp|gấp|ngay lập tức|urgent|emergency|asap|quan trọng|ưu tiên|important|high|thấp|rảnh làm|low)/gi, '')
-      .replace(/\b(?:mức độ\s+khẩn cấp|khẩn cấp|mức độ\s+quan trọng|quan trọng|mức độ\s+thấp|thấp|urgent|important|low)\b/gi, '')
-      .replace(/(?:deadline|hạn chót|hạn hoàn thành|hạn|due date|due)\s+(?:hôm nay|ngày mai|ngày kia|hôm kia|tuần sau|cuối tuần|today|tomorrow|the day after tomorrow|next week|weekend)/gi, '')
+      .replace(
+        /(?:mức độ|độ ưu tiên|priority|level)\s+(?:khẩn cấp|gấp|ngay lập tức|urgent|emergency|asap|quan trọng|ưu tiên|important|high|thấp|rảnh làm|low)/gi,
+        ''
+      )
+      .replace(
+        /\b(?:mức độ\s+khẩn cấp|khẩn cấp|mức độ\s+quan trọng|quan trọng|mức độ\s+thấp|thấp|urgent|important|low)\b/gi,
+        ''
+      )
+      .replace(
+        /(?:deadline|hạn chót|hạn hoàn thành|hạn|due date|due)\s+(?:hôm nay|ngày mai|ngày kia|hôm kia|tuần sau|cuối tuần|today|tomorrow|the day after tomorrow|next week|weekend)/gi,
+        ''
+      )
       .replace(/\b(?:deadline|hạn chót|hạn)\b/gi, '')
-      .replace(/\b(?:hôm nay|ngày mai|ngày kia|hôm kia|tuần sau|cuối tuần|today|tomorrow|the day after tomorrow|next week|weekend)\b/gi, '')
+      .replace(
+        /\b(?:hôm nay|ngày mai|ngày kia|hôm kia|tuần sau|cuối tuần|today|tomorrow|the day after tomorrow|next week|weekend)\b/gi,
+        ''
+      )
       .replace(/(?:giao cho|cho|assign to|for|to)\s+[a-zA-Z0-9_\u00C0-\u1EF9]+/gi, '')
       .replace(/(?:trong dự án|thuộc dự án|dự án|in project|project)\s+[a-zA-Z0-9_\u00C0-\u1EF9]+/gi, '')
       .replace(/\s+/g, ' ')
