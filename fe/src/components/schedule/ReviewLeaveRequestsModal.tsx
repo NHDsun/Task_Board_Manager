@@ -12,6 +12,8 @@ import {
   Sparkles,
   FileText,
   User,
+  Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
@@ -69,6 +71,9 @@ export const ReviewLeaveRequestsModal: React.FC<ReviewLeaveRequestsModalProps> =
   const [modifiedStartDate, setModifiedStartDate] = useState('');
   const [modifiedEndDate, setModifiedEndDate] = useState('');
   const [modifiedShift, setModifiedShift] = useState<WorkShift>('FULL_DAY');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -85,32 +90,58 @@ export const ReviewLeaveRequestsModal: React.FC<ReviewLeaveRequestsModalProps> =
     setModifiedEndDate(req.approvedEndDate || req.endDate);
     setModifiedShift(req.shift || 'FULL_DAY');
     setIsModifying(false);
+    setErrorMessage(null);
+    setSuccessMessage(null);
   };
 
-  const handleApprove = () => {
-    if (!selectedReq) return;
-    reviewLeaveRequest(
-      selectedReq.id,
-      isModifying ? 'APPROVED_MODIFIED' : 'APPROVED',
-      authUser?.id || 'admin',
-      authUser?.fullName || 'Quản lý Duyệt',
-      responseNote.trim() || undefined,
-      isModifying ? { startDate: modifiedStartDate, endDate: modifiedEndDate } : undefined,
-      isModifying ? modifiedShift : selectedReq.shift
-    );
-    setSelectedReq(null);
+  const handleApprove = async () => {
+    if (!selectedReq || isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+      setErrorMessage(null);
+      await reviewLeaveRequest(
+        selectedReq.id,
+        isModifying ? 'APPROVED_MODIFIED' : 'APPROVED',
+        authUser?.id || 'admin',
+        authUser?.fullName || 'Quản lý Duyệt',
+        responseNote.trim() || undefined,
+        isModifying ? { startDate: modifiedStartDate, endDate: modifiedEndDate } : undefined,
+        isModifying ? modifiedShift : selectedReq.shift
+      );
+      setSuccessMessage('Đã duyệt đơn thành công!');
+      setTimeout(() => {
+        setSelectedReq(null);
+        setSuccessMessage(null);
+      }, 700);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Lỗi khi phê duyệt đơn');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleReject = () => {
-    if (!selectedReq) return;
-    reviewLeaveRequest(
-      selectedReq.id,
-      'REJECTED',
-      authUser?.id || 'admin',
-      authUser?.fullName || 'Quản lý Duyệt',
-      responseNote.trim() || 'Không được phê duyệt'
-    );
-    setSelectedReq(null);
+  const handleReject = async () => {
+    if (!selectedReq || isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+      setErrorMessage(null);
+      await reviewLeaveRequest(
+        selectedReq.id,
+        'REJECTED',
+        authUser?.id || 'admin',
+        authUser?.fullName || 'Quản lý Duyệt',
+        responseNote.trim() || 'Không được phê duyệt'
+      );
+      setSuccessMessage('Đã từ chối đơn thành công!');
+      setTimeout(() => {
+        setSelectedReq(null);
+        setSuccessMessage(null);
+      }, 700);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Lỗi khi từ chối đơn');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -350,10 +381,17 @@ export const ReviewLeaveRequestsModal: React.FC<ReviewLeaveRequestsModalProps> =
                     </div>
                   )}
 
-                  {selectedReq.responseNote && selectedReq.status !== 'PENDING' && (
-                    <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-amber-300">
-                      <span className="font-bold text-slate-400 block">Ghi chú duyệt của {selectedReq.approverName}:</span>
-                      {selectedReq.responseNote}
+                  {errorMessage && (
+                    <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
+
+                  {successMessage && (
+                    <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>{successMessage}</span>
                     </div>
                   )}
                 </div>
@@ -363,15 +401,21 @@ export const ReviewLeaveRequestsModal: React.FC<ReviewLeaveRequestsModalProps> =
                   <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
                     <button
                       onClick={handleReject}
-                      className="px-4 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                      disabled={isSubmitting}
+                      className="px-4 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                     >
                       <XCircle className="w-4 h-4" /> Từ Chối
                     </button>
                     <button
                       onClick={handleApprove}
-                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] cursor-pointer"
+                      disabled={isSubmitting}
+                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] cursor-pointer disabled:opacity-50"
                     >
-                      <CheckCircle2 className="w-4 h-4" />
+                      {isSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4" />
+                      )}
                       {isModifying ? 'Duyệt Với Ngày Đã Chỉnh' : 'Duyệt Đơn Này'}
                     </button>
                   </div>

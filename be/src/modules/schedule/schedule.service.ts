@@ -297,8 +297,8 @@ export class ScheduleService {
       throw new NotFoundException('Không tìm thấy đơn xin nghỉ phép!');
     }
 
-    // 🔒 [LC-170] Khóa tự duyệt đơn của chính mình
-    if (targetReq.userId === approver.id) {
+    // 🔒 [LC-170] Khóa tự duyệt đơn của chính mình (Ngoại trừ ADMIN khi xử lý quản trị)
+    if (targetReq.userId === approver.id && approver.role !== 'ADMIN') {
       throw new ForbiddenException('Bạn không thể tự phê duyệt đơn xin nghỉ/WFH của chính mình!');
     }
 
@@ -335,7 +335,7 @@ export class ScheduleService {
         const cur = new Date(approvedStartObj);
         while (cur <= approvedEndObj) {
           dateList.push(cur.toISOString().split('T')[0]);
-          cur.setDate(cur.getDate() + 1);
+          cur.setUTCDate(cur.getUTCDate() + 1);
         }
 
         for (const dStr of dateList) {

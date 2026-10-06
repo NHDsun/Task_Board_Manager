@@ -31,8 +31,8 @@ interface ProjectOption {
 export const SchedulePage: React.FC = () => {
   const authUser = useAuthStore((state) => state.user);
   const { leaveRequests, fetchSchedulesAndLeaves } = useScheduleStore();
-  const isAdmin = authUser?.globalRole === 'ADMIN';
-  const isManager = authUser?.globalRole === 'MANAGER' || isAdmin;
+  const isAdmin = authUser?.globalRole === 'ADMIN' || (authUser as any)?.role === 'ADMIN';
+  const isManager = authUser?.globalRole === 'MANAGER' || (authUser as any)?.role === 'MANAGER' || isAdmin;
   const pendingRequestsCount = leaveRequests.filter((r) => r.status === 'PENDING').length;
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -189,14 +189,16 @@ export const SchedulePage: React.FC = () => {
             ⚡ SOLARIS WORK SCHEDULE
           </span>
 
-          {/* Nộp đơn xin phép / WFH */}
-          <button
-            onClick={() => setIsCreateLeaveModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,158,11,0.25)] cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Nộp Đơn Phép / WFH</span>
-          </button>
+          {/* Nộp đơn xin phép / WFH (Ẩn đối với Admin, Admin có thể Xếp lịch trực tiếp) */}
+          {!isAdmin && (
+            <button
+              onClick={() => setIsCreateLeaveModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,158,11,0.25)] cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nộp Đơn Phép / WFH</span>
+            </button>
+          )}
 
           {/* Duyệt Đơn (Chỉ Manager / Admin) */}
           {isManager && (
