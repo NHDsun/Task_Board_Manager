@@ -183,7 +183,13 @@ export class AiVoiceService {
     let lastError: string | null = null;
 
     const bilingualPrompt =
-      'Solaris AI Task Assistant. Trợ lý tạo công việc thông minh. Nhận diện chuẩn xác Tiếng Việt và Tiếng Anh công nghệ IT: Task, Subtask, Kanban, Deadline, Assignee, Project, Urgent, Important, Normal, Low, Fix bug, Deploy, Review PR, Auth, Database, UI/UX, Hôm nay, Ngày mai, Tuần sau...';
+      'Solaris Task Assistant. Nhận diện chuẩn xác khẩu lệnh song ngữ Tiếng Việt và Tiếng Anh trong cùng một câu: ' +
+      'Tạo task Fix bug API Authentication cho Nam deadline ngày mai. ' +
+      'Giao việc review PR backend và deploy lên server cho Tuấn mức độ urgent. ' +
+      'Cập nhật UI/UX Kanban card, refactor code, database migration, setup Redis, release sprint.';
+
+    // Khoa ngon ngu mac dinh la Tieng Viet de nhan dien ca Tieng Viet va Tieng Anh (Code-Switching) qua chu Latin
+    const effectiveLanguage = language && (language === 'vi' || language === 'en') ? language : 'vi';
 
     for (const modelName of candidateModels) {
       try {
@@ -192,17 +198,14 @@ export class AiVoiceService {
           file: audioFile,
           model: modelName,
           prompt: bilingualPrompt,
+          language: effectiveLanguage,
           temperature: 0.0,
         };
-
-        if (language && (language === 'vi' || language === 'en')) {
-          requestParams.language = language;
-        }
 
         const transcription = await groqClient.audio.transcriptions.create(requestParams);
         const text = transcription?.text?.trim() || '';
         if (text) {
-          return text;
+          return this.normalizeBilingualText(text);
         }
       } catch (modelErr: unknown) {
         lastError = modelErr instanceof Error ? modelErr.message : String(modelErr);
@@ -216,6 +219,32 @@ export class AiVoiceService {
     }
 
     throw new BadRequestException('Không nhận diện được giọng nói trong đoạn âm thanh tải lên.');
+  }
+
+  /**
+   * Chuẩn hóa từ vựng âm học song ngữ Tiếng Việt & Tiếng Anh (Vietglish & IT Slang).
+   */
+  private normalizeBilingualText(text: string): string {
+    if (!text) return '';
+    let result = text;
+    const replacements: Array<[RegExp, string]> = [
+      [/\b(?:phích\s+bấc|fix\s+bấc|phích\s+bug|fic\s+bug|fit\s+bug)\b/gi, 'fix bug'],
+      [/\b(?:đét\s*lai|đết\s*lai|dét\s*lai)\b/gi, 'deadline'],
+      [/\b(?:bác\s*en|bát\s*en|ba\s*ken)\b/gi, 'backend'],
+      [/\b(?:phờ\s*ron\s*en|phờ\s*rôn\s*en|phơ\s*ron\s*en)\b/gi, 'frontend'],
+      [/\b(?:o\s*thên|o\s*then|ót\s*thên|ao\s*th)\b/gi, 'authentication'],
+      [/\b(?:ri\s*viu|ri\s*view)\b/gi, 'review'],
+      [/\b(?:đi\s*poi|đép\s*loi|đíp\s*loi|đíp\s*loy)\b/gi, 'deploy'],
+      [/\b(?:súp\s*tát|súp\s*tác|súp\s*task)\b/gi, 'subtask'],
+      [/\b(?:mơn\s*code|mớp\s*code|mơt\s*code)\b/gi, 'merge code'],
+      [/\b(?:u\s*gân|ưa\s*gần)\b/gi, 'urgent'],
+      [/\b(?:đa\s*ta\s*bây|đa\s*ta\s*bét)\b/gi, 'database'],
+    ];
+
+    for (const [pattern, replacement] of replacements) {
+      result = result.replace(pattern, replacement);
+    }
+    return result;
   }
 
   /**
@@ -267,28 +296,39 @@ export class AiVoiceService {
       ];
 
       const prompt = `
-Bạn là trợ lý ảo AI thông minh đa ngôn ngữ Solaris AI, có khả năng hiểu sâu sắc khẩu lệnh Song ngữ (Tiếng Việt, Tiếng Anh và Vietglish/thuật ngữ kỹ thuật IT) của người dùng để trích xuất thông tin tạo Task (Công việc).
+Bạn là trợ lý ảo AI thông minh Solaris AI, CHUYÊN BIỆT XỬ LÝ KHẨU LỆNH SONG NGỮ (chỉ kết hợp Tiếng Việt và Tiếng Anh trong cùng 1 câu - Code-Switching) trong lĩnh vực kỹ thuật phần mềm & Agile Kanban.
+
+QUY TẮC NHẬN DIỆN SONG NGỮ (TIẾNG VIỆT + TIẾNG ANH):
+1. Hệ thống CHỈ chấp nhận Tiếng Việt và Tiếng Anh (không sử dụng ngôn ngữ nào khác).
+2. Khi người dùng nói xen kẽ Tiếng Việt và Tiếng Anh (Vietglish), hãy hiểu chính xác ngữ nghĩa và giữ nguyên thuật ngữ kỹ thuật tiếng Anh (Fix bug, API, Authentication, UI/UX, Backend, Frontend, Review PR, Deploy, Database, Token, Kanban...).
+3. Title (Tiêu đề): Trích xuất tiêu đề ngắn gọn, giữ nguyên thuật ngữ tiếng Anh gốc (ví dụ: 'Fix bug API Authentication', 'Thiết kế UI Kanban card', 'Review PR Backend payment', 'Deploy service lên Staging'). TUYỆT ĐỐI KHÔNG gộp người nhận ('cho Nam', 'for Alex'), độ ưu tiên ('khẩn cấp', 'urgent'), hoặc hạn chót ('deadline ngày mai') vào title.
+4. Priority (Độ ưu tiên):
+   - URGENT: nếu có 'khẩn cấp', 'gấp', 'urgent', 'asap', 'ngay lập tức'
+   - IMPORTANT: nếu có 'quan trọng', 'ưu tiên', 'important', 'high'
+   - LOW: nếu có 'thấp', 'rảnh làm', 'low'
+   - Mặc định: 'NORMAL'
+5. DueDate: Tính toán ngày chính xác từ ngày hôm nay ${todayStr} (${currentDayOfWeek}):
+   - 'hôm nay' / 'today' -> ${todayStr}
+   - 'ngày mai' / 'tomorrow' -> ngày tiếp theo
+   - 'ngày kia' / 'the day after tomorrow' -> cộng 2 ngày
+   - 'tuần sau' / 'next week' -> cộng 7 ngày
 
 Thời điểm hiện tại: ${todayStr} (${currentDayOfWeek}).
-
-Danh sách Dự án đang có trong hệ thống:
-${JSON.stringify(projects.map((p) => ({ id: p.id, name: p.name })))}
-
-Danh sách Thành viên đang có trong hệ thống:
-${JSON.stringify(users.map((u) => ({ id: u.id, email: u.email, fullName: u.fullName })))}
+Danh sách Dự án: ${JSON.stringify(projects.map((p) => ({ id: p.id, name: p.name })))}
+Danh sách Thành viên: ${JSON.stringify(users.map((u) => ({ id: u.id, email: u.email, fullName: u.fullName })))}
 
 Câu lệnh giọng nói của người dùng:
 "${rawAudioText}"
 
-Hãy phân tích kỹ câu lệnh và trả về JSON thuần túy (không kèm bất kỳ văn bản giải thích hoặc code block nào) với cấu trúc sau:
+Hãy trả về duy nhất 1 JSON object thuần túy theo cấu trúc:
 {
-  "title": "Chỉ chứa nội dung/hành động chính của công việc (Ví dụ: 'Fix bug API Authentication', 'Thiết kế Banner Marketing', 'Tối ưu hiệu năng Database'). Tuyệt đối KHÔNG gộp các từ khóa 'cho Nam', 'mức độ khẩn cấp', 'deadline ngày mai' vào title.",
-  "description": "Mô tả chi tiết nội dung công việc nếu người dùng có nói, hoặc null",
+  "title": "Nội dung công việc chuẩn xác",
+  "description": null hoặc "Mô tả nếu có",
   "priority": "LOW" | "NORMAL" | "IMPORTANT" | "URGENT",
-  "projectName": "Tên dự án trong danh sách khớp nhất với câu lệnh, hoặc null",
-  "assigneeEmail": "Email của thành viên trong danh sách được nhắc đến (ví dụ: 'giao cho Nam', 'for Sarah', 'cho An'), hoặc null",
-  "assigneeName": "Tên thành viên nếu có (ví dụ: 'Nam', 'Alex', 'Sarah'), hoặc null",
-  "dueDate": "YYYY-MM-DD nếu có thời hạn (ví dụ: 'ngày mai'/'tomorrow' -> tính toán ngày tiếp theo từ hôm nay ${todayStr}, 'thứ hai tuần sau'/'next week', 'cuối tuần'/'weekend'), hoặc null"
+  "projectName": "Tên dự án phù hợp nhất hoặc null",
+  "assigneeEmail": "Email của thành viên được giao hoặc null",
+  "assigneeName": "Tên thành viên nếu có hoặc null",
+  "dueDate": "YYYY-MM-DD hoặc null"
 }
 `.trim();
 

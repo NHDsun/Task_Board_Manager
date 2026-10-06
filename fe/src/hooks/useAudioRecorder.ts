@@ -184,8 +184,9 @@ export const useAudioRecorder = (
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
-          noiseSuppression: true,
+          noiseSuppression: false, // Tắt lọc ồn quá mức để không nuốt mất âm gió/phụ âm tiếng Anh (s, k, t, p)
           autoGainControl: true,
+          channelCount: 1,
         },
         video: false,
       });
