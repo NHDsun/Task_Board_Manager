@@ -104,7 +104,7 @@ export const BoardPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterProject, setFilterProject] = useState<string>('ALL');
   const [filterAssignee, setFilterAssignee] = useState<string>('ALL');
-  const [filterPriority, setFilterPriority] = useState<string>('ALL');
+  const [filterPriority] = useState<string>('ALL');
   const [filterProfession, setFilterProfession] = useState<string>('ALL');
 
   const fetchMetadata = async () => {
@@ -899,22 +899,7 @@ export const BoardPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Priority Select */}
-          <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-            <span className="text-amber-400 font-bold">★</span>
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer"
-            >
-              <option value="ALL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">Mọi Độ Ưu Tiên</option>
-              <option value="URGENT" className="bg-[#0F172A] text-slate-200 font-semibold py-1">URGENT (Khẩn cấp)</option>
-              <option value="IMPORTANT" className="bg-[#0F172A] text-slate-200 font-semibold py-1">IMPORTANT (Quan trọng)</option>
-              <option value="NORMAL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">NORMAL (Thường)</option>
-              <option value="LOW" className="bg-[#0F172A] text-slate-200 font-semibold py-1">LOW (Thấp)</option>
-            </select>
-          </div>
-
+                
           {/* Profession Select */}
           <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
             <span className="text-purple-400 font-bold">🛠️</span>
@@ -1814,7 +1799,7 @@ export const BoardPage: React.FC = () => {
             ) : (
               <div className="solar-glass-card p-8 rounded-3xl bg-[#0F172A]/80 border border-amber-500/20 text-center space-y-2">
                 <Target className="w-10 h-10 text-amber-400 mx-auto opacity-70" />
-                <h3 className="text-base font-bold text-white">Chưa Có Task Nào Đang Thực Hiện (IN_PROGRESS)</h3>
+                <h3 className="text-base font-bold text-white">Chưa Có Task Nào Đang Thực Hiện</h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
                   Hãy chọn một việc từ Hàng chờ hôm nay bên dưới và nhấn <strong className="text-amber-300 font-mono">"▶️ Bắt Đầu Làm"</strong> để đưa lên Hero Focus!
                 </p>

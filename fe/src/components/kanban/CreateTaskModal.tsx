@@ -266,9 +266,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 <h2 className="text-xl font-extrabold text-white tracking-tight">
                   Tạo Task Mới (Create Task)
                 </h2>
-                <p className="text-[11px] text-slate-400">
-                  Phân rã lộ trình Task con theo từng ngày, tự động tính hạn chót công bằng cho nhân sự.
-                </p>
+
               </div>
             </div>
             <button

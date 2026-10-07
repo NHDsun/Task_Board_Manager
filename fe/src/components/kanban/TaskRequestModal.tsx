@@ -104,7 +104,7 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
 
       const targetSubtaskName = availableSubtasks.find((st) => st.id === selectedSubtaskId)?.title;
       onSubmitSuccess(
-        `🟢 Đã gửi yêu cầu ${requestType} tới ${recipient?.fullName || 'đồng nghiệp'}! ${targetSubtaskName ? `Minitask "${targetSubtaskName}"` : `Task "${targetTask?.title || 'được chọn'}"`} đã tự động chuyển sang trạng thái CHỜ DUYỆT (IN_REVIEW) 🔒!`
+        `🟢 Đã gửi yêu cầu ${requestType} tới ${recipient?.fullName || 'đồng nghiệp'}! ${targetSubtaskName ? `Minitask "${targetSubtaskName}"` : `Task "${targetTask?.title || 'được chọn'}"`} đã tự động chuyển sang trạng thái CHỜ DUYỆT 🔒!`
       );
       onClose();
       setRequestReason('');
@@ -131,7 +131,6 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-black text-white tracking-tight">Gửi Yêu Cầu Chuyển Giao Task</h2>
-              <p className="text-xs text-slate-400">Task sẽ tự động đổi trạng thái thành CHỜ DUYỆT (IN_REVIEW) 🔒</p>
             </div>
           </div>
 
@@ -211,7 +210,6 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
             <div className="grid grid-cols-2 gap-2">
               {[
                 { id: 'TRANSFER', label: '🔄 Chuyển Giao', desc: 'Bàn giao quyền phụ trách' },
-                { id: 'ASSIST', label: '🤝 Cần Hỗ Trợ', desc: 'Nhờ đồng nghiệp hỗ trợ' },
               ].map((type) => (
                 <button
                   key={type.id}
@@ -282,7 +280,7 @@ export const TaskRequestModal: React.FC<TaskRequestModalProps> = ({
             className="solar-corona-btn px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs tracking-wider shadow-md flex items-center gap-2 cursor-pointer transition-all"
           >
             <Send className="w-4 h-4" />
-            <span>{isSubmitting ? 'Đang Gửi...' : 'Xác Nhận & Đổi Sang IN_REVIEW'}</span>
+            <span>{isSubmitting ? 'Đang Gửi...' : 'Xác Nhận'}</span>
           </button>
         </div>
       </div>

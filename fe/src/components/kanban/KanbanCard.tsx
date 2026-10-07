@@ -362,7 +362,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                   className="w-full px-3 py-2 rounded-xl text-left font-semibold text-amber-300 hover:text-amber-200 hover:bg-amber-500/20 flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Gửi Duyệt / Chuyển Giao</span>
+                  <span>Gửi Duyệt </span>
                 </button>
               )}
 
