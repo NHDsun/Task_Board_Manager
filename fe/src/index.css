@@ -2,6 +2,11 @@
 @import "tailwindcss";
 
 :root {
+  /* 🔤 1. Font Variables (Thiết lập biến font chung) */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* 🎨 2. Color Tokens (Thiết lập biến màu chủ đạo) */
   --obsidian-void: #090d16;
   --eclipse-surface: #0f172a;
   --elevated-surface: #1e293b;
@@ -10,6 +15,13 @@
   --eclipse-violet: #6366f1;
   --emerald-orbit: #10b981;
   --solar-border: rgba(255, 255, 255, 0.08);
+
+  /* 📐 3. Radius & Transition Tokens */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html, body {

@@ -1,0 +1,913 @@
+<?php
+/**
+ * SOLARIS - Enterprise Task Board & Workflow Management Platform
+ * Presentation Slide Deck (6 Slides)
+ * Reconstructed 1:1 based on Project PDF & Source Code
+ */
+
+$slides = [
+    [
+        'id' => 1,
+        'theme' => 'dark',
+        'badge' => 'TỔNG QUAN DỰ ÁN',
+        'title' => 'SOLARIS - Enterprise Task Board & Workflow',
+        'subtitle' => 'Nền tảng quản lý công việc và điều phối lịch trình cho đội ngũ phát triển phần mềm.',
+    ],
+    [
+        'id' => 2,
+        'theme' => 'light',
+        'title' => 'Kiến Trúc Hệ Thống & Công Nghệ Thực Thi',
+        'subtitle' => 'Đảm bảo an toàn kiểu dữ liệu end-to-end với TypeScript và đồng bộ thời gian thực.',
+    ],
+    [
+        'id' => 3,
+        'theme' => 'light',
+        'title' => 'Bảng Quản Lý Công Việc & Quy Trình Kiểm Thử',
+        'subtitle' => 'Tối ưu thao tác kéo thả mượt mà và kiểm soát chất lượng qua từng giai đoạn.',
+    ],
+    [
+        'id' => 4,
+        'theme' => 'light',
+        'title' => 'Quản Lý Lịch Làm Việc & Nghỉ Phép',
+        'subtitle' => 'Theo dõi lịch trực, đi ca và xét duyệt nghỉ phép gắn liền với tiến độ dự án.',
+    ],
+    [
+        'id' => 5,
+        'theme' => 'light',
+        'title' => 'Phân Cấp Quyền Hạn & Thùng Rác Bảo Vệ 14 Ngày',
+        'subtitle' => 'Phân quyền tài khoản rõ ràng và cơ chế giữ an toàn dữ liệu chống xóa nhầm.',
+    ],
+    [
+        'id' => 6,
+        'theme' => 'dark',
+        'badge' => 'ĐIỂM NHẤN CÔNG NGHỆ',
+        'title' => 'Tạo Việc Tức Thì Bằng Giọng Nói',
+        'subtitle' => 'Tự động nhận diện thuật ngữ kỹ thuật tiếng Anh và lập kế hoạch công việc chỉ trong vài giây.',
+    ],
+    [
+        'id' => 7,
+        'theme' => 'dark',
+        'badge' => 'TỔNG KẾT & PHẢN HỒI',
+        'title' => 'Cảm Ơn Quý Hội Đồng & Thầy Cô!',
+        'subtitle' => 'SOLARIS - Sẵn sàng giải đáp thắc mắc và tiếp thu ý kiến đóng góp.',
+    ],
+];
+
+$totalSlides = count($slides);
+?>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOLARIS Presentation Deck - 7 Slides</title>
+    <!-- Tailwind CSS v3 CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        darkBg: '#090d16',
+                        darkCard: '#0f172a',
+                        darkBorder: '#1e293b',
+                        lightBg: '#f8fafc',
+                        amberAccent: '#f59e0b',
+                        emeraldAccent: '#10b981',
+                        roseAccent: '#f43f5e',
+                        blueAccent: '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            overflow: hidden;
+            background-color: #030712;
+        }
+        .slide-container {
+            aspect-ratio: 16 / 9;
+            max-width: 1360px;
+            width: 100%;
+            max-height: 765px;
+            height: auto;
+        }
+        .slide-panel {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .slide-panel.active {
+            display: flex;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 text-slate-100">
+
+    <!-- Top Toolbar -->
+    <header class="w-full max-w-[1360px] flex items-center justify-between px-4 py-2 text-xs font-mono text-slate-400 mb-2">
+        <div class="flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span class="font-bold text-white tracking-wider">SOLARIS</span>
+            <span class="text-slate-600">|</span>
+            <span>Enterprise Slide Deck</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <span>Dùng phím <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold border border-slate-700">←</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold border border-slate-700">→</kbd> hoặc nút điều hướng</span>
+            <button onclick="toggleFullscreen()" title="Toàn màn hình (F)" class="hover:text-amber-400 transition-colors cursor-pointer">
+                ⛶ Toàn màn hình
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Presentation Box (16:9 Aspect Ratio) -->
+    <main class="slide-container relative rounded-2xl shadow-2xl overflow-hidden border border-slate-800/80">
+
+        <!-- ========================================== -->
+        <!-- SLIDE 1: TỔNG QUAN DỰ ÁN (DARK THEME) -->
+        <!-- ========================================== -->
+        <section id="slide-1" class="slide-panel active w-full h-full bg-[#080d19] p-8 sm:p-12 flex-col justify-between select-none relative overflow-hidden">
+            <!-- Glow background effects -->
+            <div class="absolute -top-32 -left-32 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Slide 1 Header -->
+            <div class="space-y-1.5 relative z-10">
+                <span class="text-[11px] font-mono tracking-widest uppercase font-bold text-amber-400">
+                    <?= htmlspecialchars($slides[0]['badge']) ?>
+                </span>
+                <h1 class="text-3xl sm:text-4xl lg:text-[42px] font-black tracking-tight text-white leading-tight">
+                    <?= htmlspecialchars($slides[0]['title']) ?>
+                </h1>
+                <p class="text-sm sm:text-base text-slate-400 font-normal">
+                    <?= htmlspecialchars($slides[0]['subtitle']) ?>
+                </p>
+            </div>
+
+            <!-- Slide 1 Content Grid -->
+            <div class="grid grid-cols-12 gap-6 my-auto items-stretch relative z-10">
+                <!-- Left Column: Pain Points & Solution -->
+                <div class="col-span-6 bg-[#0f172a]/95 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
+                    <!-- Pain Points -->
+                    <div class="border-l-4 border-rose-500 pl-4 py-1">
+                        <h3 class="text-sm font-bold text-white mb-2.5 flex items-center gap-2">
+                            Vấn Đề Thực Tế
+                        </h3>
+                        <ul class="space-y-2 text-xs sm:text-[13px] text-slate-300 leading-relaxed">
+                            <li class="flex items-start gap-2">
+                                <span class="text-rose-400 mt-0.5">•</span>
+                                <span><strong class="text-white">Tốn thời gian:</strong> Mất 2-4 phút điền form, chọn deadline và gán người làm (Jira, Trello).</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-rose-400 mt-0.5">•</span>
+                                <span><strong class="text-white">Dễ sai lệch:</strong> Nhập liệu giọng nói thông thường hay sai khi nói từ tiếng Anh chuyên ngành.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-rose-400 mt-0.5">•</span>
+                                <span><strong class="text-white">Lệch lịch trình:</strong> Giao việc nhưng chưa nắm rõ nhân sự đang làm từ xa (WFH) hay nghỉ phép.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Separator -->
+                    <div class="h-px bg-slate-800/80 my-4"></div>
+
+                    <!-- Solution -->
+                    <div class="border-l-4 border-emerald-500 pl-4 py-1">
+                        <h3 class="text-sm font-bold text-white mb-2.5 flex items-center gap-2">
+                            Giải Pháp SOLARIS
+                        </h3>
+                        <ul class="space-y-2 text-xs sm:text-[13px] text-slate-300 leading-relaxed">
+                            <li class="flex items-start gap-2">
+                                <span class="text-emerald-400 mt-0.5">•</span>
+                                <span><strong class="text-white">Tạo việc tức thì:</strong> Nhận diện câu nói tự nhiên và lập task trong 3 giây.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-emerald-400 mt-0.5">•</span>
+                                <span><strong class="text-white">Chính xác cao:</strong> Nhận diện đúng thuật ngữ kỹ thuật, tự khớp người nhận và hạn chót.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Right Column: 4 Core Pillars -->
+                <div class="col-span-6 bg-[#0f172a]/60 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-center items-center shadow-xl">
+                    <h3 class="text-sm sm:text-base font-bold text-white mb-6 tracking-wide">
+                        4 Trụ Cột Nền Tảng
+                    </h3>
+
+                    <div class="w-full max-w-md grid grid-cols-2 gap-4 relative">
+                        <!-- Box 1 -->
+                        <div class="p-4 rounded-xl border border-blue-500/50 bg-blue-500/10 flex flex-col items-center justify-center text-center shadow-sm">
+                            <span class="text-xs sm:text-sm font-bold text-blue-300">Kanban</span>
+                            <span class="text-[11px] text-blue-200/80">6 Trạng Thái</span>
+                        </div>
+
+                        <!-- Box 2 -->
+                        <div class="p-4 rounded-xl border border-emerald-500/50 bg-emerald-500/10 flex flex-col items-center justify-center text-center shadow-sm">
+                            <span class="text-xs sm:text-sm font-bold text-emerald-300">Lịch Trực</span>
+                            <span class="text-[11px] text-emerald-200/80">& WFH</span>
+                        </div>
+
+                        <!-- Arrow 1 -> 2 -->
+                        <div class="absolute top-[28%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg select-none">
+                            ›
+                        </div>
+
+                        <!-- Box 3 -->
+                        <div class="p-4 rounded-xl border border-amber-500/50 bg-amber-500/10 flex flex-col items-center justify-center text-center shadow-sm">
+                            <span class="text-xs sm:text-sm font-bold text-amber-300">Khẩu Lệnh Nhanh</span>
+                            <span class="text-[11px] text-amber-200/80">Tự Động Lập Task</span>
+                        </div>
+
+                        <!-- Box 4 -->
+                        <div class="p-4 rounded-xl border border-rose-500/50 bg-rose-500/10 flex flex-col items-center justify-center text-center shadow-sm">
+                            <span class="text-xs sm:text-sm font-bold text-rose-300">Thùng Rác</span>
+                            <span class="text-[11px] text-rose-200/80">An Toàn 14 Ngày</span>
+                        </div>
+
+                        <!-- Arrow 4 -> 3 -->
+                        <div class="absolute bottom-[28%] left-1/2 -translate-x-1/2 translate-y-1/2 text-slate-400 font-bold text-lg select-none">
+                            ‹
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 1 Footer -->
+            <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-2 border-t border-slate-900 relative z-10">
+                <span>SOLARIS PLATFORM • 2026</span>
+                <span>SLIDE 01 / <?= sprintf('%02d', $totalSlides) ?></span>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SLIDE 2: KIẾN TRÚC ĐA TẦNG (LIGHT THEME) -->
+        <!-- ========================================== -->
+        <section id="slide-2" class="slide-panel w-full h-full bg-[#f8fafc] text-slate-800 p-8 sm:p-12 flex-col justify-between select-none">
+            <!-- Slide 2 Header -->
+            <div class="space-y-1">
+                <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
+                    <?= htmlspecialchars($slides[1]['title']) ?>
+                </h1>
+                <p class="text-sm text-slate-500 font-normal">
+                    <?= htmlspecialchars($slides[1]['subtitle']) ?>
+                </p>
+            </div>
+
+            <!-- Slide 2 Center Flow: Data Flow Architecture -->
+            <div class="my-auto space-y-4">
+                <div class="text-center font-bold text-xs uppercase tracking-wider text-slate-600 font-mono">
+                    Luồng Xử Lý Dữ Liệu Hệ Thống
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex items-center justify-between max-w-4xl mx-auto">
+                    <!-- Client -->
+                    <div class="px-5 py-3 rounded-xl border-2 border-blue-400 bg-blue-50/50 flex items-center gap-2.5 font-bold text-xs text-blue-700 shadow-sm">
+                        <span>⚛</span> React 19 Client
+                    </div>
+
+                    <!-- Connector 1 -->
+                    <div class="flex flex-col items-center justify-center text-[10px] font-mono text-slate-600 px-2">
+                        <span class="mb-1">Socket.IO & REST</span>
+                        <span class="text-amber-500 text-base font-bold leading-none">⇄</span>
+                    </div>
+
+                    <!-- Gateway -->
+                    <div class="px-5 py-3 rounded-xl border-2 border-rose-400 bg-rose-50/50 flex items-center gap-2.5 font-bold text-xs text-rose-700 shadow-sm">
+                        <span>🔴</span> NestJS 11 Gateway
+                    </div>
+
+                    <!-- Connector 2 -->
+                    <div class="flex flex-col items-center justify-center text-[10px] font-mono text-slate-600 px-2">
+                        <span class="mb-1">Prisma / API</span>
+                        <span class="text-amber-500 text-base font-bold leading-none">⇄</span>
+                    </div>
+
+                    <!-- DB & Cloud -->
+                    <div class="space-y-2">
+                        <div class="px-4 py-2 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 flex items-center gap-2 font-bold text-xs text-emerald-700 shadow-sm">
+                            <span>🗄</span> PostgreSQL 16
+                        </div>
+                        <div class="px-4 py-2 rounded-xl border-2 border-indigo-400 bg-indigo-50/50 flex items-center gap-2 font-bold text-xs text-indigo-700 shadow-sm">
+                            <span>⚡</span> Groq AI Service
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom 3 Info Cards -->
+                <div class="grid grid-cols-3 gap-6 pt-2">
+                    <!-- Card 1 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm border-t-4 border-t-blue-500 space-y-1.5">
+                        <h4 class="font-bold text-sm text-slate-900">Tầng Giao Diện (Frontend)</h4>
+                        <div class="text-xs font-mono font-semibold text-blue-600">React 19, Vite 8, TS</div>
+                        <p class="text-xs text-slate-500 leading-relaxed pt-1">
+                            Giao diện mượt mà với TailwindCSS v4, Zustand 5 và kéo thả chuyên dụng.
+                        </p>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm border-t-4 border-t-rose-500 space-y-1.5">
+                        <h4 class="font-bold text-sm text-slate-900">Tầng Dịch Vụ (Backend)</h4>
+                        <div class="text-xs font-mono font-semibold text-rose-600">NestJS 11, Prisma 7</div>
+                        <p class="text-xs text-slate-500 leading-relaxed pt-1">
+                            Kiến trúc module chuẩn mực. Bảo mật JWT, 14 bảng quan hệ và Soft-delete.
+                        </p>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm border-t-4 border-t-amber-500 space-y-1.5">
+                        <h4 class="font-bold text-sm text-slate-900">Thời Gian Thực & Xử Lý Lệnh</h4>
+                        <div class="text-xs font-mono font-semibold text-amber-600">Socket.IO, LLaMA & Whisper</div>
+                        <p class="text-xs text-slate-500 leading-relaxed pt-1">
+                            Đồng bộ hai chiều tức thời và tự động nhận diện nội dung công việc.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 Footer -->
+            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-2 border-t border-slate-200">
+                <span>SOLARIS ARCHITECTURE</span>
+                <span>SLIDE 02 / <?= sprintf('%02d', $totalSlides) ?></span>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SLIDE 3: MA TRẬN KANBAN (LIGHT THEME) -->
+        <!-- ========================================== -->
+        <section id="slide-3" class="slide-panel w-full h-full bg-[#f8fafc] text-slate-800 p-8 sm:p-12 flex-col justify-between select-none">
+            <!-- Slide 3 Header -->
+            <div class="space-y-1">
+                <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
+                    <?= htmlspecialchars($slides[2]['title']) ?>
+                </h1>
+                <p class="text-sm text-slate-500 font-normal">
+                    <?= htmlspecialchars($slides[2]['subtitle']) ?>
+                </p>
+            </div>
+
+            <!-- Slide 3 Top Flow: 6 Kanban Columns -->
+            <div class="my-auto space-y-6">
+                <div class="flex items-center justify-between gap-2 max-w-4xl mx-auto bg-white p-3 rounded-2xl border border-slate-200 shadow-sm font-mono text-xs font-bold">
+                    <span class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700">TODO</span>
+                    <span class="text-slate-400">›</span>
+                    <span class="px-4 py-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-200">IN PROGRESS</span>
+                    <span class="text-slate-400">›</span>
+                    <span class="px-4 py-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">PAUSED</span>
+                    <span class="text-slate-400">›</span>
+                    <span class="px-4 py-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200">BLOCKED</span>
+                    <span class="text-slate-400">›</span>
+                    <span class="px-4 py-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-200">IN REVIEW</span>
+                    <span class="text-slate-400">›</span>
+                    <span class="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">DONE</span>
+                </div>
+
+                <!-- 3 Feature Highlight Cards -->
+                <div class="grid grid-cols-3 gap-6">
+                    <!-- Feature 1 -->
+                    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center text-lg">
+                            👆
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-900 mb-1">Tối Ưu Kéo Thả (Drag & Drop)</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">
+                                Xử lý triệt để hiện tượng giật màn hình và cuộn trang khi di chuyển thẻ việc.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Feature 2 -->
+                    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center text-lg">
+                            🔒
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-900 mb-1">Theo Dõi Theo Giai Đoạn</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">
+                                Quản lý qua 6 giai đoạn bàn giao phần mềm, hỗ trợ khóa tiến độ sprint.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-lg">
+                            🛡
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-900 mb-1">Nghiệm Thu Việc Con (Subtask)</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">
+                                Quy trình rõ ràng: Người làm nộp nghiệm thu ➔ Quản lý phê duyệt hoặc từ chối.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 3 Footer -->
+            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-2 border-t border-slate-200">
+                <span>KANBAN MATRIX & LIFECYCLE</span>
+                <span>SLIDE 03 / <?= sprintf('%02d', $totalSlides) ?></span>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SLIDE 4: QUẢN TRỊ HIỆN DIỆN & NGHỈ PHÉP (LIGHT THEME) -->
+        <!-- ========================================== -->
+        <section id="slide-4" class="slide-panel w-full h-full bg-[#f8fafc] text-slate-800 p-8 sm:p-12 flex-col justify-between select-none">
+            <!-- Slide 4 Header -->
+            <div class="space-y-1">
+                <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
+                    <?= htmlspecialchars($slides[3]['title']) ?>
+                </h1>
+                <p class="text-sm text-slate-500 font-normal">
+                    <?= htmlspecialchars($slides[3]['subtitle']) ?>
+                </p>
+            </div>
+
+            <!-- Slide 4 Content Grid -->
+            <div class="grid grid-cols-12 gap-6 my-auto items-stretch">
+                <!-- Left Column: 3 Cards with Indicator Bar -->
+                <div class="col-span-5 space-y-3.5 flex flex-col justify-between">
+                    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500">
+                        <h4 class="font-bold text-xs text-slate-900 mb-0.5">Lịch Xem Linh Hoạt</h4>
+                        <p class="text-xs text-slate-500">Dễ dàng theo dõi theo Ngày, Tuần (Timeline) và Tháng.</p>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-amber-500">
+                        <h4 class="font-bold text-xs text-slate-900 mb-0.5">Trạng Thái Làm Việc</h4>
+                        <p class="text-xs text-slate-500">4 trạng thái rõ ràng: Văn phòng, Làm từ xa (WFH), Công tác, Nghỉ phép.</p>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-emerald-500">
+                        <h4 class="font-bold text-xs text-slate-900 mb-0.5">Gán Ca & Xét Duyệt</h4>
+                        <p class="text-xs text-slate-500">Quản lý gán ca trực tiếp hoặc duyệt đơn nghỉ phép có điều chỉnh.</p>
+                    </div>
+                </div>
+
+                <!-- Right Column: Process & Table -->
+                <div class="col-span-7 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                    <!-- Flow Header -->
+                    <div>
+                        <div class="text-xs font-bold text-slate-800 mb-2">Quy Trình Nộp & Duyệt Đơn</div>
+                        <div class="flex items-center justify-between text-xs font-mono font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                            <span class="px-2.5 py-1 rounded bg-slate-200 text-slate-800">Tạo đơn</span>
+                            <span class="text-slate-400">→</span>
+                            <span class="px-2.5 py-1 rounded bg-amber-100 text-amber-700">Xét duyệt</span>
+                            <span class="text-slate-400">→</span>
+                            <span class="px-2.5 py-1 rounded bg-blue-100 text-blue-700">Lưu dữ liệu</span>
+                            <span class="text-slate-400">→</span>
+                            <span class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-700">Cập nhật lịch</span>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="overflow-hidden rounded-xl border border-slate-200">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 text-slate-700 font-bold font-mono">
+                                <tr>
+                                    <th class="py-2.5 px-3">Loại Ca</th>
+                                    <th class="py-2.5 px-3">Thời Lượng</th>
+                                    <th class="py-2.5 px-3">Bàn Giao</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 font-medium text-slate-600">
+                                <tr>
+                                    <td class="py-2 px-3 font-mono text-slate-800">FULL_DAY</td>
+                                    <td class="py-2 px-3">1 Ngày</td>
+                                    <td class="py-2 px-3">Toàn bộ</td>
+                                </tr>
+                                <tr class="bg-slate-50/50">
+                                    <td class="py-2 px-3 font-mono text-slate-800">MORNING</td>
+                                    <td class="py-2 px-3">0.5 Ngày</td>
+                                    <td class="py-2 px-3">Ca sáng</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-3 font-mono text-slate-800">AFTERNOON</td>
+                                    <td class="py-2 px-3">0.5 Ngày</td>
+                                    <td class="py-2 px-3">Ca chiều</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 4 Footer -->
+            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-2 border-t border-slate-200">
+                <span>SCHEDULE & LEAVE MANAGEMENT</span>
+                <span>SLIDE 04 / <?= sprintf('%02d', $totalSlides) ?></span>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SLIDE 5: PHÂN QUYỀN RBAC & THÙNG RÁC (LIGHT THEME) -->
+        <!-- ========================================== -->
+        <section id="slide-5" class="slide-panel w-full h-full bg-[#f8fafc] text-slate-800 p-8 sm:p-12 flex-col justify-between select-none">
+            <!-- Slide 5 Header -->
+            <div class="space-y-1">
+                <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
+                    <?= htmlspecialchars($slides[4]['title']) ?>
+                </h1>
+                <p class="text-sm text-slate-500 font-normal">
+                    <?= htmlspecialchars($slides[4]['subtitle']) ?>
+                </p>
+            </div>
+
+            <!-- Slide 5 Content Grid -->
+            <div class="grid grid-cols-12 gap-6 my-auto items-stretch">
+                <!-- Left: 3 RBAC Roles -->
+                <div class="col-span-6 space-y-3 flex flex-col justify-between">
+                    <!-- Admin -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
+                        <div class="flex items-center gap-2 font-bold text-xs text-rose-600 font-mono">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span> ADMIN
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Toàn quyền quản trị. Điều chuyển phòng ban, gán lịch trực tiếp và dọn thùng rác.
+                        </p>
+                    </div>
+
+                    <!-- Manager -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
+                        <div class="flex items-center gap-2 font-bold text-xs text-amber-600 font-mono">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span> MANAGER
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Quản lý dự án. Phân công việc, nghiệm thu việc con và duyệt đơn nghỉ phép.
+                        </p>
+                    </div>
+
+                    <!-- Employee -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
+                        <div class="flex items-center gap-2 font-bold text-xs text-blue-600 font-mono">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span> EMPLOYEE
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Thành viên dự án. Kéo thả thẻ việc, cập nhật tiến độ và gửi đơn xin nghỉ.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right: Soft Delete Process -->
+                <div class="col-span-6 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between items-center text-center">
+                    <h3 class="font-bold text-sm text-slate-800 mb-2">Cơ Chế Lưu Trữ Đệm 14 Ngày</h3>
+
+                    <!-- Step 1 -->
+                    <div class="w-full max-w-sm py-2.5 px-4 rounded-xl bg-slate-100 border border-slate-200 text-xs font-mono font-semibold text-slate-700">
+                        1. Đưa vào trạng thái tạm xóa
+                    </div>
+
+                    <div class="text-slate-400 font-bold text-sm select-none my-1">↓</div>
+
+                    <!-- Step 2 -->
+                    <div class="w-full max-w-sm py-2.5 px-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs font-mono text-amber-800 font-semibold">
+                        <span>2. Giữ an toàn dữ liệu</span>
+                        <span class="px-2 py-0.5 rounded bg-amber-500 text-white text-[10px]">14 Days</span>
+                    </div>
+
+                    <div class="text-slate-400 font-bold text-sm select-none my-1">↓</div>
+
+                    <!-- Branching Actions -->
+                    <div class="w-full max-w-sm grid grid-cols-2 gap-3 text-xs font-mono font-semibold">
+                        <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700">
+                            Khôi Phục Trọn Vẹn<br><span class="text-[10px] text-emerald-600 font-sans">(Kèm việc con)</span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700">
+                            Xóa Vĩnh Viễn<br><span class="text-[10px] text-rose-600 font-sans">(Chỉ Quản trị viên)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 5 Footer -->
+            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-2 border-t border-slate-200">
+                <span>SECURITY & RBAC GOVERNANCE</span>
+                <span>SLIDE 05 / <?= sprintf('%02d', $totalSlides) ?></span>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SLIDE 6: TRỢ LÝ GIỌNG NÓI AI (DARK THEME - FINALE) -->
+        <!-- ========================================== -->
+        <section id="slide-6" class="slide-panel w-full h-full bg-[#080d19] p-8 sm:p-12 flex-col justify-between select-none relative overflow-hidden">
+            <!-- Glow background effects -->
+            <div class="absolute -top-32 -right-32 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-32 -left-32 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Slide 6 Header -->
+            <div class="text-center space-y-1 relative z-10">
+                <span class="text-[11px] font-mono tracking-widest uppercase font-bold text-emerald-400">
+                    <?= htmlspecialchars($slides[5]['badge']) ?>
+                </span>
+                <h1 class="text-3xl sm:text-4xl lg:text-[42px] font-black tracking-tight text-white leading-tight">
+                    <?= htmlspecialchars($slides[5]['title']) ?>
+                </h1>
+                <p class="text-sm text-slate-400 font-normal">
+                    <?= htmlspecialchars($slides[5]['subtitle']) ?>
+                </p>
+            </div>
+
+            <!-- Slide 6 Content Grid -->
+            <div class="grid grid-cols-12 gap-8 my-auto items-center relative z-10">
+                <!-- Left: 3-Stage Pipeline Box -->
+                <div class="col-span-7 bg-[#0f172a]/95 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                    <h3 class="text-xs sm:text-sm font-bold text-white tracking-wide">
+                        Quy Trình Xử Lý Khẩu Lệnh 3 Bước
+                    </h3>
+
+                    <!-- 3 Step Flow -->
+                    <div class="flex items-center justify-between gap-2">
+                        <!-- Step 1 -->
+                        <div class="flex-1 p-3 rounded-xl border border-blue-500/40 bg-blue-500/10 flex flex-col items-center justify-center text-center">
+                            <span class="text-sm mb-1">🎙</span>
+                            <span class="text-[11px] font-bold text-blue-300 font-mono leading-tight">Chuyển Âm Thanh Thành Chữ</span>
+                        </div>
+
+                        <span class="text-slate-500 font-bold">→</span>
+
+                        <!-- Step 2 -->
+                        <div class="flex-1 p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 flex flex-col items-center justify-center text-center">
+                            <span class="text-sm mb-1">🔤</span>
+                            <span class="text-[11px] font-bold text-amber-300 font-mono leading-tight">Chuẩn Hóa Thuật Ngữ</span>
+                        </div>
+
+                        <span class="text-slate-500 font-bold">→</span>
+
+                        <!-- Step 3 -->
+                        <div class="flex-1 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 flex flex-col items-center justify-center text-center">
+                            <span class="text-sm mb-1">🧠</span>
+                            <span class="text-[11px] font-bold text-emerald-300 font-mono leading-tight">Phân Tích & Lập Task</span>
+                        </div>
+                    </div>
+
+                    <!-- Code Sample Box -->
+                    <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 font-mono text-[11px] space-y-1.5">
+                        <p class="text-slate-400 italic">"Tạo task fix bug API Authentication cho Nam deadline ngày mai mức độ khẩn cấp"</p>
+                        <p class="text-emerald-400 font-bold">➔ Tiêu đề: Fix bug API Authentication | Người nhận: Nam | Hạn: Ngày mai | Mức: Khẩn cấp</p>
+                    </div>
+                </div>
+
+                <!-- Right: 80% Metric & Bar Chart -->
+                <div class="col-span-5 flex flex-col items-center justify-center text-center space-y-3">
+                    <div class="space-y-0.5">
+                        <div class="text-5xl sm:text-6xl font-black text-emerald-400 tracking-tight font-mono">
+                            80%
+                        </div>
+                        <h4 class="text-sm font-bold text-white">Tiết kiệm thời gian thao tác</h4>
+                        <p class="text-[11px] text-slate-400 font-mono">Thời gian phản hồi hệ thống &lt; 1000ms.</p>
+                    </div>
+
+                    <!-- Bar Chart -->
+                    <div class="w-full max-w-xs flex items-end justify-center gap-8 pt-4 pb-1">
+                        <!-- Manual Bar -->
+                        <div class="flex flex-col items-center gap-1.5">
+                            <span class="text-xs font-mono font-bold text-rose-400">240s</span>
+                            <div class="w-14 h-24 rounded-t-lg bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]"></div>
+                            <span class="text-[11px] text-slate-400 font-medium">Thủ Công</span>
+                        </div>
+
+                        <!-- AI Voice Bar -->
+                        <div class="flex flex-col items-center gap-1.5">
+                            <span class="text-xs font-mono font-bold text-emerald-400">3s</span>
+                            <div class="w-14 h-4 rounded-t-lg bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+                            <span class="text-[11px] text-emerald-400 font-bold font-mono">Giọng Nói</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 6 Footer -->
+            <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-2 border-t border-slate-900 relative z-10">
+                <span>SOLARIS SMART WORKFLOW</span>
+                <span>SLIDE 06 / <?= sprintf('%02d', $totalSlides) ?></span>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SLIDE 7: SLIDE KẾT THÚC & Q&A (DARK THEME) -->
+        <!-- ========================================== -->
+        <section id="slide-7" class="slide-panel w-full h-full bg-[#080d19] p-8 sm:p-12 flex-col justify-between select-none relative overflow-hidden">
+            <!-- Glow background effects -->
+            <div class="absolute -top-32 -left-32 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Slide 7 Header -->
+            <div class="space-y-1 relative z-10">
+                <span class="text-[11px] font-mono tracking-widest uppercase font-bold text-amber-400">
+                    <?= htmlspecialchars($slides[6]['badge']) ?>
+                </span>
+                <h1 class="text-3xl sm:text-4xl lg:text-[40px] font-black tracking-tight text-white leading-tight">
+                    <?= htmlspecialchars($slides[6]['title']) ?>
+                </h1>
+                <p class="text-sm sm:text-base text-slate-400 font-normal">
+                    <?= htmlspecialchars($slides[6]['subtitle']) ?>
+                </p>
+            </div>
+
+            <!-- Slide 7 Content Grid -->
+            <div class="grid grid-cols-12 gap-6 my-auto items-stretch relative z-10">
+                <!-- Left: 3 Core Highlights Achieved -->
+                <div class="col-span-6 bg-[#0f172a]/95 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-3">
+                    <h3 class="text-xs sm:text-sm font-bold text-white tracking-wide uppercase flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        Thành Tựu Cốt Lõi Dự Án
+                    </h3>
+
+                    <div class="space-y-3 text-xs sm:text-[13px]">
+                        <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 border-l-4 border-l-amber-500">
+                            <span class="font-bold text-white block mb-0.5">1. Tạo Việc Bằng Giọng Nói Nhanh Chóng</span>
+                            <span class="text-slate-400 text-xs">Tiết kiệm 80% thời gian tạo task, nhận diện chuẩn xác thuật ngữ kỹ thuật tiếng Anh với độ trễ dưới 1s.</span>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 border-l-4 border-l-blue-500">
+                            <span class="font-bold text-white block mb-0.5">2. Vận Hành Dự Án Liền Mạch</span>
+                            <span class="text-slate-400 text-xs">Bảng Kanban mượt mà không rung lắc, nghiệm thu việc con rõ ràng và kết nối chặt chẽ với lịch trực WFH.</span>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 border-l-4 border-l-rose-500">
+                            <span class="font-bold text-white block mb-0.5">3. Bảo Vệ Dữ Liệu An Toàn</span>
+                            <span class="text-slate-400 text-xs">Thùng rác lưu trữ đệm 14 ngày tránh xóa nhầm, phân cấp quyền hạn chặt chẽ và đồng bộ tức thì.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Roadmap & Q&A Box -->
+                <div class="col-span-6 flex flex-col justify-between gap-4">
+                    <!-- Roadmap Box -->
+                    <div class="bg-[#0f172a]/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-2.5">
+                        <h4 class="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-2">
+                            <span>🚀</span> Định Hướng Phát Triển Tiếp Theo (Roadmap)
+                        </h4>
+                        <ul class="space-y-1.5 text-xs text-slate-300">
+                            <li class="flex items-start gap-2">
+                                <span class="text-amber-400 mt-0.5">✦</span>
+                                <span><strong class="text-white">Gợi ý phân bổ:</strong> Tự động gợi ý chia việc theo thời gian trống của thành viên.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-amber-400 mt-0.5">✦</span>
+                                <span><strong class="text-white">Liên kết Git:</strong> Tự động chuyển trạng thái task khi merge mã nguồn.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-amber-400 mt-0.5">✦</span>
+                                <span><strong class="text-white">Ứng dụng di động:</strong> Tạo và nhận việc nhanh qua khẩu lệnh khi di chuyển.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Presenter Card & Q&A Invite -->
+                    <div class="bg-gradient-to-r from-amber-500/10 via-slate-900 to-emerald-500/10 border border-amber-500/30 rounded-2xl p-5 shadow-xl flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-mono uppercase text-amber-400 tracking-wider font-bold">Người Thực Hiện Thuyết Trình</span>
+                            <h4 class="text-sm sm:text-base font-extrabold text-white">Nguyễn Huy Đạt & Nguyễn Nhật Băng</h4>
+                            <p class="text-xs text-slate-400 font-mono">Full-stack Developer Intern • SOLARIS Platform</p>
+                        </div>
+                        <div class="text-center px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/20">
+                            Q & A<br><span class="text-[10px] font-normal uppercase tracking-wider">Hỏi & Đáp</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 7 Footer -->
+            <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-2 border-t border-slate-900 relative z-10">
+                <span>THANK YOU • SOLARIS WORKFLOW</span>
+                <span>SLIDE 07 / <?= sprintf('%02d', $totalSlides) ?></span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Controls & Navigation -->
+    <footer class="w-full max-w-[1360px] flex items-center justify-between px-4 py-3 text-xs font-mono mt-2">
+        <div class="flex items-center gap-3">
+            <button onclick="prevSlide()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95">
+                ‹ Trước
+            </button>
+            <button onclick="nextSlide()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-lg shadow-amber-500/20">
+                Tiếp Theo ›
+            </button>
+        </div>
+
+        <!-- Slide Indicators -->
+        <div class="flex items-center gap-2">
+            <?php for ($i = 1; $i <= $totalSlides; $i++): ?>
+                <button onclick="goToSlide(<?= $i ?>)" id="dot-<?= $i ?>" class="w-2.5 h-2.5 rounded-full transition-all cursor-pointer <?= $i === 1 ? 'bg-amber-400 w-6' : 'bg-slate-700 hover:bg-slate-500' ?>"></button>
+            <?php endfor; ?>
+        </div>
+
+        <div class="text-slate-400">
+            Slide <span id="current-slide-num" class="text-amber-400 font-bold">1</span> / <?= $totalSlides ?>
+        </div>
+    </footer>
+
+    <!-- JavaScript Controller -->
+    <script>
+        let currentSlide = 1;
+        const totalSlides = <?= $totalSlides ?>;
+
+        function updateSlideUI() {
+            // Hide all slides
+            for (let i = 1; i <= totalSlides; i++) {
+                const slideEl = document.getElementById(`slide-${i}`);
+                const dotEl = document.getElementById(`dot-${i}`);
+                if (slideEl) {
+                    slideEl.classList.remove('active');
+                }
+                if (dotEl) {
+                    dotEl.className = 'w-2.5 h-2.5 rounded-full transition-all cursor-pointer bg-slate-700 hover:bg-slate-500';
+                }
+            }
+
+            // Show current slide
+            const activeSlide = document.getElementById(`slide-${currentSlide}`);
+            const activeDot = document.getElementById(`dot-${currentSlide}`);
+            if (activeSlide) {
+                activeSlide.classList.add('active');
+            }
+            if (activeDot) {
+                activeDot.className = 'h-2.5 rounded-full transition-all cursor-pointer bg-amber-400 w-6';
+            }
+
+            // Update counter
+            document.getElementById('current-slide-num').innerText = currentSlide;
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides) {
+                currentSlide++;
+            } else {
+                currentSlide = 1; // loop
+            }
+            updateSlideUI();
+        }
+
+        function prevSlide() {
+            if (currentSlide > 1) {
+                currentSlide--;
+            } else {
+                currentSlide = totalSlides; // loop
+            }
+            updateSlideUI();
+        }
+
+        function goToSlide(n) {
+            if (n >= 1 && n <= totalSlides) {
+                currentSlide = n;
+                updateSlideUI();
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault();
+                prevSlide();
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                goToSlide(1);
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                goToSlide(totalSlides);
+            } else if (e.key === 'f' || e.key === 'F') {
+                toggleFullscreen();
+            }
+        });
+    </script>
+</body>
+</html>
