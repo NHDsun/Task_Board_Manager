@@ -30,6 +30,7 @@ import { CreateProjectModal } from '../components/kanban/CreateProjectModal';
 import { CreateTaskModal } from '../components/kanban/CreateTaskModal';
 import { ProjectMembersModal } from '../components/kanban/ProjectMembersModal';
 import { NotificationCenter } from '../components/navigation/NotificationCenter';
+
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import {
   Inbox,

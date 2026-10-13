@@ -125,6 +125,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
   const [profileUser, setProfileUser] = useState<UserProfileData | null>(null);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
 
   // 👥 Tổng hợp tất cả những người đang cùng thực hiện Task (Chính + Phối hợp + Task con)
   const allAssignees = useMemo(() => {
@@ -226,18 +228,52 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
   const isAdminOrManager = currentUser?.globalRole === 'ADMIN' || currentUser?.globalRole === 'MANAGER';
   const canTransferOrRequest = isMyTask || isAdminOrManager;
 
-  // Close menu when clicking outside
+  const handleToggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isMenuOpen) {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const dropdownHeight = 210;
+        let top = rect.bottom + 6;
+        if (top + dropdownHeight > window.innerHeight) {
+          top = Math.max(10, rect.top - dropdownHeight - 6);
+        }
+        const right = Math.max(10, window.innerWidth - rect.right);
+        setMenuPosition({ top, right });
+      }
+      setIsMenuOpen(true);
+    } else {
+      setIsMenuOpen(false);
+    }
+  };
+
+  // Close menu when clicking outside or scrolling
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
         setIsMenuOpen(false);
       }
     };
+
+    const handleScrollOrResize = () => {
+      setIsMenuOpen(false);
+    };
+
     if (isMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('scroll', handleScrollOrResize, true);
+      window.addEventListener('resize', handleScrollOrResize);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
     };
   }, [isMenuOpen]);
 
@@ -322,23 +358,28 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
         </div>
 
         {/* 🌟 3-DOT QUICK ACTION BUTTON & CONTEXT MENU */}
-        <div className="relative" ref={menuRef}>
+        <div className="relative">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMenuOpen(!isMenuOpen);
-            }}
+            ref={buttonRef}
+            onClick={handleToggleMenu}
             title="Tác vụ nhanh"
             className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-900/60 hover:bg-amber-500/20 border border-slate-800 hover:border-amber-500/40 transition-all cursor-pointer shadow-sm"
           >
             <MoreVertical className="w-4 h-4" />
           </button>
 
-          {/* 🌌 Glassmorphism Dropdown Menu */}
-          {isMenuOpen && (
+          {/* 🌌 Glassmorphism Dropdown Menu (Portal into document.body to ensure top z-index & no clipping) */}
+          {isMenuOpen && menuPosition && typeof document !== 'undefined' && ReactDOM.createPortal(
             <div
+              ref={menuRef}
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl p-1.5 z-50 animate-solar-warp-in space-y-1 text-xs"
+              style={{
+                position: 'fixed',
+                top: `${menuPosition.top}px`,
+                right: `${menuPosition.right}px`,
+                zIndex: 99999,
+              }}
+              className="w-52 rounded-2xl bg-[#0F172A]/95 border border-amber-500/40 shadow-[0_10px_35px_rgba(0,0,0,0.9)] backdrop-blur-xl p-1.5 animate-solar-warp-in space-y-1 text-xs"
             >
               {/* Chi tiết Task */}
               <button
@@ -399,7 +440,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                   </button>
                 </div>
               )}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>
