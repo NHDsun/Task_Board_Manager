@@ -1233,15 +1233,20 @@ export const AdminUsersPage: React.FC = () => {
                     <div className="space-y-3.5">
                       {/* Card Header: Code Badge & Name */}
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 font-mono font-bold text-xs shrink-0">
-                            {dept.code}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                            <Building2 className="w-5 h-5" />
                           </div>
-                          <div>
-                            <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
-                              {dept.name}
-                            </h3>
-                            <span className="text-[11px] text-slate-500 font-mono">Mã: {dept.code}</span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                                {dept.name}
+                              </h3>
+                              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-amber-300/90 text-[10px] font-mono font-bold border border-slate-700 shrink-0">
+                                {dept.code}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-slate-500 font-mono">Khối phòng ban</span>
                           </div>
                         </div>
 
@@ -2048,91 +2053,134 @@ export const AdminUsersPage: React.FC = () => {
 
             <form onSubmit={handleConfirmTransfer} className="space-y-5 text-xs">
               {/* Selected Personnel Preview */}
+              {/* Selected Personnel Preview */}
               <div className="space-y-2">
-                <label className="text-slate-300 font-bold flex items-center justify-between">
-                  <span>Danh Sách Nhân Sự Được Điều Chuyển ({transferUserList.length}):</span>
-                </label>
-                <div className="max-h-40 overflow-y-auto p-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2 divide-y divide-slate-800/60">
-                  {transferUserList.map((u) => (
-                    <div key={u.id} className="flex items-center justify-between gap-3 pt-2 first:pt-0">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <img
-                          src={getAvatarUrl(u)}
-                          alt={u.fullName}
-                          className="w-8 h-8 rounded-xl object-cover bg-slate-800 shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <span className="font-extrabold text-white block truncate">{u.fullName}</span>
-                          <span className="text-[10px] text-slate-400 truncate block">{u.email}</span>
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-300 font-bold flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Danh Sách Nhân Sự Được Điều Chuyển ({transferUserList.length}):</span>
+                  </label>
+                  {transferTargetDeptId && (
+                    <span className="text-[11px] text-amber-400/90 font-medium">
+                      Đích đến: <strong className="text-amber-300">{departments.find((d) => d.id === transferTargetDeptId)?.name}</strong>
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-36 overflow-y-auto p-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2 divide-y divide-slate-800/60">
+                  {transferUserList.map((u) => {
+                    const targetDept = departments.find((d) => d.id === transferTargetDeptId);
+                    return (
+                      <div key={u.id} className="flex items-center justify-between gap-3 pt-2 first:pt-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={getAvatarUrl(u)}
+                            alt={u.fullName}
+                            className="w-8 h-8 rounded-xl object-cover bg-slate-800 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <span className="font-extrabold text-white block truncate">{u.fullName}</span>
+                            <span className="text-[10px] text-slate-400 truncate block">{u.email}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-400 text-[10px] font-mono border border-slate-700 max-w-[110px] truncate" title={u.department || 'Chưa phân bổ'}>
+                            {u.department || 'Chưa phân bổ'}
+                          </span>
+                          {targetDept && (
+                            <>
+                              <ArrowRightLeft className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                              <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-300 text-[10px] font-mono border border-amber-500/30 font-bold max-w-[120px] truncate" title={targetDept.name}>
+                                {targetDept.name}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-400 text-[10px] font-mono border border-slate-700">
-                          Hiện tại: {u.department || 'Chưa phân bổ'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Target Department Selection */}
               <div className="space-y-2">
-                <label className="text-slate-300 font-bold flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-amber-400" /> Chọn Khối Phòng Ban Tiếp Nhận *
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-52 overflow-y-auto pr-1">
-                  {departments.map((dept) => {
-                    const isTarget = transferTargetDeptId === dept.id;
-                    const membersCount = users.filter((u) => u.department === dept.name).length;
-                    return (
-                      <div
-                        key={dept.id}
-                        onClick={() => setTransferTargetDeptId(dept.id)}
-                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                          isTarget
-                            ? 'bg-amber-500/10 border-amber-400 shadow-md ring-1 ring-amber-400/50'
-                            : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-mono font-black text-xs shrink-0 border ${
-                              isTarget
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-400/60'
-                                : 'bg-slate-800 text-slate-400 border-slate-700'
-                            }`}
-                          >
-                            {dept.code}
-                          </div>
-                          <div className="min-w-0">
-                            <span
-                              className={`font-bold block truncate text-xs ${
-                                isTarget ? 'text-amber-300' : 'text-white'
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-300 font-bold flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-amber-400" /> Chọn Khối Phòng Ban Tiếp Nhận *
+                  </label>
+                  <span className="text-[10px] text-slate-500">
+                    {departments.length} phòng ban khả dụng
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                  {departments.length === 0 ? (
+                    <div className="col-span-2 p-4 rounded-2xl bg-slate-900/50 border border-slate-800 text-center text-slate-500 text-xs">
+                      Chưa có phòng ban nào trong hệ thống.
+                    </div>
+                  ) : (
+                    departments.map((dept) => {
+                      const isTarget = transferTargetDeptId === dept.id;
+                      const membersCount = users.filter((u) => u.department === dept.name).length;
+                      return (
+                        <div
+                          key={dept.id}
+                          onClick={() => setTransferTargetDeptId(dept.id)}
+                          className={`group p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                            isTarget
+                              ? 'bg-amber-500/10 border-amber-400/80 shadow-[0_0_15px_rgba(245,158,11,0.12)] ring-1 ring-amber-400/40'
+                              : 'bg-slate-900/80 border-slate-800/80 hover:border-slate-700 hover:bg-slate-800/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                                isTarget
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400/50'
+                                  : 'bg-slate-800/90 text-slate-400 border-slate-700/80 group-hover:text-slate-200'
                               }`}
                             >
-                              {dept.name}
-                            </span>
-                            <span className="text-[10px] text-slate-500 block">
-                              {dept.totalMembers !== undefined ? dept.totalMembers : membersCount} nhân sự
-                            </span>
+                              <Building2 className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={`font-bold block truncate text-xs transition-colors ${
+                                    isTarget ? 'text-amber-300 font-extrabold' : 'text-slate-200 group-hover:text-white'
+                                  }`}
+                                >
+                                  {dept.name}
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold shrink-0 border uppercase tracking-wider ${
+                                    isTarget
+                                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                      : 'bg-slate-800 text-slate-400 border-slate-700/70'
+                                  }`}
+                                >
+                                  {dept.code}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 block mt-0.5">
+                                {dept.totalMembers !== undefined ? dept.totalMembers : membersCount} nhân sự
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 flex items-center">
+                            <div
+                              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                                isTarget
+                                  ? 'border-amber-400 bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+                                  : 'border-slate-600 bg-transparent group-hover:border-slate-500'
+                              }`}
+                            >
+                              {isTarget && <span className="w-1.5 h-1.5 rounded-full bg-slate-950" />}
+                            </div>
                           </div>
                         </div>
-
-                        <div className="shrink-0">
-                          <span
-                            className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                              isTarget
-                                ? 'border-amber-400 bg-amber-400 text-slate-950'
-                                : 'border-slate-600 bg-transparent'
-                            }`}
-                          >
-                            {isTarget && <span className="w-1.5 h-1.5 rounded-full bg-slate-950" />}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
