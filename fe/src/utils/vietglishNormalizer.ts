@@ -1,9 +1,4 @@
-/**
- * Utility for Real-time Vietglish & Technical Term Normalization
- * Giúp nhận diện và chuẩn hóa các thuật ngữ công nghệ tiếng Anh khi nói bằng giọng tiếng Việt/tiếng Anh
- */
 
-// Danh sách các từ viết tắt công nghệ cần giữ nguyên IN HOA
 const ACRONYMS: Record<string, string> = {
   api: 'API',
   ui: 'UI',

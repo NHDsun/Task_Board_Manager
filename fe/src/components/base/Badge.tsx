@@ -25,10 +25,6 @@ const dotColors: Record<BadgeVariant, string> = {
   neutral: 'bg-slate-400',
 };
 
-/**
- * 🧱 Base Badge Component
- * Dùng để hiển thị trạng thái, nhãn ưu tiên (Priority), tag, v.v.
- */
 export const Badge: React.FC<BadgeProps> = ({
   variant = 'neutral',
   size = 'md',

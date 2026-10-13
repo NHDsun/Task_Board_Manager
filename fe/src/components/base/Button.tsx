@@ -25,10 +25,6 @@ const sizeClasses: Record<ButtonSize, string> = {
   lg: 'px-6 py-3 text-base rounded-2xl gap-2.5',
 };
 
-/**
- * 🧱 Base Button Component
- * Tuân thủ Atomic Design: Dùng làm khối xây dựng cơ bản cho mọi nút bấm trong hệ thống.
- */
 export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',

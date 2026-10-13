@@ -20,10 +20,6 @@ const paddingClasses = {
   lg: 'p-6 sm:p-8',
 };
 
-/**
- * 🧱 Base Card Component
- * Container khung cho mọi panel, widget, preview box trong ứng dụng.
- */
 export const Card: React.FC<CardProps> = ({
   variant = 'default',
   padding = 'md',

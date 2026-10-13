@@ -19,10 +19,6 @@ const maxWidthClasses = {
   '2xl': 'max-w-2xl',
 };
 
-/**
- * 🧱 Base Modal Component
- * Shell cửa sổ popup đồng bộ hiệu ứng mờ, bo góc và phím Esc.
- */
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
@@ -50,17 +46,14 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
-      {/* Modal Dialog */}
       <div
         className={`relative w-full ${maxWidthClasses[maxWidth]} bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150`}
       >
-        {/* Header */}
         {(title || description) && (
           <div className="flex items-start justify-between p-5 border-b border-slate-800/80">
             <div>
@@ -76,10 +69,8 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
         )}
 
-        {/* Body */}
         <div className="p-5">{children}</div>
 
-        {/* Footer */}
         {footer && (
           <div className="flex items-center justify-end gap-2.5 p-4 border-t border-slate-800/80 bg-slate-950/40">
             {footer}

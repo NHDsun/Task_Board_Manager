@@ -9,17 +9,12 @@ export interface VoiceAssistantContainerProps {
   onTaskCreatedSuccess?: () => void;
 }
 
-/**
- * 📦 CONTAINER COMPONENT: Kết nối Custom Hook (Logic) với Presenter (UI)
- * Theo đúng kiến trúc Container - Presenter Pattern.
- */
 export const VoiceAssistantContainer: React.FC<VoiceAssistantContainerProps> = ({
   isOpen,
   onClose,
   currentProjectId,
   onTaskCreatedSuccess,
 }) => {
-  // Lấy toàn bộ state và actions từ hook chuyên biệt
   const voiceAssistant = useVoiceAssistantState(currentProjectId);
 
   const {

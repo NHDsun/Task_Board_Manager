@@ -4,12 +4,6 @@ import type { VoiceAssistantPresenterProps, ParsedTaskData } from './voiceAssist
 import { Button, Badge, Card, Input, Modal } from '../../base';
 import { AudioWaveVisualizer } from '../AudioWaveVisualizer';
 
-/**
- * 🎨 PRESENTER COMPONENT: Chỉ chịu trách nhiệm hiển thị giao diện (Pure UI / Presenter)
- * Được ráp lại từ các Base Component nhỏ: Modal, Card, Button, Badge, Input.
- * Không gọi trực tiếp API hay quản lý side-effect nặng.
- * Đáp ứng yêu cầu: "Build base ráp component từ nhỏ đến lớn", "Tách riêng UI với hook".
- */
 export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = ({
   isOpen,
   onClose,
@@ -38,7 +32,6 @@ export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = (
     resetState,
   } = actions;
 
-  // Local Form state for Preview editing before confirmation
   const [formData, setFormData] = useState<ParsedTaskData>({
     title: '',
     description: '',
@@ -51,7 +44,6 @@ export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = (
     dueDate: '',
   });
 
-  // Khi có dữ liệu preview mới từ AI, đồng bộ vào form xem trước
   useEffect(() => {
     if (previewData?.parsedData) {
       setFormData(previewData.parsedData);
@@ -91,7 +83,6 @@ export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = (
       }
     >
       <div className="space-y-5">
-        {/* 1. Trạng thái Lỗi (nếu có) */}
         {apiError && (
           <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5 text-xs text-rose-300">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-rose-400" />
@@ -99,11 +90,9 @@ export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = (
           </div>
         )}
 
-        {/* 2. KHU VỰC THU ÂM (Audio Recording Area) */}
         {!previewData && (
           <Card variant="glass" padding="md" className="flex flex-col items-center justify-center text-center space-y-4">
             <div className="relative">
-              {/* Nút micro trung tâm */}
               <button
                 type="button"
                 onClick={isRecording ? stopRecording : startRecording}
@@ -118,7 +107,6 @@ export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = (
               </button>
             </div>
 
-            {/* Trạng thái thu âm & Sóng âm */}
             {isRecording ? (
               <div className="space-y-2 w-full max-w-xs">
                 <Badge variant="danger" dot>
@@ -143,7 +131,6 @@ export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = (
               </div>
             )}
 
-            {/* Ô nhập tay dự phòng (Text Fallback) */}
             <div className="w-full pt-3 border-t border-slate-800/80">
               <div className="flex items-center gap-2">
                 <Input
@@ -166,7 +153,6 @@ export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = (
           </Card>
         )}
 
-        {/* 3. KHU VỰC XEM TRƯỚC & XÁC NHẬN (Interactive Preview Drawer) */}
         {previewData && (
           <Card variant="default" padding="md" className="space-y-4 border-amber-500/30">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -179,13 +165,11 @@ export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = (
               <Badge variant="warning">{formData.priority}</Badge>
             </div>
 
-            {/* Transcript thô */}
             <div className="p-3 rounded-xl bg-slate-950 text-xs font-mono text-slate-300 border border-slate-800">
               <span className="text-slate-500 block text-[10px] uppercase font-bold mb-1">Khẩu lệnh đã nghe:</span>
               "{previewData.rawAudioText}"
             </div>
 
-            {/* Form chỉnh sửa nhanh */}
             <div className="grid grid-cols-1 gap-3">
               <Input
                 label="Tiêu Đề Task"
@@ -218,7 +202,6 @@ export const VoiceAssistantPresenter: React.FC<VoiceAssistantPresenterProps> = (
               </div>
             </div>
 
-            {/* Nút hành động */}
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
               <Button variant="ghost" onClick={resetState}>
                 Thử Lại Câu Khác

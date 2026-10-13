@@ -1,7 +1,3 @@
-/**
- * Pure Web Audio API SFX synthesizer
- * Không cần tải file MP3/WAV bên ngoài, độ trễ 0ms, hoạt động trên mọi trình duyệt hiện đại
- */
 
 class AudioChimes {
   private ctx: AudioContext | null = null;

@@ -9,10 +9,6 @@ import type {
   ParsedTaskData,
 } from './voiceAssistant.types';
 
-/**
- * 🧠 CUSTOM HOOK: Quản lý toàn bộ State, Lifecycle & Logic gọi API của Voice Assistant
- * Đáp ứng yêu cầu: "Tách ra hook state", "Tách riêng UI với hook".
- */
 export const useVoiceAssistantState = (currentProjectId?: string): UseVoiceAssistantReturn => {
   const [manualText, setManualText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,9 +16,6 @@ export const useVoiceAssistantState = (currentProjectId?: string): UseVoiceAssis
   const [previewData, setPreviewData] = useState<VoiceParseResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  /**
-   * Xử lý gửi file âm thanh WebM lên Backend bóc băng & trích xuất
-   */
   const handleAudioReady = useCallback(
     async (blob: Blob) => {
       if (!blob || blob.size === 0 || isSubmitting) return;
@@ -79,9 +72,6 @@ export const useVoiceAssistantState = (currentProjectId?: string): UseVoiceAssis
     resetAudio,
   } = useAudioRecorder(handleAudioReady);
 
-  /**
-   * Xử lý gửi văn bản gõ tay thủ công (Text Fallback)
-   */
   const submitManualText = useCallback(
     async (textToSend: string) => {
       const fullText = textToSend.trim();
@@ -124,9 +114,6 @@ export const useVoiceAssistantState = (currentProjectId?: string): UseVoiceAssis
     [cancelRecording, currentProjectId, isSubmitting]
   );
 
-  /**
-   * Gọi API xác nhận tạo Task chính thức vào Database
-   */
   const confirmCreateTask = useCallback(
     async (formData: ParsedTaskData): Promise<boolean> => {
       setIsSubmitting(true);
@@ -171,7 +158,6 @@ export const useVoiceAssistantState = (currentProjectId?: string): UseVoiceAssis
   }, [cancelRecording, resetAudio]);
 
   return {
-    // States
     isRecording,
     isSubmitting,
     submittingStatus,
@@ -180,8 +166,6 @@ export const useVoiceAssistantState = (currentProjectId?: string): UseVoiceAssis
     manualText,
     audioVolume,
     recordingDuration,
-
-    // Actions
     startRecording,
     stopRecording,
     cancelRecording,

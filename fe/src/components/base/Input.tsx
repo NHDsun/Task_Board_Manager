@@ -7,10 +7,6 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   leftIcon?: React.ReactNode;
 }
 
-/**
- * 🧱 Base Input Component
- * Ô nhập liệu chuẩn hóa về viền, padding, font chữ và trạng thái lỗi.
- */
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, helperText, leftIcon, className = '', id, ...props }, ref) => {
     const inputId = id || (label ? `input-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined);
