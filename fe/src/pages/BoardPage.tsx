@@ -900,7 +900,7 @@ export const BoardPage: React.FC = () => {
           </div>
 
           {/* Priority Select */}
-          <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+          {/* <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
             <span className="text-amber-400 font-bold">★</span>
             <select
               value={filterPriority}
@@ -913,7 +913,7 @@ export const BoardPage: React.FC = () => {
               <option value="NORMAL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">NORMAL (Thường)</option>
               <option value="LOW" className="bg-[#0F172A] text-slate-200 font-semibold py-1">LOW (Thấp)</option>
             </select>
-          </div>
+          </div> */}
 
           {/* Profession Select */}
           <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">

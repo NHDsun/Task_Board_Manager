@@ -511,12 +511,12 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                         ? 'Nhấn để gửi yêu cầu xác thực hoàn thành'
                         : '🔒 Chỉ người trực tiếp làm task mới có quyền tick hoàn thành (Người tạo và Quản trị viên không được tick thay)'
                     }
-                    className={`flex items-start gap-2 p-1.5 rounded-lg transition-all group/st ${
+                    className={`p-2 rounded-xl transition-all group/st border space-y-1.5 ${
                       st.isDone
-                        ? 'opacity-40 grayscale select-none pointer-events-none cursor-not-allowed bg-slate-950/20 text-slate-500'
+                        ? 'opacity-40 grayscale select-none pointer-events-none cursor-not-allowed bg-slate-950/20 text-slate-500 border-slate-900'
                         : canToggleSubtask
                         ? 'cursor-pointer hover:bg-slate-900/90'
-                        : 'cursor-not-allowed opacity-75'
+                        : 'cursor-not-allowed opacity-85'
                     } ${
                       st.isDone
                         ? ''
@@ -524,113 +524,125 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(({
                         ? 'bg-red-500/15 text-slate-100 border border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
                         : isFirstPending
                         ? 'bg-amber-500/10 text-slate-200 border border-amber-500/30'
-                        : 'hover:bg-slate-900 text-slate-300'
+                        : 'bg-slate-950/50 border-slate-800/80 hover:bg-slate-900 text-slate-300'
                     }`}
                   >
-                    <button
-                      type="button"
-                      disabled={!canToggleSubtask}
-                      className={`mt-0.5 shrink-0 text-slate-400 transition-colors ${
-                        canToggleSubtask ? 'group-hover/st:text-amber-400 cursor-pointer' : 'cursor-default opacity-60'
-                      }`}
-                    >
-                      {st.isDone ? (
-                        <CheckSquare className="w-3.5 h-3.5 text-emerald-400 fill-emerald-500/20" />
-                      ) : (
-                        <Square className={`w-3.5 h-3.5 ${canToggleSubtask ? 'text-slate-500 group-hover/st:text-amber-400' : 'text-slate-600'}`} />
-                      )}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[9px] font-mono text-amber-300/80 bg-slate-950 px-1 rounded border border-slate-800">
-                          📅 {sched}
-                        </span>
-                        <span
-                          className={`text-[11px] leading-tight ${
-                            st.isDone ? 'line-through text-slate-500' : 'text-slate-200'
-                          }`}
-                        >
-                          {st.title}
-                        </span>
-                        {st.assignee && (
-                          <span
-                            className="text-[9px] font-mono text-cyan-300 bg-cyan-950/60 px-1 py-0.2 rounded border border-cyan-500/40"
-                            title={`Phụ trách: ${st.assignee.fullName}`}
-                          >
-                            👤 {st.assignee.fullName.replace(/\s*\([^)]*\)/g, '')}
-                          </span>
+                    {/* Hàng 1: Checkbox + Tiêu đề + Trạng thái */}
+                    <div className="flex items-start gap-2">
+                      <button
+                        type="button"
+                        disabled={!canToggleSubtask}
+                        className={`mt-0.5 shrink-0 text-slate-400 transition-colors ${
+                          canToggleSubtask ? 'group-hover/st:text-amber-400 cursor-pointer' : 'cursor-default opacity-60'
+                        }`}
+                      >
+                        {st.isDone ? (
+                          <CheckSquare className="w-3.5 h-3.5 text-emerald-400 fill-emerald-500/20" />
+                        ) : (
+                          <Square className={`w-3.5 h-3.5 ${canToggleSubtask ? 'text-slate-500 group-hover/st:text-amber-400' : 'text-slate-600'}`} />
                         )}
+                      </button>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <span
+                            className={`text-[11px] font-medium leading-snug break-words ${
+                              st.isDone ? 'line-through text-slate-500' : 'text-slate-200'
+                            }`}
+                          >
+                            {st.title}
+                          </span>
+
+                          {/* Huy hiệu trạng thái nhỏ gọn góc phải */}
+                          {st.approvalStatus === 'PENDING' ? (
+                            <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold animate-pulse whitespace-nowrap">
+                              Chờ Duyệt
+                            </span>
+                          ) : st.approvalStatus === 'REJECTED' ? (
+                            <span
+                              className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono font-bold whitespace-nowrap"
+                              title={`Lý do: ${st.rejectionReason || 'Cần sửa'}`}
+                            >
+                              Chưa đạt
+                            </span>
+                          ) : st.isUrgent && !st.isDone ? (
+                            <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-red-500 text-white font-mono font-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)] whitespace-nowrap">
+                              GẤP
+                            </span>
+                          ) : st.isDone ? (
+                            <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold whitespace-nowrap">
+                              ✓ Xong
+                            </span>
+                          ) : isFirstPending ? (
+                            <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold whitespace-nowrap ${
+                              idx === 0
+                                ? 'bg-amber-500 text-slate-950 animate-pulse'
+                                : 'bg-slate-800 text-amber-300 border border-amber-500/30'
+                            }`}>
+                              {idx === 0 ? 'HÔM NAY' : 'TIẾP'}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                    {/* ⏳ Trạng thái Chờ Quản Lý Duyệt (Pending) */}
-                    {st.approvalStatus === 'PENDING' ? (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold animate-pulse">
-                           Chờ Duyệt
-                        </span>
-                        {isAdminOrManager && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={(e) => handleReviewSubtask(e, st.id, 'APPROVE')}
-                              className="px-1.5 py-0.5 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[9px] font-mono font-bold transition-all cursor-pointer shadow-sm"
-                              title="Duyệt hoàn thành Task con này"
-                            >
-                              ✓ Duyệt
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => handleReviewSubtask(e, st.id, 'REJECT')}
-                              className="px-1.5 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/40 text-[9px] font-mono font-bold transition-all cursor-pointer"
-                              title="Từ chối và gửi lý do"
-                            >
-                              ❌ Từ chối
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ) : st.approvalStatus === 'REJECTED' ? (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30 font-mono font-bold max-w-[120px] truncate"
-                          title={`Lý do từ chối: ${st.rejectionReason || 'Cần kiểm tra lại'}`}
-                        >
-                          ❌ Chưa đạt: {st.rejectionReason || 'Cần sửa'}
-                        </span>
-                        {isWorkerDoingTask && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleSubtask?.(task.id, st.id, false);
-                            }}
-                            className="px-1.5 py-0.5 rounded bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-[9px] font-mono font-black transition-all cursor-pointer shadow-sm"
-                            title="Gửi lại yêu cầu duyệt sau khi đã sửa xong"
-                          >
-                            🔄 Gửi Lại
-                          </button>
-                        )}
-                      </div>
-                    ) : st.isUrgent && !st.isDone ? (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500 text-white font-mono font-black shrink-0 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]">
-                         GẤP
-                      </span>
-                    ) : st.isDone ? (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono shrink-0">
-                        ✓ Xong
-                      </span>
-                    ) : isFirstPending ? (
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-black shrink-0 ${
-                        idx === 0
-                          ? 'bg-amber-500 text-slate-950 animate-pulse'
-                          : 'bg-slate-800 text-amber-300 border border-amber-500/30'
-                      }`}>
-                        {idx === 0 ? ` HÔM NAY (${sched})` : `📅 LỊCH: ${sched}`}
-                      </span>
-                    ) : (
-                      <span className="text-[9px] px-1 py-0.2 rounded bg-slate-900 text-slate-500 font-mono shrink-0">
+
+                    {/* Hàng 2: Metadata (Ngày + Người phụ trách) */}
+                    <div className="flex items-center gap-1.5 flex-wrap pl-5 text-[9px]">
+                      <span className="font-mono text-amber-300/80 bg-slate-950/80 px-1.5 py-0.5 rounded border border-slate-800/80 flex items-center gap-1">
                         📅 {sched}
                       </span>
+                      {st.assignee && (
+                        <span
+                          className="font-mono text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/40 flex items-center gap-1 truncate max-w-[130px]"
+                          title={`Phụ trách: ${st.assignee.fullName}`}
+                        >
+                          👤 {st.assignee.fullName.replace(/\s*\([^)]*\)/g, '')}
+                        </span>
+                      )}
+                      {st.approvalStatus === 'REJECTED' && st.rejectionReason && (
+                        <span className="w-full text-[9px] text-rose-300/90 italic truncate" title={st.rejectionReason}>
+                          Lý do: {st.rejectionReason}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Hàng 3: Nút Duyệt / Từ chối (Cho Admin & Manager) */}
+                    {st.approvalStatus === 'PENDING' && isAdminOrManager && (
+                      <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-800/80 mt-1 pl-5">
+                        <button
+                          type="button"
+                          onClick={(e) => handleReviewSubtask(e, st.id, 'APPROVE')}
+                          className="px-2 py-0.5 rounded-md bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-mono font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1"
+                          title="Duyệt hoàn thành Task con này"
+                        >
+                          ✓ Duyệt
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleReviewSubtask(e, st.id, 'REJECT')}
+                          className="px-2 py-0.5 rounded-md bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/40 text-[10px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1"
+                          title="Từ chối và gửi lý do"
+                        >
+                          ✕ Từ chối
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Hàng 3 (Alt): Nút Gửi Lại (Cho Worker khi bị từ chối) */}
+                    {st.approvalStatus === 'REJECTED' && isWorkerDoingTask && (
+                      <div className="flex items-center justify-end pt-1.5 border-t border-slate-800/80 mt-1 pl-5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleSubtask?.(task.id, st.id, false);
+                          }}
+                          className="px-2.5 py-1 rounded-md bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-[10px] font-mono font-black transition-all cursor-pointer shadow-sm flex items-center gap-1"
+                          title="Gửi lại yêu cầu duyệt sau khi đã sửa xong"
+                        >
+                          🔄 Gửi Lại
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
