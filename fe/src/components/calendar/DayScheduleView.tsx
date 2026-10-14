@@ -164,9 +164,9 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
         </div>
       </div>
 
-      {/* 📊 Bento Grid: Hero Focus Task & Schedule List */}
+      {/* 📊 Bento Grid: Focus Task & Schedule List */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Cột Trái: Hero Focus Task #1 (5 cột) */}
+        {/* Cột Trái: Focus Task #1 (5 cột) */}
         {heroTask ? (
           <div className="lg:col-span-5 solar-glass-card p-6 rounded-3xl bg-[#0F172A]/95 border border-amber-500/40 shadow-xl space-y-5 relative overflow-hidden flex flex-col justify-between">
             <div className="space-y-4">
@@ -174,7 +174,7 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
                   <span className="text-xs font-black uppercase tracking-wider text-amber-300 font-mono">
-                    HERO FOCUS TASK #1
+                    FOCUS TASK #1
                   </span>
                 </div>
                 {getPriorityBadge(heroTask.priority)}

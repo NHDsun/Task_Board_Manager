@@ -66,6 +66,12 @@ import { DeleteTaskConfirmModal } from '../components/kanban/DeleteTaskConfirmMo
 export const BoardPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
+  const isManagerOrAdmin = Boolean(
+    user?.globalRole === 'ADMIN' ||
+    user?.globalRole === 'MANAGER' ||
+    (user as any)?.role === 'ADMIN' ||
+    (user as any)?.role === 'MANAGER'
+  );
   const [activeView, setActiveView] = useState<'kanban' | 'pipeline' | 'focus'>('kanban');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isTransferInboxOpen, setIsTransferInboxOpen] = useState(false);
@@ -521,30 +527,12 @@ export const BoardPage: React.FC = () => {
     const taskToMove = tasks.find((t) => t.id === draggableId);
     if (!taskToMove) return;
 
-    // 🔒 1. Drag Ownership Rule: Cho phép Assignee, Admin hoặc Manager có quyền kéo
-    const isManagerOrAdmin = Boolean(
-      user?.globalRole === 'ADMIN' ||
-      user?.globalRole === 'MANAGER' ||
-      (user as any)?.role === 'ADMIN' ||
-      (user as any)?.role === 'MANAGER'
-    );
-    const hasAssignee = Boolean(taskToMove.assigneeId || taskToMove.assignee?.id || taskToMove.assignee?.email);
-    const isSubtaskAssignee = Boolean(
-      taskToMove.subtasks &&
-      taskToMove.subtasks.some((st) => st.assigneeId === user?.id || st.assignee?.id === user?.id)
-    );
-    const isTaskOwner = hasAssignee
-      ? (taskToMove.assigneeId === user?.id ||
-         taskToMove.assignee?.id === user?.id ||
-         taskToMove.assignee?.email === user?.email ||
-         isSubtaskAssignee)
-      : (taskToMove as any).createdById === user?.id || isSubtaskAssignee;
-
-    if (!isManagerOrAdmin && !isTaskOwner) {
+    // 🔒 1. Drag Ownership Rule: Khóa kéo thả Roadmap đối với Employee, chỉ Admin hoặc Manager có quyền kéo
+    if (!isManagerOrAdmin) {
       showNotification(
-        `Task này đã được giao cho ${taskToMove.assignee?.fullName || 'thành viên khác'}! Bạn không có quyền chuyển giai đoạn Pipeline của người khác.`,
+        'Chỉ Quản lý (Manager) hoặc Quản trị viên (Admin) mới có quyền thay đổi giai đoạn dự án trên Roadmap!',
         'warning',
-        'Quyền Hạn Bị Từ Chối (Pipeline Ownership)'
+        'Phân Quyền Roadmap'
       );
       return;
     }
@@ -901,7 +889,7 @@ export const BoardPage: React.FC = () => {
           </div>
 
           {/* Priority Select */}
-          {/* <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+          <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
             <span className="text-amber-400 font-bold">★</span>
             <select
               value={filterPriority}
@@ -914,7 +902,7 @@ export const BoardPage: React.FC = () => {
               <option value="NORMAL" className="bg-[#0F172A] text-slate-200 font-semibold py-1">NORMAL (Thường)</option>
               <option value="LOW" className="bg-[#0F172A] text-slate-200 font-semibold py-1">LOW (Thấp)</option>
             </select>
-          </div> */}
+          </div>
 
           {/* Profession Select */}
           <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
@@ -1096,7 +1084,7 @@ export const BoardPage: React.FC = () => {
 
               {/* Project Stats Summary & Edit Toggle */}
               <div className="flex items-center gap-3 flex-wrap shrink-0">
-                {(user?.globalRole === 'ADMIN' || user?.globalRole === 'MANAGER') && (
+                {isManagerOrAdmin ? (
                   <button
                     onClick={() => setIsEditingPipelineStages(!isEditingPipelineStages)}
                     className="px-4 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
@@ -1104,6 +1092,11 @@ export const BoardPage: React.FC = () => {
                     <Sliders className="w-4 h-4 text-purple-400" />
                     {isEditingPipelineStages ? '✓ Đóng Quản Lý Giai Đoạn' : '⚙️ Quản Lý Giai Đoạn Pipeline'}
                   </button>
+                ) : (
+                  <div className="px-3.5 py-2 rounded-xl bg-slate-900/90 border border-purple-500/30 text-purple-300/80 text-xs font-mono font-bold flex items-center gap-2 shadow-sm">
+                    <Lock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Roadmap: Chế độ xem (Khóa kéo thả)</span>
+                  </div>
                 )}
 
                 <div className="flex items-center gap-3 bg-purple-950/40 p-3 rounded-2xl border border-purple-500/30 shrink-0">
@@ -1380,7 +1373,7 @@ export const BoardPage: React.FC = () => {
 
                           <div className="flex-1 space-y-3">
                             {stageTasks.map((t, index) => (
-                              <Draggable key={t.id} draggableId={t.id} index={index}>
+                              <Draggable key={t.id} draggableId={t.id} index={index} isDragDisabled={!isManagerOrAdmin}>
                                 {(providedDraggable, snapshotDraggable) => {
                                   const cardElement = (
                                     <div
@@ -1396,7 +1389,9 @@ export const BoardPage: React.FC = () => {
                                           ? '!z-[999999] rotate-2 scale-105 shadow-[0_0_60px_rgba(168,85,247,0.8)] border-2 border-purple-400 rounded-2xl bg-[#0F172A] cursor-grabbing'
                                           : snapshotDraggable.isDropAnimating || recentlyMovedTaskId === t.id
                                           ? 'animate-solar-drop-snap border-2 border-purple-400/90 rounded-2xl shadow-[0_0_35px_rgba(168,85,247,0.6)]'
-                                          : 'hover:-translate-y-0.5 transition-transform duration-150'
+                                          : !isManagerOrAdmin
+                                          ? 'cursor-default transition-transform duration-150'
+                                          : 'hover:-translate-y-0.5 transition-transform duration-150 cursor-grab'
                                       }`}
                                     >
                                       <KanbanCard
@@ -1576,14 +1571,14 @@ export const BoardPage: React.FC = () => {
               </div>
             )}
 
-            {/* 🚀 HERO FOCUS CARD (TINH GỌN & MẠNH MẼ) */}
+            {/* 🚀 FOCUS CARD (TINH GỌN & MẠNH MẼ) */}
             {heroTask ? (
               <div className="solar-glass-card p-6 rounded-3xl bg-gradient-to-br from-amber-500/10 via-[#0F172A] to-purple-600/10 border-2 border-amber-400/60 shadow-xl relative space-y-5 animate-fade-in">
                 {/* Top Meta Bar */}
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <span className="px-3 py-1 rounded-lg text-xs font-mono font-black bg-amber-500 text-slate-950 flex items-center gap-1.5 shadow-sm">
-                      <Zap className="w-3.5 h-3.5 fill-current" /> HERO FOCUS #1
+                      <Zap className="w-3.5 h-3.5 fill-current" /> FOCUS #1
                     </span>
                     <span className="text-xs text-amber-300/90 font-mono font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
                       📁 {heroTask.projectName || 'Solaris Core'}
@@ -1787,9 +1782,9 @@ export const BoardPage: React.FC = () => {
                   <button
                     onClick={() => {
                       setTasks((prev) =>
-                        prev.map((t) => (t.id === heroTask.id ? { ...t, status: 'TODO' } : t))
+                        prev.map((t) => (t.id === heroTask.id ? { ...t, status: 'PAUSED' } : t))
                       );
-                      api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' });
+                      api.patch(`/tasks/${heroTask.id}/status`, { status: 'PAUSED' });
                       showNotification(`⏸️ Đã tạm dừng Task "${heroTask.title}"!`, 'info', 'Today Focus');
                     }}
                     className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
@@ -1817,7 +1812,7 @@ export const BoardPage: React.FC = () => {
                 <Target className="w-10 h-10 text-amber-400 mx-auto opacity-70" />
                 <h3 className="text-base font-bold text-white">Chưa Có Task Nào Đang Thực Hiện (IN_PROGRESS)</h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Hãy chọn một việc từ Hàng chờ hôm nay bên dưới và nhấn <strong className="text-amber-300 font-mono">"▶️ Bắt Đầu Làm"</strong> để đưa lên Hero Focus!
+                  Hãy chọn một việc từ Hàng chờ hôm nay bên dưới và nhấn <strong className="text-amber-300 font-mono">"▶️ Bắt Đầu Làm"</strong> để đưa lên Focus!
                 </p>
               </div>
             )}
@@ -1878,26 +1873,26 @@ export const BoardPage: React.FC = () => {
                             setTasks((prev) =>
                               prev.map((item) => {
                                 if (item.id === t.id) return { ...item, status: 'IN_PROGRESS' };
-                                if (heroTask && item.id === heroTask.id) return { ...item, status: 'TODO' };
+                                if (heroTask && item.id === heroTask.id) return { ...item, status: 'PAUSED' };
                                 return item;
                               })
                             );
                             if (heroTask) {
-                              api.patch(`/tasks/${heroTask.id}/status`, { status: 'TODO' }).catch((err) => {
-                                console.error('Lỗi khi hạ status hero task cũ:', err);
+                              api.patch(`/tasks/${heroTask.id}/status`, { status: 'PAUSED' }).catch((err) => {
+                                console.error('Lỗi khi hạ status focus task cũ:', err);
                                 fetchTasksFromBackend();
                               });
                             }
                             api.patch(`/tasks/${t.id}/status`, { status: 'IN_PROGRESS' })
                               .then(() => {
                                 showNotification(
-                                  `🟢 Đã đưa Task "${t.title}" lên HERO FOCUS!`,
+                                  `🟢 Đã đưa Task "${t.title}" lên FOCUS!`,
                                   'success',
                                   'Today Focus'
                                 );
                               })
                               .catch((err) => {
-                                console.error('Lỗi khi kích hoạt Hero Task:', err);
+                                console.error('Lỗi khi kích hoạt Focus Task:', err);
                                 showNotification(
                                   `❌ Không thể cập nhật trạng thái Task: ${err.response?.data?.message || err.message}`,
                                   'warning',

@@ -1535,6 +1535,24 @@ Tài liệu này ghi lại toàn bộ lịch sử can thiệp mã nguồn dự �
   - **Chi tiết:** Chặn gửi khi thiếu Họ tên chính thức, thiếu Chuyên môn; Kiểm tra độ dài tối thiểu của mật khẩu mới (>= 6 ký tự); Kiểm tra khớp mật khẩu xác nhận; Chấp thuận hồ sơ hợp lệ.
 - **Kết quả kiểm thử:** Toàn bộ **59/59 test cases** (10 Test Suites) vượt qua 100% trong **662ms** (`vitest run`), Build Vite Production thành công 100% trong **444ms** (0 lỗi, 0 cảnh báo).
 
+---
+
+## 155. Chặn Phân Công Task Trùng Lịch Nghỉ Phép / Công Tác & Phân Quyền Kéo Thả Roadmap [LC-172]
+- **File 1:** `be/src/modules/task/task.service.ts`
+  - **Hành động:** `[TRIỂN KHAI BACKEND AVAILABILITY GUARD LC-172]`.
+  - **Chi tiết:** Xây dựng hàm `validateAssigneeAvailability` kiểm tra chéo `workSchedule` (`LEAVE`, `ON_SITE`) và `leaveRequest` đã duyệt (không tính `WFH`). Áp dụng triệt để khi tạo Task, thêm Subtask, cập nhật Subtask, gửi và phê duyệt chuyển giao.
+- **File 2:** `fe/src/store/useScheduleStore.ts` & `fe/src/components/kanban/CreateTaskModal.tsx`
+  - **Hành động:** `[TRIỂN KHAI FRONTEND AVAILABILITY VALIDATION & REALTIME WARNING]`.
+  - **Chi tiết:** Bổ sung `checkUserAvailabilityInRange`, hiển thị huy hiệu `[⚠️ Đang Nghỉ Phép/Công Tác]` trên selector và banner cảnh báo vi phạm.
+- **File 3:** `fe/src/pages/BoardPage.tsx` & `fe/src/components/calendar/DayScheduleView.tsx`
+  - **Hành động:** `[ROADMAP RBAC DRAG LOCK & CHUẨN HÓA FOCUS COCKPIT]`.
+  - **Chi tiết:**
+    - Khóa kéo thả Roadmap cho nhân viên (`EMPLOYEE`), chỉ cho phép Quản lý (`MANAGER`) hoặc Quản trị viên (`ADMIN`).
+    - Xóa bỏ từ "Hero" trong "Hero Focus" thành "Focus Cockpit / Focus #1".
+    - Khi bấm Tạm Dừng trong Focus Task, trạng thái chuyển đúng sang `PAUSED`.
+- **Kết quả biên dịch:** Cả `be` (`nest build`) và `fe` (`tsc -b && vite build`) biên dịch thành công 100% với Exit Code 0.
+
+
 
 
 

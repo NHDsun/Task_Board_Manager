@@ -1795,6 +1795,27 @@ Mỗi lỗi xung đột logic được phân loại theo 4 cấp độ nghiêm t
 
 ---
 
+### [LC-172] Chặn Phân Công Task Trùng Lịch Nghỉ Phép / Công Tác & Phân Quyền Kéo Thả Roadmap (Leave / Business Trip Task Assignment Guard & Roadmap RBAC Lock)
+* **Mức độ:** 🔴 **CRITICAL**
+* **Vấn đề (Root Cause):** 
+  - Trước đây khi tạo mới hoặc gán Task/Subtask, hệ thống không kiểm tra chéo lịch nghỉ phép đã duyệt (`leaveRequest` status `APPROVED`) hoặc lịch công tác (`workSchedule` type `ON_SITE` hoặc `LEAVE`) của nhân sự, dẫn đến tình trạng nhân viên đang nghỉ phép hoặc đi công tác vẫn bị giao việc vào thời gian vắng mặt.
+  - Trên màn hình Roadmap/Pipeline, tài khoản nhân viên (`EMPLOYEE`) vẫn có thể kéo thả thay đổi giai đoạn dự án vốn chỉ thuộc thẩm quyền của Quản lý (`MANAGER`) hoặc Quản trị viên (`ADMIN`).
+  - Nút Tạm Dừng trong Focus Cockpit trước đây hạ trạng thái Task về `TODO` thay vì `PAUSED`.
+* **Giải pháp kỹ thuật:**
+  - **Backend Availability Guard (`task.service.ts`):** Xây dựng hàm `validateAssigneeAvailability` kiểm tra chéo toàn bộ dữ liệu `workSchedule` (`LEAVE`, `ON_SITE`) và `leaveRequest` đã duyệt (không tính `WFH`). Áp dụng chặt chẽ khi tạo Task, tạo Subtask, cập nhật Subtask, gửi yêu cầu chuyển giao và phê duyệt chuyển giao.
+  - **Frontend Realtime Validation (`useScheduleStore.ts`, `CreateTaskModal.tsx`):** Cung cấp hàm `checkUserAvailabilityInRange`, hiển thị cảnh báo `[⚠️ Đang Nghỉ Phép/Công Tác]` trực tiếp trên danh sách chọn nhân sự và banner cảnh báo đỏ nổi bật ngăn chặn gửi form nếu vi phạm.
+  - **Roadmap RBAC Lock (`BoardPage.tsx`):** Khóa kéo thả Roadmap đối với nhân viên (`isDragDisabled={!isManagerOrAdmin}`), bổ sung huy hiệu `Roadmap: Chế độ xem (Khóa kéo thả)` và chặn xử lý trong `handlePipelineDragEnd`.
+  - **Chuẩn Hóa Focus Cockpit (`BoardPage.tsx`, `DayScheduleView.tsx`):** Xóa bỏ từ "Hero" trong "Hero Focus" thành "Focus Cockpit / Focus #1". Khi bấm Tạm Dừng, Task chuyển đúng sang trạng thái `PAUSED`.
+* **File ảnh hưởng:** 
+  - `be/src/modules/task/task.service.ts`
+  - `fe/src/store/useScheduleStore.ts`
+  - `fe/src/components/kanban/CreateTaskModal.tsx`
+  - `fe/src/pages/BoardPage.tsx`
+  - `fe/src/components/calendar/DayScheduleView.tsx`
+* **Trạng thái:** ✅ **Đã hoàn thành & Kiểm thử 100% (Milestone 172/172)**.
+
+---
+
 ## 3. DANH MỤC CÁC CONFLICT ĐANG TIẾP TỤC THEO DÕI & TỐI ƯU HÓA (BACKLOG CONFLICTS)
 
 | Mã ID | Tên Luồng Conflict | Mức Độ | Trạng Thái |

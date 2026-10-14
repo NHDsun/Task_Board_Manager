@@ -86,6 +86,13 @@ interface ScheduleStoreState {
   // 📍 Lấy vị trí làm việc của một User tại một ngày bất kỳ (Lịch là nguồn sự thật)
   getWorkLocationForDate: (userId: string, dateStr: string) => WorkLocationInfo;
 
+  // 🔒 [LC-109] Kiểm tra nhân sự có rảnh trong dải ngày không (Nghỉ phép / Công tác)
+  checkUserAvailabilityInRange: (
+    userId: string,
+    startDateStr?: string,
+    endDateStr?: string
+  ) => { isAvailable: boolean; conflictType?: WorkLocationType; conflictDate?: string; reason?: string };
+
   // 👑 Cập nhật vị trí làm việc 1 ngày
   setUserDailyWorkLocation: (
     userId: string,
@@ -268,6 +275,59 @@ export const useScheduleStore = create<ScheduleStoreState>((set, get) => ({
       source: 'DEFAULT',
       sourceTitle: 'Tại Văn Phòng',
     };
+  },
+
+  checkUserAvailabilityInRange: (
+    userId: string,
+    startDateStr?: string,
+    endDateStr?: string
+  ): { isAvailable: boolean; conflictType?: WorkLocationType; conflictDate?: string; reason?: string } => {
+    if (!userId) return { isAvailable: true };
+    const state = get();
+
+    const start = startDateStr ? startDateStr.split('T')[0] : (endDateStr ? endDateStr.split('T')[0] : new Date().toISOString().split('T')[0]);
+    const end = endDateStr ? endDateStr.split('T')[0] : start;
+
+    // 1. Kiểm tra đơn nghỉ phép đã duyệt (không phải WFH)
+    const matchingLeave = state.leaveRequests.find((req) => {
+      if (req.userId !== userId) return false;
+      if (req.status !== 'APPROVED' && req.status !== 'APPROVED_MODIFIED') return false;
+      if (req.type === 'WFH') return false; // WFH vẫn làm việc nhận task bình thường
+
+      const reqStart = req.approvedStartDate || req.startDate;
+      const reqEnd = req.approvedEndDate || req.endDate;
+
+      return start <= reqEnd && end >= reqStart;
+    });
+
+    if (matchingLeave) {
+      const leaveStart = matchingLeave.approvedStartDate || matchingLeave.startDate;
+      const leaveEnd = matchingLeave.approvedEndDate || matchingLeave.endDate;
+      return {
+        isAvailable: false,
+        conflictType: 'LEAVE',
+        conflictDate: leaveStart === leaveEnd ? leaveStart : `${leaveStart} đến ${leaveEnd}`,
+        reason: matchingLeave.reason || 'Nghỉ phép',
+      };
+    }
+
+    // 2. Kiểm tra lịch làm việc (WorkSchedule) có LEAVE hoặc ON_SITE (Công tác)
+    const matchingSchedule = state.workSchedules.find((s) => {
+      if (s.userId !== userId) return false;
+      if (s.workType !== 'LEAVE' && s.workType !== 'ON_SITE') return false;
+      return s.date >= start && s.date <= end;
+    });
+
+    if (matchingSchedule) {
+      return {
+        isAvailable: false,
+        conflictType: matchingSchedule.workType,
+        conflictDate: matchingSchedule.date,
+        reason: matchingSchedule.note || (matchingSchedule.workType === 'LEAVE' ? 'Nghỉ phép' : 'Lịch công tác (ON_SITE)'),
+      };
+    }
+
+    return { isAvailable: true };
   },
 
   setUserDailyWorkLocation: async (userId, workType, dateStr, adminInfo, shift, customNote) => {

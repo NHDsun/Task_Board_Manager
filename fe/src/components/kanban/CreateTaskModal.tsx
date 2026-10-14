@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, PlusCircle, Sparkles, UserCheck, Plus, Trash2, Calendar, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useScheduleStore } from '../../store/useScheduleStore';
 import { api } from '../../services/api';
 
 interface CreateTaskModalProps {
@@ -34,6 +35,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   onSuccess,
 }) => {
   const currentUser = useAuthStore((state) => state.user);
+  const fetchSchedulesAndLeaves = useScheduleStore((state) => state.fetchSchedulesAndLeaves);
+  const checkUserAvailabilityInRange = useScheduleStore((state) => state.checkUserAvailabilityInRange);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -92,6 +95,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           setAssigneeId(currentUser?.id || userList[0].id);
           setSubtaskInputAssigneeId(currentUser?.id || userList[0].id);
         }
+
+        // Tải danh sách lịch & đơn nghỉ phép để kiểm tra xung đột thời gian
+        await fetchSchedulesAndLeaves();
       } catch {
         // Fallback
       }
@@ -100,7 +106,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     if (isOpen) {
       fetchMetadata();
     }
-  }, [isOpen, currentUser?.id]);
+  }, [isOpen, currentUser?.id, fetchSchedulesAndLeaves]);
 
   // 👥 Đồng bộ danh sách thành viên hợp lệ của Dự án được chọn
   useEffect(() => {
@@ -163,6 +169,29 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
   const handleAddDraftSubtask = () => {
     if (!subtaskInputTitle.trim()) return;
+
+    // 🔒 [LC-109] Kiểm tra xung đột lịch nghỉ phép/công tác của nhân sự làm việc con
+    const draftTargetAssigneeId = subtaskInputAssigneeId || assigneeId;
+    if (draftTargetAssigneeId) {
+      const stStart = startDate ? new Date(startDate) : new Date();
+      stStart.setDate(stStart.getDate() + ((subtaskInputDayNumber || 1) - 1));
+      const stDue = new Date(stStart);
+      stDue.setDate(stDue.getDate() + (subtaskInputDays || 1));
+
+      const stAvail = checkUserAvailabilityInRange(
+        draftTargetAssigneeId,
+        stStart.toISOString().slice(0, 10),
+        stDue.toISOString().slice(0, 10)
+      );
+
+      if (!stAvail.isAvailable) {
+        setError(
+          `Nhân sự được giao Task con đang ${stAvail.conflictType === 'LEAVE' ? 'nghỉ phép' : 'có lịch công tác'} (${stAvail.conflictDate}). Không thể phân công Task con trùng vào thời gian này!`
+        );
+        return;
+      }
+    }
+
     setSubtasksDraft((prev) => [
       ...prev,
       {
@@ -192,6 +221,19 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     if (effectiveDueDate && startDate && effectiveDueDate < startDate) {
       setError('Hạn Deadline (due date) phải lớn hơn hoặc bằng Ngày Bắt Đầu Task!');
       return;
+    }
+
+    // 🔒 [LC-109] Chặn gán Task cho nhân viên đang nghỉ phép hoặc công tác trùng thời gian Task
+    if (assigneeId) {
+      const avail = checkUserAvailabilityInRange(assigneeId, startDate, effectiveDueDate);
+      if (!avail.isAvailable) {
+        const targetUser = projectMembers.find((u) => u.id === assigneeId) || dbUsers.find((u) => u.id === assigneeId);
+        const name = targetUser?.fullName || 'Nhân sự';
+        setError(
+          `Nhân viên "${name}" đang trong thời gian ${avail.conflictType === 'LEAVE' ? 'nghỉ phép' : 'có lịch công tác'} (${avail.conflictDate}). Không thể phân công Task trùng vào thời gian này!`
+        );
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -327,12 +369,37 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 onChange={(e) => setAssigneeId(e.target.value)}
                 className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500/60 font-semibold cursor-pointer"
               >
-                {currentAvailableUsers.map((u) => (
-                  <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200 py-1">
-                    👤 {u.fullName} ({u.profession || 'DEV'})
-                  </option>
-                ))}
+                {currentAvailableUsers.map((u) => {
+                  const uAvail = checkUserAvailabilityInRange(u.id, startDate, effectiveDueDate);
+                  const statusTag = !uAvail.isAvailable
+                    ? ` [⚠️ Đang ${uAvail.conflictType === 'LEAVE' ? 'Nghỉ Phép' : 'Công Tác'}]`
+                    : '';
+                  return (
+                    <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200 py-1">
+                      👤 {u.fullName} ({u.profession || 'DEV'}){statusTag}
+                    </option>
+                  );
+                })}
               </select>
+
+              {/* ⚠️ Cảnh báo nhân sự đang nghỉ phép hoặc công tác */}
+              {(() => {
+                const avail = checkUserAvailabilityInRange(assigneeId, startDate, effectiveDueDate);
+                if (avail.isAvailable) return null;
+                return (
+                  <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-[11px] flex items-start gap-2 animate-fade-in">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">
+                        ⚠️ Đang {avail.conflictType === 'LEAVE' ? 'Nghỉ Phép' : 'Công Tác (ON_SITE)'} ({avail.conflictDate})
+                      </span>
+                      <p className="text-[10px] text-rose-200/80 mt-0.5 leading-tight">
+                        Không thể gán Task trùng vào thời gian nhân sự nghỉ phép hoặc công tác.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* CHỌN DỰ ÁN */}
@@ -449,11 +516,17 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono text-xs focus:outline-none focus:border-amber-400 cursor-pointer max-w-[140px] truncate"
                 title="Chọn nhân sự phụ trách (có thể trùng người hoặc chọn nhân sự khác)"
               >
-                {currentAvailableUsers.map((u) => (
-                  <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200">
-                    👤 {u.fullName}
-                  </option>
-                ))}
+                {currentAvailableUsers.map((u) => {
+                  const uAvail = checkUserAvailabilityInRange(u.id, startDate, effectiveDueDate);
+                  const statusTag = !uAvail.isAvailable
+                    ? ` [⚠️ ${uAvail.conflictType === 'LEAVE' ? 'Nghỉ Phép' : 'Công Tác'}]`
+                    : '';
+                  return (
+                    <option key={u.id} value={u.id} className="bg-[#0F172A] text-slate-200">
+                      👤 {u.fullName}{statusTag}
+                    </option>
+                  );
+                })}
               </select>
               <select
                 value={subtaskInputDays}

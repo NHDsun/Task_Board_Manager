@@ -7,7 +7,7 @@ import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
 import { SocketGateway } from '../socket/socket.gateway';
 import { NotificationService } from '../notification/notification.service';
 import { TaskActivityService } from './task-activity.service';
-import { TaskStatus } from '@prisma/client';
+import { TaskStatus, WorkType, LeaveStatus, LeaveType } from '@prisma/client';
 import { AuthUserPayload } from '../../common/interfaces/auth-user.interface';
 
 @Injectable()
@@ -112,6 +112,102 @@ export class TaskService {
     return tasks.map((t) => this.mapTaskResponse(t));
   }
 
+  /**
+   * 🔒 [LC-109] KIỂM TRA TÍNH KHẢ DỤNG CỦA NHÂN SỰ
+   * Chặn gán Task cho nhân viên đang nghỉ phép hoặc có lịch công tác (ON_SITE) trùng thời gian Task
+   */
+  async validateAssigneeAvailability(
+    assigneeId: string,
+    startDate?: Date | string | null,
+    dueDate?: Date | string | null,
+    contextLabel?: string
+  ) {
+    if (!assigneeId) return;
+
+    // 1. Xác định khung thời gian kiểm tra
+    let rangeStart: Date;
+    let rangeEnd: Date;
+
+    if (startDate && dueDate) {
+      rangeStart = new Date(startDate);
+      rangeEnd = new Date(dueDate);
+    } else if (dueDate) {
+      rangeStart = new Date();
+      rangeEnd = new Date(dueDate);
+      if (rangeStart.getTime() > rangeEnd.getTime()) {
+        rangeStart = new Date(rangeEnd);
+      }
+    } else if (startDate) {
+      rangeStart = new Date(startDate);
+      rangeEnd = new Date(startDate);
+    } else {
+      rangeStart = new Date();
+      rangeEnd = new Date();
+    }
+
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd.setHours(23, 59, 59, 999);
+
+    // 2. Lấy thông tin nhân sự
+    const assignee = await this.prisma.user.findUnique({
+      where: { id: assigneeId },
+      select: { id: true, fullName: true },
+    });
+    const assigneeName = assignee?.fullName || 'Nhân sự';
+
+    // 3. Kiểm tra bản ghi WorkSchedule (Nghỉ phép hoặc Công tác)
+    const conflictingSchedules = await this.prisma.workSchedule.findMany({
+      where: {
+        userId: assigneeId,
+        workType: { in: [WorkType.LEAVE, WorkType.ON_SITE] },
+        date: {
+          gte: rangeStart,
+          lte: rangeEnd,
+        },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    if (conflictingSchedules.length > 0) {
+      const firstConflict = conflictingSchedules[0];
+      const conflictDateStr = firstConflict.date.toISOString().slice(0, 10);
+      const isLeave = firstConflict.workType === WorkType.LEAVE;
+      const typeText = isLeave ? 'nghỉ phép' : 'lịch công tác (ON_SITE)';
+
+      const prefix = contextLabel ? `[${contextLabel}] ` : '';
+      throw new BadRequestException(
+        `${prefix}Nhân viên "${assigneeName}" đang có lịch ${typeText} vào ngày ${conflictDateStr}. Không thể gán công việc trùng vào thời gian này!`
+      );
+    }
+
+    // 4. Kiểm tra bản ghi LeaveRequest đã được duyệt (APPROVED hoặc APPROVED_MODIFIED, không phải WFH)
+    const conflictingLeaves = await this.prisma.leaveRequest.findMany({
+      where: {
+        userId: assigneeId,
+        status: { in: [LeaveStatus.APPROVED, LeaveStatus.APPROVED_MODIFIED] },
+        type: { not: LeaveType.WFH },
+      },
+    });
+
+    const activeConflictLeave = conflictingLeaves.find((lr) => {
+      const lrStart = new Date(lr.approvedStartDate || lr.startDate);
+      lrStart.setHours(0, 0, 0, 0);
+      const lrEnd = new Date(lr.approvedEndDate || lr.endDate);
+      lrEnd.setHours(23, 59, 59, 999);
+
+      return lrStart.getTime() <= rangeEnd.getTime() && lrEnd.getTime() >= rangeStart.getTime();
+    });
+
+    if (activeConflictLeave) {
+      const startStr = (activeConflictLeave.approvedStartDate || activeConflictLeave.startDate).toISOString().slice(0, 10);
+      const endStr = (activeConflictLeave.approvedEndDate || activeConflictLeave.endDate).toISOString().slice(0, 10);
+      const prefix = contextLabel ? `[${contextLabel}] ` : '';
+      throw new BadRequestException(
+        `${prefix}Nhân viên "${assigneeName}" đang trong thời gian nghỉ phép (từ ${startStr} đến ${endStr}). Không thể gán công việc mới trong thời gian này!`
+      );
+    }
+  }
+
   async create(userId: string, createTaskDto: CreateTaskDto) {
     let parsedStartDate: Date | null = null;
     if (createTaskDto.startDate) {
@@ -155,12 +251,30 @@ export class TaskService {
       throw new BadRequestException('Người được phân công không thuộc thành viên của Dự án này!');
     }
 
-    // 🔒 [LC-66] KIỂM TRA TẤT CẢ NGƯỜI ĐƯỢC GIAO TASK CON CÓ THUỘC THÀNH VIÊN DỰ ÁN KHÔNG
+    // 🔒 [LC-109] KIỂM TRA NHÂN SỰ CÓ ĐANG NGHỈ PHÉP HOẶC CÔNG TÁC TRÙNG THỜI GIAN TASK
+    const effectiveAssigneeId = createTaskDto.assigneeId || userId;
+    await this.validateAssigneeAvailability(
+      effectiveAssigneeId,
+      parsedStartDate,
+      parsedDueDate
+    );
+
+    // 🔒 [LC-66] KIỂM TRA TẤT CẢ NGƯỜI ĐƯỢC GIAO TASK CON CÓ THUỘC THÀNH VIÊN DỰ ÁN KHÔNG & TÍNH KHẢ DỤNG
     if (createTaskDto.subtasks && Array.isArray(createTaskDto.subtasks)) {
       for (const st of createTaskDto.subtasks) {
         if (st.assigneeId && !validMemberIds.has(st.assigneeId)) {
           throw new BadRequestException(
             `Nhân sự được giao Task con "${st.title || ''}" không thuộc thành viên của Dự án này!`
+          );
+        }
+        if (st.assigneeId) {
+          const stStart = st.startDate ? new Date(st.startDate) : parsedStartDate;
+          const stDue = st.dueDate ? new Date(st.dueDate) : parsedDueDate;
+          await this.validateAssigneeAvailability(
+            st.assigneeId,
+            stStart,
+            stDue,
+            `Task con "${st.title || ''}"`
           );
         }
       }
@@ -677,6 +791,16 @@ export class TaskService {
       where: { id: effectiveReceiverId },
     });
 
+    // 🔒 [LC-109] KIỂM TRA NGƯỜI NHẬN CÓ ĐANG NGHỈ PHÉP HOẶC CÔNG TÁC KHÔNG KHI CHUYỂN GIAO TASK TỔNG
+    if (!dto.subtaskId && (!dto.type || dto.type === 'TRANSFER')) {
+      await this.validateAssigneeAvailability(
+        effectiveReceiverId,
+        targetTask.startDate,
+        targetTask.dueDate,
+        'Chuyển giao Task'
+      );
+    }
+
     // 🔀 CHUYỂN GIAO THEO CẤP ĐỘ MINITASK (SUBTASK TRANSFER)
     if (dto.subtaskId) {
       const targetSubtask = await this.prisma.subtask.findUnique({
@@ -691,6 +815,14 @@ export class TaskService {
       if (targetSubtask.assigneeId === effectiveReceiverId) {
         throw new BadRequestException('Nhân sự này đã đang trực tiếp phụ trách Task con này.');
       }
+
+      // 🔒 [LC-109] Kiểm tra người nhận có đang nghỉ phép/công tác không
+      await this.validateAssigneeAvailability(
+        effectiveReceiverId,
+        targetSubtask.startDate || targetTask.startDate,
+        targetSubtask.dueDate || targetTask.dueDate,
+        `Chuyển giao Task con "${targetSubtask.title}"`
+      );
 
       const isSubtaskOwner =
         targetSubtask.assigneeId === effectiveSenderId ||
@@ -1100,6 +1232,8 @@ export class TaskService {
             id: true,
             title: true,
             projectId: true,
+            startDate: true,
+            dueDate: true,
             project: { select: { managerId: true, createdById: true } },
           },
         },
@@ -1168,6 +1302,14 @@ export class TaskService {
         if (subtaskId) {
           // 🔀 XỬ LÝ CHUYỂN GIAO MINITASK (SUBTASK TRANSFER)
           if (action === 'APPROVED') {
+            const targetSubtask = await tx.subtask.findUnique({ where: { id: subtaskId } });
+            await this.validateAssigneeAvailability(
+              reqItem.receiverId,
+              targetSubtask?.startDate || reqItem.task.startDate,
+              targetSubtask?.dueDate || reqItem.task.dueDate,
+              `Tiếp nhận Task con "${targetSubtask?.title || ''}"`
+            );
+
             await tx.subtask.update({
               where: { id: subtaskId },
               data: { assigneeId: reqItem.receiverId },
@@ -1207,6 +1349,13 @@ export class TaskService {
         } else {
           // Legacy Whole Task Transfer
           if (action === 'APPROVED') {
+            await this.validateAssigneeAvailability(
+              reqItem.receiverId,
+              reqItem.task.startDate,
+              reqItem.task.dueDate,
+              'Tiếp nhận chuyển giao Task'
+            );
+
             // Khi chuyển giao task thành công: tự động hủy các yêu cầu duyệt subtask cũ đang treo
             await tx.taskRequest.updateMany({
               where: {
@@ -1920,6 +2069,16 @@ export class TaskService {
       parsedSubtaskDueDate = calcDue;
     }
 
+    // 🔒 [LC-109] KIỂM TRA TÍNH KHẢ DỤNG CỦA NHÂN SỰ ĐƯỢC GIAO TASK CON
+    if (effectiveSubtaskAssigneeId) {
+      await this.validateAssigneeAvailability(
+        effectiveSubtaskAssigneeId,
+        parsedSubtaskStartDate || task.startDate,
+        parsedSubtaskDueDate || task.dueDate,
+        `Task con "${body.title?.trim() || ''}"`
+      );
+    }
+
     const nextOrder = task.subtasks.length;
     await this.prisma.subtask.create({
       data: {
@@ -2027,6 +2186,21 @@ export class TaskService {
         subtask.task.project?.managerId === body.assigneeId || subtask.task.project?.createdById === body.assigneeId;
       if (!isMember && !isProjectAdminOrManager) {
         throw new BadRequestException('Nhân sự được giao Task con không thuộc thành viên của dự án này.');
+      }
+    }
+
+    // 🔒 [LC-109] KIỂM TRA TÍNH KHẢ DỤNG KHI CẬP NHẬT TASK CON
+    if (body.assigneeId || body.startDate || body.dueDate) {
+      const targetAssignee = body.assigneeId !== undefined ? body.assigneeId : subtask.assigneeId;
+      if (targetAssignee) {
+        const effStart = body.startDate ? new Date(body.startDate) : (subtask.startDate || subtask.task.startDate);
+        const effDue = body.dueDate ? new Date(body.dueDate) : (subtask.dueDate || subtask.task.dueDate);
+        await this.validateAssigneeAvailability(
+          targetAssignee,
+          effStart,
+          effDue,
+          `Task con "${body.title || subtask.title}"`
+        );
       }
     }
 
